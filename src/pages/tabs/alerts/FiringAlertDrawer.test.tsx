@@ -131,8 +131,8 @@ describe('FiringAlertDrawer (#32)', () => {
   it('shows the last deploy before firing when a deploy annotation is found', async () => {
     const activeAtMs = Date.now() - 30 * 60_000;
     mockGet.mockResolvedValue([
-      { time: activeAtMs - 5 * 60_000, text: 'ignored', tags: ['nais-apm:deploy', 'version:1.2.3'] },
-      { time: activeAtMs + 60_000, text: 'after', tags: ['nais-apm:deploy', 'version:1.2.4'] },
+      { time: activeAtMs - 5 * 60_000, text: 'ignored', tags: ['clickhouse-apm:deploy', 'version:1.2.3'] },
+      { time: activeAtMs + 60_000, text: 'after', tags: ['clickhouse-apm:deploy', 'version:1.2.4'] },
     ]);
 
     const { rerender } = renderDrawer(

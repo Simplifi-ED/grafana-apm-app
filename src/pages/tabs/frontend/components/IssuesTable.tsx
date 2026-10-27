@@ -9,7 +9,6 @@ import {
   IconButton,
   Pagination,
   RadioButtonGroup,
-  TextLink,
   Tooltip,
   useStyles2,
 } from '@grafana/ui';
@@ -32,7 +31,6 @@ import { useUrlParams } from '../../../../utils/useUrlState';
 import { useUserMutes } from '../../../../utils/userStorage';
 import { usePluginDatasources } from '../../../../utils/datasources';
 import { buildExceptionTracesExploreUrl } from '../../../../utils/explore';
-import { apmDocs } from '../../../../utils/docsLinks';
 import { DataState } from '../../../../components/DataState';
 
 interface IssuesTableProps {
@@ -207,12 +205,7 @@ export function IssuesTable({ namespace, service, environment, compact = false }
     <div className={styles.container}>
       <div className={styles.header}>
         <h6 className={styles.title}>Top Exceptions</h6>
-        <span className={styles.subtitle}>
-          Frontend and backend errors grouped by stable fingerprint{' '}
-          <TextLink href={apmDocs.issuesModel()} external variant="bodySmall">
-            Learn more
-          </TextLink>
-        </span>
+        <span className={styles.subtitle}>Frontend and backend errors grouped by stable fingerprint</span>
         <div className={styles.headerSpacer} />
         {!compact &&
           (facetsActive ? (

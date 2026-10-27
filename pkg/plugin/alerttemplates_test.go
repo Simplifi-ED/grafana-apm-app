@@ -88,7 +88,7 @@ func TestHandleAlertTemplate(t *testing.T) {
 		wantExpr       string // exact expr of query A
 		wantName       string
 		wantThreshold  float64
-		wantAnnotation string // exact nais_apm_url annotation value
+		wantAnnotation string // exact clickhouse_apm_url annotation value
 	}{
 		{
 			name:      "error-rate uses detected calls metric",
@@ -98,7 +98,7 @@ func TestHandleAlertTemplate(t *testing.T) {
 				` / sum(rate(traces_span_metrics_calls_total{service_name="my-svc", service_namespace="team-a"}[5m]))`,
 			wantName:       "Error rate above 5% – my-svc",
 			wantThreshold:  0.05,
-			wantAnnotation: "/a/nais-apm-app/services/team-a/my-svc",
+			wantAnnotation: "/a/clickhouse-apm-app/services/team-a/my-svc",
 		},
 		{
 			name:      "error-rate with environment adds matcher and resolves per-env datasource",
@@ -108,7 +108,7 @@ func TestHandleAlertTemplate(t *testing.T) {
 				` / sum(rate(traces_span_metrics_calls_total{service_name="my-svc", service_namespace="team-a", k8s_cluster_name="prod-gcp"}[5m]))`,
 			wantName:       "Error rate above 5% – my-svc (prod-gcp)",
 			wantThreshold:  0.05,
-			wantAnnotation: "/a/nais-apm-app/services/team-a/my-svc?environment=prod-gcp",
+			wantAnnotation: "/a/clickhouse-apm-app/services/team-a/my-svc?environment=prod-gcp",
 		},
 		{
 			name:      "error-rate without namespace omits namespace matcher",
@@ -118,7 +118,7 @@ func TestHandleAlertTemplate(t *testing.T) {
 				` / sum(rate(traces_span_metrics_calls_total{service_name="my-svc"}[5m]))`,
 			wantName:       "Error rate above 5% – my-svc",
 			wantThreshold:  0.05,
-			wantAnnotation: "/a/nais-apm-app/services/_/my-svc",
+			wantAnnotation: "/a/clickhouse-apm-app/services/_/my-svc",
 		},
 		{
 			name:           "exception-spike single hash uses drawer query shape",
@@ -127,7 +127,7 @@ func TestHandleAlertTemplate(t *testing.T) {
 			wantExpr:       "sum(count_over_time({service_name=\"my-svc\", kind=\"exception\", k8s_cluster_name=\"prod-gcp\"} |= `hash=abc123` | logfmt | hash=\"abc123\" [5m]))",
 			wantName:       "Exception spike – my-svc (v1:9f2ab31c04d7e655)",
 			wantThreshold:  10,
-			wantAnnotation: "/a/nais-apm-app/services/team-a/my-svc?environment=prod-gcp&issueId=v1%3A9f2ab31c04d7e655&tab=issues",
+			wantAnnotation: "/a/clickhouse-apm-app/services/team-a/my-svc?environment=prod-gcp&issueId=v1%3A9f2ab31c04d7e655&tab=issues",
 		},
 		{
 			name:           "exception-spike multiple member hashes uses regex form",
@@ -136,7 +136,7 @@ func TestHandleAlertTemplate(t *testing.T) {
 			wantExpr:       "sum(count_over_time({service_name=\"my-svc\", kind=\"exception\"} |~ `hash=(abc123|def456)` | logfmt | hash=~\"(abc123|def456)\" [5m]))",
 			wantName:       "Exception spike – my-svc (v1:9f2ab31c04d7e655)",
 			wantThreshold:  10,
-			wantAnnotation: "/a/nais-apm-app/services/team-a/my-svc?issueId=v1%3A9f2ab31c04d7e655&tab=issues",
+			wantAnnotation: "/a/clickhouse-apm-app/services/team-a/my-svc?issueId=v1%3A9f2ab31c04d7e655&tab=issues",
 		},
 		{
 			name:           "exception-spike without fingerprint falls back to exceptionHash deep link",
@@ -145,7 +145,7 @@ func TestHandleAlertTemplate(t *testing.T) {
 			wantExpr:       "sum(count_over_time({service_name=\"my-svc\", kind=\"exception\"} |= `hash=abc123` | logfmt | hash=\"abc123\" [5m]))",
 			wantName:       "Exception spike – my-svc (abc123)",
 			wantThreshold:  10,
-			wantAnnotation: "/a/nais-apm-app/services/team-a/my-svc?exceptionHash=abc123&tab=issues",
+			wantAnnotation: "/a/clickhouse-apm-app/services/team-a/my-svc?exceptionHash=abc123&tab=issues",
 		},
 		{
 			name:           "web-vitals uses alloy LCP bucket metric",
@@ -154,7 +154,7 @@ func TestHandleAlertTemplate(t *testing.T) {
 			wantExpr:       `histogram_quantile(0.75, sum by (le) (rate(loki_process_custom_faro_web_vitals_lcp_milliseconds_bucket{app_name="my-svc", env="prod-gcp"}[15m])))`,
 			wantName:       "LCP p75 above 2.5s – my-svc (prod-gcp)",
 			wantThreshold:  2500,
-			wantAnnotation: "/a/nais-apm-app/services/team-a/my-svc?environment=prod-gcp&tab=frontend",
+			wantAnnotation: "/a/clickhouse-apm-app/services/team-a/my-svc?environment=prod-gcp&tab=frontend",
 		},
 		{
 			name:           "web-vitals without environment omits env matcher",
@@ -163,7 +163,7 @@ func TestHandleAlertTemplate(t *testing.T) {
 			wantExpr:       `histogram_quantile(0.75, sum by (le) (rate(loki_process_custom_faro_web_vitals_lcp_milliseconds_bucket{app_name="my-svc"}[15m])))`,
 			wantName:       "LCP p75 above 2.5s – my-svc",
 			wantThreshold:  2500,
-			wantAnnotation: "/a/nais-apm-app/services/team-a/my-svc?tab=frontend",
+			wantAnnotation: "/a/clickhouse-apm-app/services/team-a/my-svc?tab=frontend",
 		},
 		{
 			name:       "unknown kind returns 404",
@@ -243,12 +243,12 @@ func TestHandleAlertTemplate(t *testing.T) {
 				t.Errorf("threshold = %v, want %v", got, tc.wantThreshold)
 			}
 
-			assertAnnotation(t, d.Annotations, "nais_apm_url", tc.wantAnnotation)
+			assertAnnotation(t, d.Annotations, "clickhouse_apm_url", tc.wantAnnotation)
 			if v := findKV(d.Annotations, "summary"); v == "" {
 				t.Error("missing summary annotation")
 			}
-			if v := findKV(d.Labels, "source"); v != "nais-apm" {
-				t.Errorf("label source = %q, want nais-apm", v)
+			if v := findKV(d.Labels, "source"); v != "clickhouse-apm" {
+				t.Errorf("label source = %q, want clickhouse-apm", v)
 			}
 			if v := findKV(d.Labels, "service"); v != "my-svc" {
 				t.Errorf("label service = %q, want my-svc", v)
@@ -302,7 +302,7 @@ func TestSLOBurnRateTemplate(t *testing.T) {
 			wantEvaluate:   "2m",
 			wantSeverity:   "critical",
 			wantSLOLabel:   "99.9%",
-			wantAnnotation: "/a/nais-apm-app/services/team-a/my-svc",
+			wantAnnotation: "/a/clickhouse-apm-app/services/team-a/my-svc",
 			wantContains:   []string{"[1h]", "[5m]", "/ 0.001", ">= bool 14.4", "or vector(0)"},
 		},
 		{
@@ -317,7 +317,7 @@ func TestSLOBurnRateTemplate(t *testing.T) {
 			wantEvaluate:   "15m",
 			wantSeverity:   "warning",
 			wantSLOLabel:   "99%",
-			wantAnnotation: "/a/nais-apm-app/services/team-a/my-svc?environment=prod-gcp",
+			wantAnnotation: "/a/clickhouse-apm-app/services/team-a/my-svc?environment=prod-gcp",
 			wantContains:   []string{"[6h]", "[30m]", "/ 0.01", ">= bool 6", "or vector(0)"},
 		},
 		{
@@ -332,7 +332,7 @@ func TestSLOBurnRateTemplate(t *testing.T) {
 			wantEvaluate:   "2m",
 			wantSeverity:   "critical",
 			wantSLOLabel:   "99.99%",
-			wantAnnotation: "/a/nais-apm-app/services/_/my-svc",
+			wantAnnotation: "/a/clickhouse-apm-app/services/_/my-svc",
 			wantContains:   []string{"/ 0.0001", ">= bool 14.4"},
 		},
 		{
@@ -347,7 +347,7 @@ func TestSLOBurnRateTemplate(t *testing.T) {
 			wantEvaluate:   "2m",
 			wantSeverity:   "critical",
 			wantSLOLabel:   "99.9%",
-			wantAnnotation: "/a/nais-apm-app/services/team-a/my-svc",
+			wantAnnotation: "/a/clickhouse-apm-app/services/team-a/my-svc",
 			wantContains:   []string{"/ 0.001", ">= bool 14.4"},
 		},
 	}
@@ -393,10 +393,10 @@ func TestSLOBurnRateTemplate(t *testing.T) {
 			if v := findKV(d.Labels, "slo"); v != tc.wantSLOLabel {
 				t.Errorf("slo label = %q, want %q", v, tc.wantSLOLabel)
 			}
-			if v := findKV(d.Labels, "source"); v != "nais-apm" {
-				t.Errorf("source label = %q, want nais-apm", v)
+			if v := findKV(d.Labels, "source"); v != "clickhouse-apm" {
+				t.Errorf("source label = %q, want clickhouse-apm", v)
 			}
-			assertAnnotation(t, d.Annotations, "nais_apm_url", tc.wantAnnotation)
+			assertAnnotation(t, d.Annotations, "clickhouse_apm_url", tc.wantAnnotation)
 			if v := findKV(d.Annotations, "summary"); v == "" {
 				t.Error("missing summary annotation")
 			}
@@ -580,11 +580,11 @@ func assertRuleFormContract(t *testing.T, d ruleFormDefaults, wantDSUID string) 
 	if findKV(d.Annotations, "summary") == "" {
 		t.Error("missing summary annotation")
 	}
-	if findKV(d.Annotations, "nais_apm_url") == "" {
-		t.Error("missing nais_apm_url annotation")
+	if findKV(d.Annotations, "clickhouse_apm_url") == "" {
+		t.Error("missing clickhouse_apm_url annotation")
 	}
-	if findKV(d.Labels, "source") != "nais-apm" {
-		t.Errorf("label source = %q, want nais-apm", findKV(d.Labels, "source"))
+	if findKV(d.Labels, "source") != "clickhouse-apm" {
+		t.Errorf("label source = %q, want clickhouse-apm", findKV(d.Labels, "source"))
 	}
 
 	// condition == "C" and C is among the query refIds.
@@ -783,7 +783,7 @@ func TestNewExceptionsPrometheusRuleContract(t *testing.T) {
 		// The link must template per firing instance, not ship %7B%7B...
 		"exceptionHash={{ $labels.hash }}",
 		// ...and it must be absolute, or it is not clickable from Slack.
-		`dashboard_url: "https://grafana.example.test/a/nais-apm-app/`,
+		`dashboard_url: "https://grafana.example.test/a/clickhouse-apm-app/`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("manifest missing %q:\n%s", want, body)
@@ -793,9 +793,9 @@ func TestNewExceptionsPrometheusRuleContract(t *testing.T) {
 		t.Errorf("manifest contains a percent-escaped template action:\n%s", body)
 	}
 	// nais's Slack template renders summary/consequence/action/message/
-	// runbook_url/dashboard_url — nais_apm_url would simply not be shown.
-	if strings.Contains(body, "nais_apm_url") {
-		t.Errorf("manifest uses nais_apm_url, which nais's Slack template does not render:\n%s", body)
+	// runbook_url/dashboard_url — clickhouse_apm_url would simply not be shown.
+	if strings.Contains(body, "clickhouse_apm_url") {
+		t.Errorf("manifest uses clickhouse_apm_url, which nais's Slack template does not render:\n%s", body)
 	}
 
 	// summary is the grouped header: templating a per-instance label there
@@ -848,10 +848,10 @@ func TestGrafanaAbsoluteURLFallback(t *testing.T) {
 
 func TestK8sName(t *testing.T) {
 	for in, want := range map[string]string{
-		"nais-apm-new-exceptions-my-svc":  "nais-apm-new-exceptions-my-svc",
-		"nais-apm-new-exceptions-My Svc":  "nais-apm-new-exceptions-my-svc",
-		"nais-apm-new-exceptions-a.b:c/d": "nais-apm-new-exceptions-a-b-c-d",
-		"nais-apm-new-exceptions-":        "nais-apm-new-exceptions",
+		"clickhouse-apm-new-exceptions-my-svc":  "clickhouse-apm-new-exceptions-my-svc",
+		"clickhouse-apm-new-exceptions-My Svc":  "clickhouse-apm-new-exceptions-my-svc",
+		"clickhouse-apm-new-exceptions-a.b:c/d": "clickhouse-apm-new-exceptions-a-b-c-d",
+		"clickhouse-apm-new-exceptions-":        "clickhouse-apm-new-exceptions",
 	} {
 		if got := k8sName(in); got != want {
 			t.Errorf("k8sName(%q) = %q, want %q", in, got, want)

@@ -24,7 +24,7 @@ interface VersionsPanelProps {
  * introduce (or fix) errors?": distinct sessions, adoption share (how much
  * traffic runs the new version), error-free-session rate, and exception
  * occurrences per app_version, computed query-time from Faro streams in
- * Loki. Deploy times come from nais-apm:deploy Grafana annotations when the
+ * Loki. Deploy times come from clickhouse-apm:deploy Grafana annotations when the
  * Phase 0 contract is in place. The same data powers the Regressed badge in
  * the issues table.
  */

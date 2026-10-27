@@ -282,7 +282,7 @@ async function fetchLastDeployBefore(
   environment: string | undefined,
   beforeMs: number
 ): Promise<{ version: string; timeMs: number } | null> {
-  const tags = ['nais-apm:deploy', `service:${service}`];
+  const tags = ['clickhouse-apm:deploy', `service:${service}`];
   // A multi-env selection can't be AND-ed via repeated tags — only scope to a
   // single environment (matches the backend's fetchDeployAnnotations).
   if (environment && !environment.includes(',')) {

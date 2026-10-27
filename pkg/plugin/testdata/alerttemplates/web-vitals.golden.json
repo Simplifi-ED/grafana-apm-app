@@ -76,8 +76,8 @@
       "value": "Largest Contentful Paint p75 for my-svc is above 2500ms (Core Web Vitals \"poor\")"
     },
     {
-      "key": "nais_apm_url",
-      "value": "/a/nais-apm-app/services/team-a/my-svc?environment=prod-gcp\u0026tab=frontend"
+      "key": "clickhouse_apm_url",
+      "value": "/a/clickhouse-apm-app/services/team-a/my-svc?environment=prod-gcp\u0026tab=frontend"
     }
   ],
   "labels": [
@@ -91,7 +91,7 @@
     },
     {
       "key": "source",
-      "value": "nais-apm"
+      "value": "clickhouse-apm"
     }
   ]
 }

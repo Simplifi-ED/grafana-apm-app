@@ -2,10 +2,8 @@ import { getBackendSrv } from '@grafana/runtime';
 import { lastValueFrom } from 'rxjs';
 import pluginJson from '../plugin.json';
 
-// Service scorecard (M7): observability readiness + nais Console enrichment.
-// The fetch/param helpers mirror client.ts (they are module-private there);
-// kept local to avoid widening client.ts's exported surface (precedent:
-// analytics.ts).
+// Service scorecard: observability readiness checks from signals the plugin
+// already probes. Fetch helpers mirror client.ts (module-private there).
 
 const BASE_URL = `/api/plugins/${pluginJson.id}/resources`;
 
@@ -37,18 +35,8 @@ export interface ScorecardReadiness {
   checks: ScorecardCheck[];
 }
 
-export interface ScorecardConsole {
-  /** False when no nais Console API is configured — the UI shows nothing then. */
-  configured: boolean;
-  teamSlug?: string;
-  slackChannel?: string;
-  repositoryUrl?: string;
-  ingresses?: string[];
-}
-
 export interface ScorecardResponse {
   readiness: ScorecardReadiness;
-  console: ScorecardConsole;
 }
 
 export async function getScorecard(

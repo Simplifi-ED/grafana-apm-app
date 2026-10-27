@@ -3,32 +3,38 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { RefreshControl } from './RefreshControl';
 
-// Grafana's Combobox needs canvas measurement + virtualization to show its
-// dropdown, which jsdom can't drive reliably. Swap in a plain <select> so
-// tests can exercise the selection wiring with fireEvent.change. The real
-// Combobox rendering is covered by the ServiceInventory page test.
+// Grafana's RefreshPicker needs canvas/portal bits jsdom can't drive. Swap in a
+// minimal stand-in that exposes the refresh button + interval <select> so
+// tests exercise URL wiring and the auto-refresh timer.
 jest.mock('@grafana/ui', () => {
   const actual = jest.requireActual('@grafana/ui');
   return {
     ...actual,
-    Combobox: (props: {
-      'aria-label'?: string;
-      options: Array<{ label: string; value: string }>;
-      value: string;
-      onChange: (v: { value: string }) => void;
+    RefreshPicker: (props: {
+      value?: string;
+      intervals?: string[];
+      onRefresh?: () => void;
+      onIntervalChanged: (interval: string) => void;
     }) => (
-      <select
-        aria-label={props['aria-label']}
-        value={props.value}
-        onChange={(e) => props.onChange({ value: e.currentTarget.value })}
-      >
-        {props.options.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
+      <div>
+        <button type="button" aria-label="Refresh" onClick={() => props.onRefresh?.()}>
+          Refresh
+        </button>
+        <select
+          aria-label="Refresh interval"
+          value={props.value ?? ''}
+          onChange={(e) => props.onIntervalChanged(e.currentTarget.value)}
+        >
+          <option value="">Off</option>
+          {(props.intervals ?? ['30s', '1m', '5m']).map((o) => (
+            <option key={o} value={o}>
+              {o}
+            </option>
+          ))}
+        </select>
+      </div>
     ),
+    defaultIntervals: ['5s', '10s', '30s', '1m', '5m', '15m', '30m', '1h', '2h', '1d'],
   };
 });
 
@@ -37,10 +43,10 @@ function LocationProbe() {
   return <div data-testid="search">{location.search}</div>;
 }
 
-function renderControl(onRefresh: jest.Mock, initialEntry = '/') {
+function renderControl(onRefresh: jest.Mock, initialEntry = '/', defaultInterval?: string) {
   return render(
     <MemoryRouter initialEntries={[initialEntry]} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-      <RefreshControl onRefresh={onRefresh} />
+      <RefreshControl onRefresh={onRefresh} defaultInterval={defaultInterval} />
       <LocationProbe />
     </MemoryRouter>
   );
@@ -51,13 +57,12 @@ describe('RefreshControl', () => {
     jest.useRealTimers();
   });
 
-  it('is off by default: no countdown, no URL param, and never fires onRefresh', () => {
+  it('is off by default: no URL param, and never fires onRefresh', () => {
     jest.useFakeTimers();
     const onRefresh = jest.fn();
     renderControl(onRefresh);
 
-    expect(screen.getByRole('combobox')).toHaveValue('off');
-    expect(screen.queryByTestId('refresh-countdown')).not.toBeInTheDocument();
+    expect(screen.getByRole('combobox')).toHaveValue('');
     expect(screen.getByTestId('search')).toHaveTextContent('');
 
     act(() => {
@@ -78,16 +83,22 @@ describe('RefreshControl', () => {
     const onRefresh = jest.fn();
     renderControl(onRefresh, '/?refresh=1m');
 
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'off' } });
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: '' } });
     expect(screen.getByTestId('search')).not.toHaveTextContent('refresh');
   });
 
-  it('fires onRefresh on every tick and shows a countdown when active', () => {
+  it('writes refresh=off when disabling a non-off default interval', () => {
+    const onRefresh = jest.fn();
+    renderControl(onRefresh, '/', '1m');
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: '' } });
+    expect(screen.getByTestId('search')).toHaveTextContent('refresh=off');
+  });
+
+  it('fires onRefresh on every tick when an interval is active', () => {
     jest.useFakeTimers();
     const onRefresh = jest.fn();
     renderControl(onRefresh, '/?refresh=30s');
-
-    expect(screen.getByTestId('refresh-countdown')).toHaveTextContent('30s');
 
     act(() => {
       jest.advanceTimersByTime(30000);
@@ -98,6 +109,13 @@ describe('RefreshControl', () => {
       jest.advanceTimersByTime(30000);
     });
     expect(onRefresh).toHaveBeenCalledTimes(2);
+  });
+
+  it('fires onRefresh when the refresh button is clicked', () => {
+    const onRefresh = jest.fn();
+    renderControl(onRefresh);
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+    expect(onRefresh).toHaveBeenCalledTimes(1);
   });
 
   it('always invokes the latest onRefresh even when the prop identity changes', () => {
@@ -134,10 +152,22 @@ describe('RefreshControl', () => {
     const onRefresh = jest.fn();
     renderControl(onRefresh, '/?refresh=bogus');
 
-    expect(screen.getByRole('combobox')).toHaveValue('off');
+    expect(screen.getByRole('combobox')).toHaveValue('');
     act(() => {
       jest.advanceTimersByTime(600000);
     });
     expect(onRefresh).not.toHaveBeenCalled();
+  });
+
+  it('accepts legacy numeric ms refresh values from status-board URLs', () => {
+    jest.useFakeTimers();
+    const onRefresh = jest.fn();
+    renderControl(onRefresh, '/?refresh=60000');
+
+    expect(screen.getByRole('combobox')).toHaveValue('1m');
+    act(() => {
+      jest.advanceTimersByTime(60000);
+    });
+    expect(onRefresh).toHaveBeenCalledTimes(1);
   });
 });

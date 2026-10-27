@@ -161,8 +161,8 @@ function ClickStackFrontendSummary({ vitals }: { vitals?: Record<string, number>
         </Alert>
       )}
       <Alert severity="info" title="ClickStack mode">
-        Core Web Vitals are aggregated from <code>webvitals</code> spans in ClickHouse. Full trend / per-page panels need
-        a Prometheus metrics datasource with Faro histograms.
+        Core Web Vitals are aggregated from <code>webvitals</code> spans in ClickHouse. Full trend / per-page panels
+        need a Prometheus metrics datasource with Faro histograms.
       </Alert>
     </div>
   );

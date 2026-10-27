@@ -8,7 +8,7 @@ jest.mock('@grafana/runtime', () => ({
   getBackendSrv: () => ({ fetch: (options: unknown) => mockFetch(options) }),
 }));
 
-jest.mock('../../../../plugin.json', () => ({ id: 'nais-apm-app' }), { virtual: true });
+jest.mock('../../../../plugin.json', () => ({ id: 'clickhouse-apm-app' }), { virtual: true });
 
 /** Round-trip half of the Faro SDK's transport: gzip the rrweb event array and base64 it. */
 function encodeChunk(events: ReplayEventWithTime[]): string {
@@ -66,7 +66,7 @@ describe('fetchReplay (ClickHouse backend)', () => {
     expect(mockFetch).toHaveBeenCalledTimes(1);
     const call = mockFetch.mock.calls[0][0];
     expect(call.url).toContain(
-      '/api/plugins/nais-apm-app/resources/services/team-a/my-app/frontend/sessions/sess-1/replay?'
+      '/api/plugins/clickhouse-apm-app/resources/services/team-a/my-app/frontend/sessions/sess-1/replay?'
     );
     expect(call.url).toContain('from=1751500000');
     expect(call.url).toContain('to=1751503600');

@@ -117,7 +117,7 @@ describe('buildServiceScene', () => {
     expect(layer.state.query.target).toEqual({
       type: 'tags',
       matchAny: false,
-      tags: ['nais-apm:deploy', 'service:frontend', 'env:production'],
+      tags: ['clickhouse-apm:deploy', 'service:frontend', 'env:production'],
       limit: 100,
     });
   });
@@ -127,7 +127,7 @@ describe('buildServiceScene', () => {
     const layerSet = scene!.state.$data as SceneDataLayerSet;
     const layer = layerSet.state.layers[0] as InstanceType<typeof dataLayers.AnnotationsDataLayer>;
     const target = layer.state.query.target as unknown as DeployAnnotationTarget;
-    expect(target.tags).toEqual(['nais-apm:deploy', 'service:frontend']);
+    expect(target.tags).toEqual(['clickhouse-apm:deploy', 'service:frontend']);
   });
 });
 
@@ -141,7 +141,7 @@ describe('buildDeployAnnotationsLayer', () => {
       target: {
         type: 'tags',
         matchAny: false,
-        tags: ['nais-apm:deploy', 'service:myapp', 'env:prod-gcp'],
+        tags: ['clickhouse-apm:deploy', 'service:myapp', 'env:prod-gcp'],
         limit: 100,
       },
     });
@@ -151,6 +151,6 @@ describe('buildDeployAnnotationsLayer', () => {
     const layerSet = buildDeployAnnotationsLayer('myapp');
     const layer = layerSet.state.layers[0] as InstanceType<typeof dataLayers.AnnotationsDataLayer>;
     const target = layer.state.query.target as unknown as DeployAnnotationTarget;
-    expect(target.tags).toEqual(['nais-apm:deploy', 'service:myapp']);
+    expect(target.tags).toEqual(['clickhouse-apm:deploy', 'service:myapp']);
   });
 });

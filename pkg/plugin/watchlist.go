@@ -113,7 +113,7 @@ type pluginSettings struct {
 // fetchPluginSettings retrieves the plugin's current settings from the Grafana API.
 func (a *App) fetchPluginSettings(req *http.Request) (*pluginSettings, error) {
 	token := a.resolveServiceToken(req.Context())
-	url := fmt.Sprintf("%s/api/plugins/nais-apm-app/settings", a.grafanaURL)
+	url := fmt.Sprintf("%s/api/plugins/clickhouse-apm-app/settings", a.grafanaURL)
 
 	apiReq, err := http.NewRequestWithContext(req.Context(), http.MethodGet, url, nil)
 	if err != nil {
@@ -148,7 +148,7 @@ func (a *App) fetchPluginSettings(req *http.Request) (*pluginSettings, error) {
 // It preserves secureJsonFields to avoid wiping existing secrets.
 func (a *App) savePluginSettings(req *http.Request, settings *pluginSettings) error {
 	token := a.resolveServiceToken(req.Context())
-	url := fmt.Sprintf("%s/api/plugins/nais-apm-app/settings", a.grafanaURL)
+	url := fmt.Sprintf("%s/api/plugins/clickhouse-apm-app/settings", a.grafanaURL)
 
 	// Build the save payload preserving secure fields.
 	// When secureJsonFields are included with true values, Grafana keeps

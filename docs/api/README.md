@@ -37,13 +37,13 @@ drift from the code.
 Every endpoint is served under the Grafana plugin resources proxy:
 
 ```
-{GRAFANA_URL}/api/plugins/nais-apm-app/resources/{path}
+{GRAFANA_URL}/api/plugins/clickhouse-apm-app/resources/{path}
 ```
 
 For example, `/issues` for a service is:
 
 ```
-{GRAFANA_URL}/api/plugins/nais-apm-app/resources/services/{namespace}/{service}/issues
+{GRAFANA_URL}/api/plugins/clickhouse-apm-app/resources/services/{namespace}/{service}/issues
 ```
 
 The plugin backend runs inside the Grafana process. It reaches Mimir, Tempo and
@@ -142,7 +142,7 @@ Read `/issues` for a service using a Grafana service account token:
 ```bash
 curl -sf \
   -H "Authorization: Bearer $GRAFANA_SA_TOKEN" \
-  "$GRAFANA_URL/api/plugins/nais-apm-app/resources/services/fager/min-side-arbeidsgiver/issues"
+  "$GRAFANA_URL/api/plugins/clickhouse-apm-app/resources/services/fager/min-side-arbeidsgiver/issues"
 ```
 
 A complete, runnable GitHub Actions gate that fails a deploy when new issue

@@ -23,9 +23,9 @@ describe('Components/App', () => {
     jest.resetAllMocks();
 
     props = {
-      basename: 'a/nais-apm-app',
+      basename: 'a/clickhouse-apm-app',
       meta: {
-        id: 'nais-apm-app',
+        id: 'clickhouse-apm-app',
         name: 'ClickStack APM',
         type: PluginType.app,
         enabled: true,

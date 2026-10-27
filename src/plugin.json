@@ -2,7 +2,7 @@
   "$schema": "https://raw.githubusercontent.com/grafana/grafana/main/docs/sources/developers/plugins/plugin.schema.json",
   "type": "app",
   "name": "ClickStack APM",
-  "id": "nais-apm-app",
+  "id": "clickhouse-apm-app",
   "backend": true,
   "executable": "gpx_apm",
   "info": {
@@ -36,9 +36,9 @@
       }
     ],
     "links": [
-      { "name": "GitHub", "url": "https://github.com/nais/grafana-apm-app" },
-      { "name": "Issues", "url": "https://github.com/nais/grafana-apm-app/issues" },
-      { "name": "License", "url": "https://github.com/nais/grafana-apm-app/blob/main/LICENSE" }
+      { "name": "GitHub", "url": "https://github.com/Simplifi-ED/grafana-apm-app" },
+      { "name": "Issues", "url": "https://github.com/Simplifi-ED/grafana-apm-app/issues" },
+      { "name": "License", "url": "https://github.com/Simplifi-ED/grafana-apm-app/blob/main/LICENSE" }
     ],
     "version": "%VERSION%",
     "updated": "%TODAY%"
@@ -47,7 +47,7 @@
     {
       "type": "page",
       "name": "Services",
-      "path": "/a/nais-apm-app/services",
+      "path": "/a/clickhouse-apm-app/services",
       "addToNav": true,
       "defaultNav": true,
       "role": "Viewer"
@@ -55,7 +55,7 @@
     {
       "type": "page",
       "name": "Jobs",
-      "path": "/a/nais-apm-app/jobs",
+      "path": "/a/clickhouse-apm-app/jobs",
       "icon": "calendar-alt",
       "addToNav": true,
       "role": "Viewer"
@@ -63,7 +63,7 @@
     {
       "type": "page",
       "name": "My Apps",
-      "path": "/a/nais-apm-app/favorites",
+      "path": "/a/clickhouse-apm-app/favorites",
       "icon": "favorite",
       "addToNav": true,
       "role": "Viewer"
@@ -71,7 +71,7 @@
     {
       "type": "page",
       "name": "Ops Status",
-      "path": "/a/nais-apm-app/ops",
+      "path": "/a/clickhouse-apm-app/ops",
       "icon": "monitor",
       "addToNav": true,
       "role": "Viewer"
@@ -79,7 +79,7 @@
     {
       "type": "page",
       "name": "Service Map",
-      "path": "/a/nais-apm-app/service-map",
+      "path": "/a/clickhouse-apm-app/service-map",
       "icon": "sitemap",
       "addToNav": true,
       "role": "Viewer"
@@ -87,7 +87,7 @@
     {
       "type": "page",
       "name": "Dependencies",
-      "path": "/a/nais-apm-app/dependencies",
+      "path": "/a/clickhouse-apm-app/dependencies",
       "addToNav": true,
       "role": "Viewer"
     },
@@ -95,7 +95,7 @@
       "type": "page",
       "icon": "cog",
       "name": "Configuration",
-      "path": "/plugins/nais-apm-app",
+      "path": "/plugins/clickhouse-apm-app",
       "role": "Admin",
       "addToNav": true
     }

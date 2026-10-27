@@ -417,7 +417,7 @@ describe('server issues (#84)', () => {
     expect(screen.getByText('com.example.Db')).toBeInTheDocument();
   });
 
-  it('shows the limited-detail hint for json/plaintext shapes, linking the backend-exceptions guide', async () => {
+  it('shows the limited-detail hint for json/plaintext shapes', async () => {
     getIssueOccurrences.mockResolvedValue({
       fingerprint: 'v1:server1',
       shape: 'json',
@@ -428,8 +428,6 @@ describe('server issues (#84)', () => {
     await screen.findByText(/^1 occurrence$/);
 
     expect(screen.getByText('Limited detail')).toBeInTheDocument();
-    const link = screen.getByRole('link', { name: /Backend exceptions as issues/ });
-    expect(link).toHaveAttribute('href', 'https://doc.nais.io/observability/apm/how-to/backend-exceptions-as-issues/');
   });
 
   it('does not show the limited-detail hint for the otlp (semconv) shape', async () => {
@@ -453,16 +451,13 @@ describe('server issues (#84)', () => {
 });
 
 describe('minified-stack hint (#60)', () => {
-  it('shows a dismissible info alert with a diagnosis button and source-maps link on a minified stack', async () => {
+  it('shows a dismissible info alert with a diagnosis button on a minified stack', async () => {
     mockFetch.mockImplementation(minifiedFetchImpl);
     renderDrawer();
     await screen.findByText(/boom/);
 
     expect(await screen.findByText('This stack looks minified')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Run diagnosis/ })).toBeInTheDocument();
-
-    const link = screen.getByRole('link', { name: /About source maps/ });
-    expect(link).toHaveAttribute('href', 'https://doc.nais.io/observability/frontend/how-to/sourcemaps/');
   });
 
   it('does not show the minified alert for a clean, source-mapped stack', async () => {
@@ -471,34 +466,5 @@ describe('minified-stack hint (#60)', () => {
     await screen.findByText(/boom/);
 
     expect(screen.queryByText('This stack looks minified')).not.toBeInTheDocument();
-  });
-});
-
-describe('contextual docs links', () => {
-  it('links the triage controls to the triage-an-issue how-to', async () => {
-    renderDrawer();
-    await screen.findByText(/boom/);
-
-    const link = screen.getByRole('link', { name: /How triage works/ });
-    expect(link).toHaveAttribute('href', 'https://doc.nais.io/observability/apm/how-to/triage-an-issue/');
-  });
-
-  it('links the alert action to the create-alerts how-to', async () => {
-    renderDrawer();
-    await screen.findByText(/boom/);
-
-    const link = screen.getByRole('link', { name: /About alert templates/ });
-    expect(link).toHaveAttribute('href', 'https://doc.nais.io/observability/apm/how-to/create-alerts/');
-  });
-
-  it('links the feedback section to the collect-user-feedback how-to', async () => {
-    getFeedback.mockResolvedValue({
-      feedback: [{ timeMs: Date.now(), category: 'bug', message: 'Broken button' }],
-    });
-    renderDrawer();
-    await screen.findByText(/boom/);
-
-    const link = await screen.findByRole('link', { name: /Collect user feedback/ });
-    expect(link).toHaveAttribute('href', 'https://doc.nais.io/observability/apm/how-to/collect-user-feedback/');
   });
 });

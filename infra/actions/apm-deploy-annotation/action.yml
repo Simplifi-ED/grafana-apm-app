@@ -81,7 +81,7 @@ runs:
         #   curl -sf -X POST "$GRAFANA_URL/api/annotations" \
         #     -H "Authorization: Bearer $GRAFANA_SA_TOKEN" -H "Content-Type: application/json" \
         #     -d "{\"time\": $(date +%s000), \
-        #          \"tags\": [\"nais-apm:deploy\",\"service:myapp\",\"namespace:myteam\",\"env:prod\",\"version:${GITHUB_SHA}\"], \
+        #          \"tags\": [\"clickhouse-apm:deploy\",\"service:myapp\",\"namespace:myteam\",\"env:prod\",\"version:${GITHUB_SHA}\"], \
         #          \"text\": \"Deployed myapp ${GITHUB_SHA:0:7} — ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}\"}"
         #
         # Same shape below, parameterized on the action's inputs and built
@@ -93,7 +93,7 @@ runs:
 
         BODY=$(jq -n \
           --argjson time "${TIME_MS}" \
-          --arg tag_kind "nais-apm:deploy" \
+          --arg tag_kind "clickhouse-apm:deploy" \
           --arg tag_service "service:${SERVICE}" \
           --arg tag_namespace "namespace:${NAMESPACE}" \
           --arg tag_env "env:${ENVIRONMENT}" \

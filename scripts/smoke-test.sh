@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# smoke-test.sh — real-environment contract harness for the Nais APM Grafana plugin.
+# smoke-test.sh — real-environment contract harness for the ClickStack APM Grafana plugin.
 #
 # Where data-review.sh checks *data shapes* (do endpoints return the right keys
 # with plausible values), this script checks the *real-environment contracts*
@@ -11,7 +11,7 @@
 #      Grafana's rule editor must carry a `defaults=` param that decodes to a
 #      valid RuleFormValues object. This breaks if Grafana changes the internal
 #      contract or if our URL encoding regresses.
-#   2. nais deploy sync — deploy annotations only appear when a nais API token
+#   2. deploy-annotation sync — deploy annotations only appear when a deploy sync (optional)
 #      is provisioned AND the Console poll succeeded. Verifiable only live.
 #   3. Triage actor attribution — the recorded actor is only a real login when
 #      the call carries a signed-in user context (browser session / user token),
@@ -43,7 +43,7 @@
 #                                                     (default pdl / pdl-api)
 #   DEPLOY_NS/DEPLOY_SVC recently-deployed service for the deploy-sync check
 #                                                     (default navno / nav-enonicxp-frontend)
-#   EXPECT_DEPLOY_SYNC  set to 1 when a nais API token IS provisioned; otherwise
+#   EXPECT_DEPLOY_SYNC  set to 1 when a deploy sync (optional) IS provisioned; otherwise
 #                       the deploy-sync check SKIPs (it cannot detect the token
 #                       from outside the backend)
 #   USER_TOKEN          a Grafana *user* API token (glsa_… for a real user) to
@@ -68,7 +68,7 @@ EXPECT_DEPLOY_SYNC="${EXPECT_DEPLOY_SYNC:-}"
 USER_TOKEN="${USER_TOKEN:-}"
 VERBOSE="${VERBOSE:-0}"
 
-BASE="$HOST/api/plugins/nais-apm-app/resources"
+BASE="$HOST/api/plugins/clickhouse-apm-app/resources"
 NOW="$(date +%s)"
 FROM="$((NOW - RANGE_SECS))"
 NOW_MS="$((NOW * 1000))"
@@ -113,7 +113,7 @@ assert() {
 }
 
 echo "=============================================================="
-echo " Nais APM real-environment smoke tests"
+echo " ClickStack APM real-environment smoke tests"
 echo " host=$HOST  range=${RANGE_SECS}s"
 echo "=============================================================="
 
@@ -163,10 +163,10 @@ for kind in error-rate exception-spike web-vitals new-exceptions slo-burn-rate; 
   assert "alert-templates/$kind" "$HTTP" "$BODY" "$DEFAULTS_CHECK"
 done
 
-# --- 2. nais deploy sync -----------------------------------------------------
-echo; echo "### 2. nais deploy sync ($DEPLOY_NS/$DEPLOY_SVC) ###"
+# --- 2. deploy-annotation sync -----------------------------------------------------
+echo; echo "### 2. deploy-annotation sync ($DEPLOY_NS/$DEPLOY_SVC) ###"
 if [ "$EXPECT_DEPLOY_SYNC" != "1" ]; then
-  skip "deploy-sync" "no nais API token expected (set EXPECT_DEPLOY_SYNC=1 when provisioned)"
+  skip "deploy-sync" "no deploy sync (optional) expected (set EXPECT_DEPLOY_SYNC=1 when provisioned)"
 else
   fetch "$BASE/services/$DEPLOY_NS/$DEPLOY_SVC/frontend/versions?from=$FROM&to=$NOW"
   if [ "$HTTP" != "200" ]; then
@@ -232,7 +232,7 @@ print(evs[-1].get("actor", "") if evs else "")
   # Cleanup: delete the annotation(s) this check created (tagged with our fp).
   # Requires annotation-write access; best-effort, reported but never fatal.
   IDS="$(c -G "$HOST/api/annotations" \
-    --data-urlencode 'tags=nais-apm:triage' \
+    --data-urlencode 'tags=clickhouse-apm:triage' \
     --data-urlencode "tags=fp:$FP" 2>/dev/null \
     | python3 -c 'import sys,json;[print(a["id"]) for a in json.load(sys.stdin)]' 2>/dev/null)"
   DELETED=0

@@ -12,7 +12,6 @@ import {
   Badge,
   Tooltip,
   ControlledCollapse,
-  TextLink,
 } from '@grafana/ui';
 import { AppEvents, GrafanaTheme2 } from '@grafana/data';
 import { css } from '@emotion/css';
@@ -33,7 +32,6 @@ import {
 import { otel } from '../../../../otelconfig';
 import { PLUGIN_BASE_URL } from '../../../../constants';
 import { sanitizeLabelValue } from '../../../../utils/sanitize';
-import { apmDocs, frontendDocs } from '../../../../utils/docsLinks';
 import { usePluginLabelOverrides, usePluginDatasources } from '../../../../utils/datasources';
 import { useTimeRange } from '../../../../utils/timeRange';
 import { buildExceptionTracesExploreUrl, buildTraceExploreUrl } from '../../../../utils/explore';
@@ -333,7 +331,7 @@ export function ExceptionDrawer({
   // No fingerprint (legacy exceptionHash-only links) means no reliable join
   // key, so skip the fetch entirely rather than showing unrelated feedback.
   useEffect(() => {
-    // Feedback is browser-captured (@nais/apm) and joined by fingerprint;
+    // Feedback is browser-captured (browser SDK) and joined by fingerprint;
     // server feedback is deferred (#84), so skip the fetch for server issues.
     if (!issueId || isServer) {
       setFeedback([]);
@@ -517,9 +515,6 @@ export function ExceptionDrawer({
                     This was logged as a message, not an exception, so there is no stack trace or type. Log with the
                     throwable to get full stack traces.
                   </span>
-                  <TextLink href={apmDocs.backendExceptions()} external variant="bodySmall">
-                    Backend exceptions as issues
-                  </TextLink>
                 </div>
               </Alert>
             )}
@@ -558,9 +553,6 @@ export function ExceptionDrawer({
                         >
                           {diagnosing ? 'Running diagnosis…' : 'Run diagnosis'}
                         </Button>
-                        <TextLink href={frontendDocs.sourcemaps()} external variant="bodySmall">
-                          About source maps
-                        </TextLink>
                       </div>
                       {diagnosisError && <span className={styles.minifiedError}>{diagnosisError}</span>}
                       {diagnosis && <SourcemapChecklist result={diagnosis} />}
@@ -777,11 +769,6 @@ export function ExceptionDrawer({
                   mode={replayProbe.mode ?? 'recording'}
                   exceptionTsMs={exceptionTsMs}
                 />
-                <div className={styles.sectionDocsLink}>
-                  <TextLink href={apmDocs.enableSessionReplay()} external variant="bodySmall">
-                    Enable session replay
-                  </TextLink>
-                </div>
               </div>
             )}
 
@@ -843,14 +830,6 @@ export function ExceptionDrawer({
                   >
                     {creatingAlert ? 'Preparing alert…' : 'Create alert'}
                   </Button>
-                  <TextLink
-                    href={apmDocs.createAlerts()}
-                    external
-                    variant="bodySmall"
-                    className={styles.footerDocsLink}
-                  >
-                    About alert templates
-                  </TextLink>
                 </>
               )}
             </div>
@@ -926,7 +905,7 @@ function feedbackBadgeColor(category: string): 'red' | 'blue' | 'darkgrey' {
 }
 
 /**
- * User feedback (M6): entries captured via @nais/apm's captureFeedback(),
+ * User feedback (M6): entries captured via browser SDK's captureFeedback(),
  * joined to this issue by fingerprint. Rendered only when non-empty — the
  * caller (ExceptionDrawer) hides this section entirely otherwise, since
  * feedback is rare and an empty shell wastes drawer space.
@@ -962,11 +941,6 @@ function FeedbackSection({ entries }: { entries: FeedbackEntry[] }) {
           </div>
         ))}
         {extra > 0 && <div className={styles.feedbackMore}>+{extra} more</div>}
-      </div>
-      <div className={styles.sectionDocsLink}>
-        <TextLink href={apmDocs.collectUserFeedback()} external variant="bodySmall">
-          Collect user feedback
-        </TextLink>
       </div>
     </div>
   );
@@ -1049,14 +1023,6 @@ function TriageControls({
         prefix={<Icon name="user" />}
       />
       {state?.updatedBy && <span className={styles.triageMeta}>last change by {state.updatedBy}</span>}
-      <TextLink
-        href={apmDocs.triageAnIssue()}
-        external
-        variant="bodySmall"
-        className={state?.updatedBy ? undefined : styles.triageHelp}
-      >
-        How triage works
-      </TextLink>
     </div>
   );
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/grafana/grafana-plugin-sdk-go/backend/log"
@@ -310,35 +311,101 @@ func (a *App) fetchServiceMapClickHouse(
 		return ServiceMapResponse{Nodes: []ServiceMapNode{}, Edges: []ServiceMapEdge{}}
 	}
 	parsed := chquery.ParseServiceGraphMaps(res.Maps(), window)
-	nodeSet := make(map[string]*ServiceMapNode)
-	ensure := func(name string) {
-		if _, ok := nodeSet[name]; !ok {
-			nodeSet[name] = &ServiceMapNode{
-				ID:    name,
-				Title: name,
-			}
-		}
+
+	type nodeAgg struct {
+		inRate   float64
+		errRateW float64 // weighted error numerator (rate * errRate)
+		callers  map[string]struct{}
 	}
+	aggs := make(map[string]*nodeAgg)
+	clientSet := make(map[string]struct{})
+	ensure := func(name string) *nodeAgg {
+		if a, ok := aggs[name]; ok {
+			return a
+		}
+		a := &nodeAgg{callers: make(map[string]struct{})}
+		aggs[name] = a
+		return a
+	}
+
 	var edges []ServiceMapEdge
 	for _, e := range parsed {
+		clientSet[e.Client] = struct{}{}
 		ensure(e.Client)
-		ensure(e.Server)
-		nodeSet[e.Server].ErrorRate = e.ErrorRate
+		srv := ensure(e.Server)
+		srv.inRate += e.Rate
+		srv.errRateW += e.Rate * e.ErrorRate
+		srv.callers[e.Client] = struct{}{}
 		edges = append(edges, ServiceMapEdge{
 			ID:            e.Client + "->" + e.Server,
 			Source:        e.Client,
 			Target:        e.Server,
-			MainStat:      fmt.Sprintf("%.2f/s", e.Rate),
+			MainStat:      fmt.Sprintf("%.1f req/s", e.Rate),
 			SecondaryStat: fmt.Sprintf("%.1f%% err", e.ErrorRate*100),
 		})
 	}
-	nodes := make([]ServiceMapNode, 0, len(nodeSet))
-	for _, n := range nodeSet {
-		n.ArcErrors = n.ErrorRate
-		n.ArcOK = 1 - n.ErrorRate
-		nodes = append(nodes, *n)
+
+	nodes := make([]ServiceMapNode, 0, len(aggs))
+	for name, agg := range aggs {
+		errPct := 0.0
+		if agg.inRate > 0 {
+			errPct = agg.errRateW / agg.inRate
+			if errPct > 1 {
+				errPct = 1
+			}
+		}
+		nType, subtitle := inferClickStackNodeType(name, clientSet)
+		main := ""
+		sec := ""
+		if agg.inRate > 0 {
+			main = fmt.Sprintf("%.1f req/s", agg.inRate)
+			sec = fmt.Sprintf("%.1f%% err", errPct*100)
+		}
+		nodes = append(nodes, ServiceMapNode{
+			ID:            name,
+			Title:         name,
+			SubTitle:      subtitle,
+			MainStat:      main,
+			SecondaryStat: sec,
+			ArcErrors:     errPct,
+			ArcOK:         1 - errPct,
+			NodeType:      nType,
+			CallerCount:   len(agg.callers),
+			ErrorRate:     errPct,
+		})
 	}
 	return ServiceMapResponse{Nodes: nodes, Edges: edges}
+}
+
+// inferClickStackNodeType classifies peers from service-graph names when
+// connection_type dimensions are absent (common in ClickStack).
+func inferClickStackNodeType(name string, clients map[string]struct{}) (nodeType, subtitle string) {
+	lower := strings.ToLower(name)
+	_, isClient := clients[name]
+	isInfraName := false
+	switch {
+	case strings.Contains(lower, "postgres"), strings.Contains(lower, "postgresql"),
+		strings.Contains(lower, "mysql"), strings.Contains(lower, "mariadb"),
+		strings.Contains(lower, "mongo"), strings.Contains(lower, "redis"),
+		strings.Contains(lower, "valkey"), strings.Contains(lower, "clickhouse"),
+		strings.Contains(lower, "elastic"), strings.Contains(lower, "cassandra"):
+		isInfraName = true
+		nodeType, subtitle = "database", name
+	case strings.Contains(lower, "kafka"), strings.Contains(lower, "rabbit"),
+		strings.Contains(lower, "nats"), strings.Contains(lower, "pubsub"),
+		strings.Contains(lower, "sqs"), strings.Contains(lower, "queue"):
+		isInfraName = true
+		nodeType, subtitle = "messaging", name
+	case lower == "user" || lower == "unknown" || lower == "client" || lower == "world":
+		return "external", ""
+	default:
+		return "service", ""
+	}
+	// Nodes that also initiate calls are real services, not pure infra.
+	if isClient && isInfraName {
+		return "service", ""
+	}
+	return nodeType, subtitle
 }
 
 func (a *App) fetchLogPatternsClickHouse(

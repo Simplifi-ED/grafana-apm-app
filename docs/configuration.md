@@ -1,8 +1,8 @@
 # Configuration
 
 How to set up datasources, authentication, and per-environment overrides for
-the Nais APM app. For the full list of expected metrics and labels, see
-[metrics-reference.md](metrics-reference.md).
+ClickStack APM. For the full list of expected LGTM metrics and labels (dual-mode),
+see [metrics-reference.md](metrics-reference.md).
 
 ---
 
@@ -179,10 +179,10 @@ forwarded user headers.
 ## Deploy Annotations
 
 Time-series panels on the Backend (RED) and Frontend tabs render deploy markers from
-Grafana **organization annotations** tagged `nais-apm:deploy`,
+Grafana **organization annotations** tagged `clickhouse-apm:deploy`,
 `service:<app>`, `namespace:<ns>`, `env:<env>`, and `version:<sha>`. The
 plugin queries the built-in `grafana` annotations datasource filtered by the
-`nais-apm:deploy` and `service:` tags (plus `env:` when an environment filter
+`clickhouse-apm:deploy` and `service:` tags (plus `env:` when an environment filter
 is selected); the marker tooltip shows the annotation text, which carries the
 deployed version and a link to the triggering workflow. To produce these
 annotations from CI, use the reusable GitHub Action in

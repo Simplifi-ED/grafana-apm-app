@@ -28,7 +28,7 @@ import (
 // keep-all — see docs/triage.md and checkAnnotationRetention below.
 
 const (
-	triageTag       = "nais-apm:triage"
+	triageTag       = "clickhouse-apm:triage"
 	maxTriageEvents = 1000
 	// maxTriagePages bounds pagination: 10k events per service is far beyond
 	// any observed history and keeps a pathological loop finite.

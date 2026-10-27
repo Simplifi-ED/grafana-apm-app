@@ -2,7 +2,7 @@
  * Deterministic synthetic Faro telemetry generator (#90).
  *
  * Produces the Grafana Faro collector wire format (the JSON an app
- * instrumented with @nais/apm POSTs to an Alloy `faro.receiver`): sessions
+ * instrumented with browser SDK POSTs to an Alloy `faro.receiver`): sessions
  * with web vitals, exceptions with realistic stack traces (both the Faro
  * browser shape and the console-captured shape), custom events/measurements,
  * and deliberate PII canaries so pipeline scrubbing can be verified end to
@@ -218,7 +218,7 @@ export function generateScenario(options: SeedOptions): FaroPayload[] {
 
         const payload: FaroPayload = {
           meta: {
-            sdk: { name: 'nais-apm-seed', version: '1.0.0' },
+            sdk: { name: 'clickhouse-apm-seed', version: '1.0.0' },
             app: { name: app, namespace, version, environment, release: version },
             session: { id: hex(rng, 16), attributes: { isSampled: 'true' } },
             browser: { ...browser },

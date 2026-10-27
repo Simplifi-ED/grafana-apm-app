@@ -76,8 +76,8 @@
       "value": "Exception {{ $labels.value }} in my-svc was not seen in the previous 7 days (approximate stateless detection: issues older than the 7d lookback re-fire as new, and resolved-issue regressions do not fire)"
     },
     {
-      "key": "nais_apm_url",
-      "value": "/a/nais-apm-app/services/team-a/my-svc?environment=prod-gcp\u0026exceptionHash={{ $labels.hash }}\u0026tab=issues"
+      "key": "clickhouse_apm_url",
+      "value": "/a/clickhouse-apm-app/services/team-a/my-svc?environment=prod-gcp\u0026exceptionHash={{ $labels.hash }}\u0026tab=issues"
     }
   ],
   "labels": [
@@ -91,7 +91,7 @@
     },
     {
       "key": "source",
-      "value": "nais-apm"
+      "value": "clickhouse-apm"
     }
   ]
 }

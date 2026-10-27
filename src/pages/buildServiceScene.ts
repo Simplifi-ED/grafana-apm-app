@@ -40,7 +40,7 @@ export interface BuildServiceSceneParams {
  * built-in `grafana` annotations datasource for deploy events (#64 Phase 1).
  *
  * Deploy events are written as Grafana organization annotations by CI (see
- * infra/actions/apm-deploy-annotation) tagged `nais-apm:deploy`,
+ * infra/actions/apm-deploy-annotation) tagged `clickhouse-apm:deploy`,
  * `service:<app>`, `namespace:<ns>`, `env:<env>`, `version:<sha>`. Filtering
  * here is by tags with `matchAny: false` (AND semantics), so markers show only
  * for the selected service — and only for the selected environment when an
@@ -63,7 +63,7 @@ export interface DeployAnnotationTarget {
 }
 
 export function buildDeployAnnotationsLayer(service: string, environment?: string): SceneDataLayerSet {
-  const tags = ['nais-apm:deploy', `service:${service}`];
+  const tags = ['clickhouse-apm:deploy', `service:${service}`];
   if (environment) {
     tags.push(`env:${environment}`);
   }

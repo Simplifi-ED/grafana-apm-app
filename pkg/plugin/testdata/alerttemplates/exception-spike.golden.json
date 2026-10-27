@@ -76,8 +76,8 @@
       "value": "Frontend exception v1:9f2ab31c04d7e655 in my-svc occurred more than 10 times in 5m"
     },
     {
-      "key": "nais_apm_url",
-      "value": "/a/nais-apm-app/services/team-a/my-svc?environment=prod-gcp\u0026issueId=v1%3A9f2ab31c04d7e655\u0026tab=issues"
+      "key": "clickhouse_apm_url",
+      "value": "/a/clickhouse-apm-app/services/team-a/my-svc?environment=prod-gcp\u0026issueId=v1%3A9f2ab31c04d7e655\u0026tab=issues"
     }
   ],
   "labels": [
@@ -91,7 +91,7 @@
     },
     {
       "key": "source",
-      "value": "nais-apm"
+      "value": "clickhouse-apm"
     }
   ]
 }

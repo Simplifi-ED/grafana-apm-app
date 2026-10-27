@@ -33,7 +33,7 @@ function App(props: AppRootProps) {
 
   useEffect(() => {
     let active = true;
-    initPluginTranslations('nais-apm-app', [
+    initPluginTranslations('clickhouse-apm-app', [
       (lang: string) => import('@grafana/scenes').then((m) => m.loadResources(lang)),
     ])
       .then(() => {

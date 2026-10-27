@@ -154,7 +154,7 @@ func TestTriageWritePayloadShape(t *testing.T) {
 		t.Fatalf("expected 1 annotation, got %d", len(mock.anns))
 	}
 	ann := mock.anns[0]
-	wantTags := map[string]bool{"nais-apm:triage": true, "app:team/app": true, "fp:v1-abc123": true}
+	wantTags := map[string]bool{"clickhouse-apm:triage": true, "app:team/app": true, "fp:v1-abc123": true}
 	for _, tg := range ann.Tags {
 		if !wantTags[tg] {
 			t.Errorf("unexpected tag %q", tg)
@@ -213,12 +213,12 @@ func TestTriageActionValidation(t *testing.T) {
 }
 
 func TestTriageFetchOmitsCommonTagAndFiltersClientSide(t *testing.T) {
-	// ADR-0001 mitigation 1: the ultra-common nais-apm:triage tag must not
+	// ADR-0001 mitigation 1: the ultra-common clickhouse-apm:triage tag must not
 	// reach the API query (global-volume coupling); it is verified on the
 	// returned annotations instead.
 	var gotTags [][]string
 	mock := &mockAnnotationsAPI{anns: []grafanaAnnotation{
-		{Time: 100, Text: `{"schema":1,"action":"resolve","actor":"a"}`, Tags: []string{"nais-apm:triage", "app:team/app", "fp:v1-abc"}},
+		{Time: 100, Text: `{"schema":1,"action":"resolve","actor":"a"}`, Tags: []string{"clickhouse-apm:triage", "app:team/app", "fp:v1-abc"}},
 		// Same app tag but NOT a triage annotation (e.g. a deploy marker) —
 		// must be filtered client-side.
 		{Time: 200, Text: `deploy`, Tags: []string{"app:team/app", "nais-deploy"}},
@@ -251,7 +251,7 @@ func TestTriageFetchOmitsCommonTagAndFiltersClientSide(t *testing.T) {
 	}
 	for _, tags := range gotTags {
 		for _, tg := range tags {
-			if tg == "nais-apm:triage" {
+			if tg == "clickhouse-apm:triage" {
 				t.Errorf("common tag sent to the API: %v", tags)
 			}
 		}
@@ -268,9 +268,9 @@ func TestTriageFetchPaginatesPastLimit(t *testing.T) {
 	total := pageSize + 50
 	anns := make([]grafanaAnnotation, 0, total)
 	// Oldest event: the resolve that the un-paginated fetch lost.
-	anns = append(anns, grafanaAnnotation{Time: 1, Text: `{"schema":1,"action":"resolve","actor":"a"}`, Tags: []string{"nais-apm:triage", "app:team/app", "fp:v1-old"}})
+	anns = append(anns, grafanaAnnotation{Time: 1, Text: `{"schema":1,"action":"resolve","actor":"a"}`, Tags: []string{"clickhouse-apm:triage", "app:team/app", "fp:v1-old"}})
 	for i := 1; i < total; i++ {
-		anns = append(anns, grafanaAnnotation{Time: int64(i + 1), Text: `{"schema":1,"action":"assign","actor":"b","assignee":"x"}`, Tags: []string{"nais-apm:triage", "app:team/app", "fp:v1-noise"}})
+		anns = append(anns, grafanaAnnotation{Time: int64(i + 1), Text: `{"schema":1,"action":"assign","actor":"b","assignee":"x"}`, Tags: []string{"clickhouse-apm:triage", "app:team/app", "fp:v1-noise"}})
 	}
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		to, _ := strconv.ParseInt(r.URL.Query().Get("to"), 10, 64)

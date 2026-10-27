@@ -82,7 +82,7 @@ first:
 
 ```bash
 curl -s -u admin:admin \
-  'http://localhost:3000/api/plugins/nais-apm-app/resources/services' \
+  'http://localhost:3000/api/plugins/clickhouse-apm-app/resources/services' \
   | python3 -c 'import sys,json;[print(s["namespace"],s["name"],s.get("sdkLanguage")) for s in json.load(sys.stdin) if s["name"]=="YOURSVC"]'
 ```
 

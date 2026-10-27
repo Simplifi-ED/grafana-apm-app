@@ -3,7 +3,7 @@
   "packages": {
     ".": {
       "release-type": "node",
-      "package-name": "nais-apm-app",
+      "package-name": "clickhouse-apm-app",
       "include-v-in-tag": true,
       "bump-minor-pre-major": true,
       "changelog-sections": [

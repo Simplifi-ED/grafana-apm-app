@@ -2,10 +2,9 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { getAppEvents, locationService } from '@grafana/runtime';
 import { AppEvents, GrafanaTheme2 } from '@grafana/data';
-import { Button, Icon, LoadingPlaceholder, RadioButtonGroup, TextLink, Tooltip, useStyles2 } from '@grafana/ui';
+import { Button, Icon, LoadingPlaceholder, RadioButtonGroup, Tooltip, useStyles2 } from '@grafana/ui';
 import { css } from '@emotion/css';
 import { buildAlertRuleUrl } from '../../../api/client';
-import { apmDocs } from '../../../utils/docsLinks';
 import { useFetch } from '../../../utils/useFetch';
 import { useCapabilities, getMetricNames } from '../../../utils/capabilities';
 import { usePluginDatasources } from '../../../utils/datasources';
@@ -150,9 +149,6 @@ export function SloPanel({ namespace, service, environment }: SloPanelProps) {
             <Tooltip content="Multi-window multi-burn-rate rules (Google SRE): fast burn = 14.4× budget over 1h & 5m, slow burn = 6× over 6h & 30m.">
               <Icon name="info-circle" className={styles.infoIcon} aria-label="About burn-rate alert windows" />
             </Tooltip>
-            <TextLink href={apmDocs.createAlerts()} external variant="bodySmall" className={styles.docsLink}>
-              About alert templates
-            </TextLink>
           </div>
         </>
       ) : null}

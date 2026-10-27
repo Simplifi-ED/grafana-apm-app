@@ -53,7 +53,7 @@ import (
 
 const (
 	// pluginBasePath is the stable URL prefix of this app (docs/url-contract.md).
-	pluginBasePath = "/a/nais-apm-app"
+	pluginBasePath = "/a/clickhouse-apm-app"
 
 	// expressionDatasourceUID is Grafana's reserved UID for server-side expressions.
 	expressionDatasourceUID = "__expr__"
@@ -339,7 +339,7 @@ func (a *App) errorRateDefaults(ctx context.Context, namespace, service, env, ds
 		Queries:     append([]alertQuery{dataQuery(dsUID, expr)}, expressionQueries(errorRateThreshold)...),
 		Annotations: []alertKeyValue{
 			{Key: "summary", Value: fmt.Sprintf("More than 5%% of requests to %s are failing (5m window)", service)},
-			{Key: "nais_apm_url", Value: serviceDeepLink(namespace, service, env, "", "", "")},
+			{Key: "clickhouse_apm_url", Value: serviceDeepLink(namespace, service, env, "", "", "")},
 		},
 		Labels: templateLabels(namespace, service),
 	}
@@ -389,7 +389,7 @@ func (a *App) exceptionSpikeDefaults(namespace, service, env, fingerprint string
 			// Deep link opens the ExceptionDrawer on the Issues tab (#69 P10,
 			// docs/url-contract.md): issueId for fingerprint groups (#62),
 			// exceptionHash as legacy fallback — both resolve there too.
-			{Key: "nais_apm_url", Value: serviceDeepLink(namespace, service, env, "issues", fingerprint, hashes[0])},
+			{Key: "clickhouse_apm_url", Value: serviceDeepLink(namespace, service, env, "issues", fingerprint, hashes[0])},
 		},
 		Labels: templateLabels(namespace, service),
 	}
@@ -417,7 +417,7 @@ func (a *App) webVitalsDefaults(namespace, service, env, dsUID string) ruleFormD
 		Annotations: []alertKeyValue{
 			{Key: "summary", Value: fmt.Sprintf("Largest Contentful Paint p75 for %s is above %dms (Core Web Vitals \"poor\")", service, lcpP75ThresholdMs)},
 			// A UX-health alert, not an issue — stays on the Frontend tab (#69 P10).
-			{Key: "nais_apm_url", Value: serviceDeepLink(namespace, service, env, "frontend", "", "")},
+			{Key: "clickhouse_apm_url", Value: serviceDeepLink(namespace, service, env, "frontend", "", "")},
 		},
 		Labels: templateLabels(namespace, service),
 	}
@@ -466,7 +466,7 @@ sum by (%[1]s) (count_over_time(%[2]s | logfmt | %[1]s!="" | keep %[1]s [7d] off
 					"issues older than the 7d lookback re-fire as new, and resolved-issue regressions do not fire)", service)},
 			// Templated per-instance deep link: each firing hash opens its
 			// own drawer on the Issues tab (#69 P10, docs/url-contract.md).
-			{Key: "nais_apm_url", Value: serviceDeepLink(namespace, service, env, "issues", "", "{{ $labels."+fl.Hash+" }}")},
+			{Key: "clickhouse_apm_url", Value: serviceDeepLink(namespace, service, env, "issues", "", "{{ $labels."+fl.Hash+" }}")},
 		},
 		Labels: templateLabels(namespace, service),
 	}
@@ -559,7 +559,7 @@ metadata:
     app: %[1]q
 spec:
   groups:
-    - name: nais-apm-new-exceptions
+    - name: clickhouse-apm-new-exceptions
       # 7d range vector — evaluate at the same 5m the Grafana variant ships.
       interval: 5m
       rules:
@@ -584,7 +584,7 @@ spec:
             dashboard_url: %[11]q
 `,
 		service,
-		k8sName("nais-apm-new-exceptions-"+service),
+		k8sName("clickhouse-apm-new-exceptions-"+service),
 		newExceptionSessionsMetric,
 		ns,
 		by,
@@ -694,7 +694,7 @@ func (a *App) sloBurnRateDefaults(ctx context.Context, namespace, service, env, 
 			{Key: "summary", Value: fmt.Sprintf(
 				"%s error budget burn on %s: the %s error ratio is above %sx the %s SLO budget (confirmed over %s)",
 				strings.ToLower(tier), service, longWin, factorStr, sloPct, shortWin)},
-			{Key: "nais_apm_url", Value: serviceDeepLink(namespace, service, env, "", "", "")},
+			{Key: "clickhouse_apm_url", Value: serviceDeepLink(namespace, service, env, "", "", "")},
 		},
 		Labels: append(templateLabels(namespace, service),
 			alertKeyValue{Key: "severity", Value: sloSeverity(window)},
@@ -801,7 +801,7 @@ func expressionQueries(threshold float64) []alertQuery {
 }
 
 // templateLabels are attached to every created rule so teams can route and
-// audit plugin-suggested rules (`source=nais-apm`).
+// audit plugin-suggested rules (`source=clickhouse-apm`).
 func templateLabels(namespace, service string) []alertKeyValue {
 	labels := make([]alertKeyValue, 0, 3)
 	if namespace != "" {
@@ -809,7 +809,7 @@ func templateLabels(namespace, service string) []alertKeyValue {
 	}
 	labels = append(labels,
 		alertKeyValue{Key: "service", Value: service},
-		alertKeyValue{Key: "source", Value: "nais-apm"},
+		alertKeyValue{Key: "source", Value: "clickhouse-apm"},
 	)
 	return labels
 }

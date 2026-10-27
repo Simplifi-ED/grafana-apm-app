@@ -4,7 +4,7 @@
 
 Browser-telemetry endpoints backed by Faro data in Loki (and Alloy histogram
 metrics in Mimir). All are `GET`, all under the resources proxy base
-`{GRAFANA_URL}/api/plugins/nais-apm-app/resources`.
+`{GRAFANA_URL}/api/plugins/clickhouse-apm-app/resources`.
 
 Contents:
 - [`GET /frontend`](#get-frontend)

@@ -130,7 +130,8 @@ describe('ServiceInventory — Time range', () => {
     await screen.findByText('my-api');
     await waitFor(() => expect(getServices).toHaveBeenCalledTimes(2));
 
-    expect(screen.getByDisplayValue('Last 5 minutes')).toBeInTheDocument();
+    expect(screen.getByText(/Last 5 minutes/i)).toBeInTheDocument();
+    expect(screen.getByTestId('refresh-control')).toBeInTheDocument();
     for (const [from, to] of jest.mocked(getServices).mock.calls) {
       expect(to - from).toBeCloseTo(5 * 60 * 1000, -2);
     }
@@ -141,7 +142,7 @@ describe('ServiceInventory — Time range', () => {
     await screen.findByText('my-api');
     await waitFor(() => expect(getServices).toHaveBeenCalledTimes(2));
 
-    expect(screen.getByDisplayValue('Last 5 minutes')).toBeInTheDocument();
+    expect(screen.getByText(/Last 5 minutes/i)).toBeInTheDocument();
     for (const [from, to] of jest.mocked(getServices).mock.calls) {
       expect(to - from).toBe(5 * 60 * 1000);
     }
@@ -153,7 +154,8 @@ describe('ServiceInventory — Time range', () => {
 
     expect(await screen.findByText('No services found')).toBeInTheDocument();
     expect(screen.getByText(/Select a wider time range to find older activity/)).toBeInTheDocument();
-    expect(screen.getByDisplayValue('Last 5 minutes')).toBeInTheDocument();
+    // Picker button + empty-state copy both mention the window.
+    expect(screen.getAllByText(/last 5 minutes/i).length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
   });
 });
@@ -265,10 +267,10 @@ describe('ServiceInventory — Refresh', () => {
     activeStore.destroy();
   });
 
-  it('does not auto-refresh while the page stays open', async () => {
+  it('exposes a refresh control that stays off by default', async () => {
     renderInventory();
     await screen.findByText('my-api');
-    expect(screen.queryByTestId('refresh-control')).not.toBeInTheDocument();
+    expect(screen.getByTestId('refresh-control')).toBeInTheDocument();
   });
 });
 

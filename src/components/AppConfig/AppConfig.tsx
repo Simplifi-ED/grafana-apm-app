@@ -578,9 +578,9 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
 
       <FieldSet label="Authentication (fallback)" className={s.marginTop}>
         <p className={s.description}>
-          Normally leave this blank. On Nais, Grafana&apos;s managed service accounts authenticate the backend
-          automatically. Only set a token when managed service accounts aren&apos;t available (older or non-Nais
-          Grafana), or for the backend&apos;s internal datasource calls when Grafana runs behind an OAuth2 proxy.
+          Normally leave this blank when Grafana can authenticate the plugin backend via managed service accounts. Set a
+          token when those aren&apos;t available, or when Grafana runs behind an OAuth2 proxy and the backend needs a
+          service account for internal datasource calls.
         </p>
         <Field
           label="Grafana Service Account Token"
@@ -731,8 +731,8 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
 
       <FieldSet label="Ingress Aliases" className={s.marginTop}>
         <p className={s.description}>
-          Map ingress hostnames to service names so on-prem callers that reach services via nais ingress become visible
-          in the caller list and service map.
+          Map ingress hostnames to service names so callers that reach services via a public ingress become visible in
+          the caller list and service map.
         </p>
         {state.ingressAliases.map((alias, idx) => (
           <div key={idx} className={s.envRow}>

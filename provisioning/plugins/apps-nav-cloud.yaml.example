@@ -6,7 +6,7 @@
 apiVersion: 1
 
 apps:
-  - type: 'nais-apm-app'
+  - type: 'clickhouse-apm-app'
     org_id: 1
     disabled: false
     jsonData:

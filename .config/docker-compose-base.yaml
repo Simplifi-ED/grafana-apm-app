@@ -1,6 +1,6 @@
 services:
   grafana:
-    container_name: 'nais-apm-app'
+    container_name: 'clickhouse-apm-app'
 
     build:
       context: .
@@ -12,16 +12,16 @@ services:
     ports:
       - ${GRAFANA_PORT:-3000}:3000/tcp
     volumes:
-      - ../dist:/var/lib/grafana/plugins/nais-apm-app
+      - ../dist:/var/lib/grafana/plugins/clickhouse-apm-app
       - ../provisioning:/etc/grafana/provisioning
-      - ..:/root/nais-apm-app
+      - ..:/root/clickhouse-apm-app
 
     environment:
       NODE_ENV: development
-      GF_LOG_FILTERS: plugin.nais-apm-app:debug
+      GF_LOG_FILTERS: plugin.clickhouse-apm-app:debug
       GF_LOG_LEVEL: debug
       GF_DATAPROXY_LOGGING: 1
-      GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS: nais-apm-app
+      GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS: clickhouse-apm-app
       # ClickStack local-against-prod: grafana-clickhouse-datasource + host tunnel
       GF_INSTALL_PLUGINS: grafana-clickhouse-datasource
     extra_hosts:

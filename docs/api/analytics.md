@@ -8,7 +8,7 @@ both require a datasource UID query parameter, and both degrade to a structured
 `"mode": "unavailable"` body (HTTP 200) rather than erroring when their
 datasource is missing. Cached 30 s.
 
-Base: `{GRAFANA_URL}/api/plugins/nais-apm-app/resources`.
+Base: `{GRAFANA_URL}/api/plugins/clickhouse-apm-app/resources`.
 
 Contents:
 - [`GET /logs/patterns`](#get-logspatterns)

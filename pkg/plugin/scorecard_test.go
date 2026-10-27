@@ -2,7 +2,6 @@ package plugin
 
 import (
 	"encoding/json"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -16,18 +15,17 @@ import (
 // scorecardFixture controls which observability signals the fake backends
 // report for the probed service.
 type scorecardFixture struct {
-	spanMetrics  bool
-	traces       bool
-	logs         bool
-	runtime      bool
-	browser      bool
-	alertRule    bool
-	sdkLanguage  string                    // telemetry_sdk_language answered by the language probe ("" → no series)
-	naisResponse func(query string) string // nil → console unconfigured
+	spanMetrics bool
+	traces      bool
+	logs        bool
+	runtime     bool
+	browser     bool
+	alertRule   bool
+	sdkLanguage string // telemetry_sdk_language answered by the language probe ("" → no series)
 }
 
-// newScorecardApp wires fake Prometheus, Grafana-proxy (Tempo/Loki/rules) and
-// optionally nais Console servers into an App.
+// newScorecardApp wires fake Prometheus and Grafana-proxy (Tempo/Loki/rules)
+// into an App.
 func newScorecardApp(t *testing.T, fx scorecardFixture) *App {
 	t.Helper()
 
@@ -108,21 +106,6 @@ func newScorecardApp(t *testing.T, fx scorecardFixture) *App {
 		},
 	}
 	app.capCache = &cachedCapabilities{caps: defaultCaps(), fetchedAt: time.Now()}
-
-	if fx.naisResponse != nil {
-		nais := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			body, _ := io.ReadAll(r.Body)
-			var payload struct {
-				Query string `json:"query"`
-			}
-			_ = json.Unmarshal(body, &payload)
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write([]byte(fx.naisResponse(payload.Query)))
-		}))
-		t.Cleanup(nais.Close)
-		app.settings.NaisAPIURL = nais.URL
-		app.naisToken = "tok"
-	}
 	return app
 }
 
@@ -243,98 +226,6 @@ func TestScorecardReadinessScore(t *testing.T) {
 	}
 }
 
-func TestScorecardConsoleUnconfigured(t *testing.T) {
-	app := newScorecardApp(t, scorecardFixture{spanMetrics: true})
-	resp := getScorecard(t, app)
-
-	if resp.Console.Configured {
-		t.Error("console.configured = true without nais API settings")
-	}
-	if resp.Console.TeamSlug != "" || resp.Console.RepositoryURL != "" || len(resp.Console.Ingresses) != 0 {
-		t.Errorf("unconfigured console leaked fields: %+v", resp.Console)
-	}
-	// Readiness must still be computed.
-	if resp.Readiness.Score != 1 || resp.Readiness.Total != 6 {
-		t.Errorf("readiness = %d/%d, want 1/6", resp.Readiness.Score, resp.Readiness.Total)
-	}
-}
-
-const consoleTeamJSON = `{"data":{"team":{"slug":"team-a","slackChannel":"#team-a-alerts"}}}`
-const consoleAppsJSON = `{"data":{"team":{"applications":{"nodes":[
-	{"name":"other-app","ingresses":[{"url":"https://other.nav.no"}]},
-	{"name":"my-app","ingresses":[{"url":"https://my-app.nav.no"},{"url":"https://my-app.intern.nav.no"}]}
-]}}}}`
-const consoleDeploysJSON = `{"data":{"deployments":{"nodes":[{
-	"id":"dep-1","createdAt":"2026-07-03T10:00:00Z","environmentName":"prod-gcp",
-	"commitSha":"abc1234","triggerUrl":"https://github.com/navikt/my-app/actions/runs/42","teamSlug":"team-a",
-	"resources":{"nodes":[{"kind":"Application","name":"my-app"}]},
-	"statuses":{"nodes":[{"state":"SUCCESS"}]}
-}]}}}`
-
-func TestScorecardConsoleEnrichment(t *testing.T) {
-	app := newScorecardApp(t, scorecardFixture{
-		naisResponse: func(query string) string {
-			switch {
-			case strings.Contains(query, "slackChannel"):
-				return consoleTeamJSON
-			case strings.Contains(query, "applications"):
-				return consoleAppsJSON
-			case strings.Contains(query, "deployments"):
-				return consoleDeploysJSON
-			}
-			return `{"errors":[{"message":"unknown query"}]}`
-		},
-	})
-	resp := getScorecard(t, app)
-
-	c := resp.Console
-	if !c.Configured {
-		t.Fatal("console.configured = false")
-	}
-	if c.TeamSlug != "team-a" || c.SlackChannel != "#team-a-alerts" {
-		t.Errorf("team facts = %q/%q, want team-a/#team-a-alerts", c.TeamSlug, c.SlackChannel)
-	}
-	if c.RepositoryURL != "https://github.com/navikt/my-app" {
-		t.Errorf("repositoryUrl = %q, want derived github repo", c.RepositoryURL)
-	}
-	if len(c.Ingresses) != 2 || c.Ingresses[0] != "https://my-app.nav.no" {
-		t.Errorf("ingresses = %v, want my-app's two URLs", c.Ingresses)
-	}
-}
-
-func TestScorecardConsolePerFieldDegradation(t *testing.T) {
-	// The deployed schema lacks the applications listing (GraphQL error):
-	// team + repo facts must still arrive, ingresses silently omitted.
-	app := newScorecardApp(t, scorecardFixture{
-		naisResponse: func(query string) string {
-			switch {
-			case strings.Contains(query, "slackChannel"):
-				return consoleTeamJSON
-			case strings.Contains(query, "applications"):
-				return `{"errors":[{"message":"Cannot query field \"applications\" on type \"Team\""}]}`
-			case strings.Contains(query, "deployments"):
-				return consoleDeploysJSON
-			}
-			return `{"errors":[{"message":"unknown query"}]}`
-		},
-	})
-	resp := getScorecard(t, app)
-
-	c := resp.Console
-	if !c.Configured {
-		t.Fatal("console.configured = false")
-	}
-	if c.TeamSlug != "team-a" {
-		t.Errorf("teamSlug = %q, want team-a despite applications degradation", c.TeamSlug)
-	}
-	if c.RepositoryURL != "https://github.com/navikt/my-app" {
-		t.Errorf("repositoryUrl = %q, want derived repo despite applications degradation", c.RepositoryURL)
-	}
-	if len(c.Ingresses) != 0 {
-		t.Errorf("ingresses = %v, want omitted", c.Ingresses)
-	}
-}
-
 func TestRuleMentionsService(t *testing.T) {
 	cases := []struct {
 		name    string
@@ -355,23 +246,5 @@ func TestRuleMentionsService(t *testing.T) {
 				t.Errorf("ruleMentionsService() = %v, want %v", got, tc.want)
 			}
 		})
-	}
-}
-
-func TestDeriveRepoURL(t *testing.T) {
-	cases := []struct {
-		in, want string
-	}{
-		{"https://github.com/navikt/my-app/actions/runs/42", "https://github.com/navikt/my-app"},
-		{"https://github.com/navikt/my-app/actions/runs/42/attempts/2", "https://github.com/navikt/my-app"},
-		{"", ""},
-		{"http://github.com/navikt/my-app/actions/runs/1", ""}, // not https
-		{"https://example.com/no-actions-path", ""},
-		{"https://github.com/actions/runs/1", ""}, // owner/repo missing
-	}
-	for _, tc := range cases {
-		if got := deriveRepoURL(tc.in); got != tc.want {
-			t.Errorf("deriveRepoURL(%q) = %q, want %q", tc.in, got, tc.want)
-		}
 	}
 }

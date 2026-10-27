@@ -5,7 +5,7 @@ readiness scorecard, jobs/cronjobs, and the service-map topology.
 
 `GET /capabilities` is **stable**; the rest are **experimental**.
 
-Base: `{GRAFANA_URL}/api/plugins/nais-apm-app/resources`.
+Base: `{GRAFANA_URL}/api/plugins/clickhouse-apm-app/resources`.
 
 Contents:
 - [`GET /capabilities`](#get-capabilities) — stable

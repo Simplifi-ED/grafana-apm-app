@@ -15,13 +15,12 @@ import { GrafanaTheme2, PageLayoutType } from '@grafana/data';
 import { css } from '@emotion/css';
 import { getServices, ServiceSummary } from '../api/client';
 import { useTimeRange } from '../utils/timeRange';
-import { QUICK_TIME_RANGES } from '../utils/timeRangeOptions';
 import { useAppNavigate, sanitizeParam } from '../utils/navigation';
 import { extractEnvironmentOptions } from '../utils/options';
 import { useFetch } from '../utils/useFetch';
 import { getServiceHealth, healthSeverity } from '../utils/health';
-import { useAutoRefresh, REFRESH_INTERVALS } from '../utils/useInterval';
 import { StatusCard, CardStatus, CardSize, CARD_DIMENSIONS } from '../components/StatusCard';
+import { HeaderTimeControls } from '../components/HeaderTimeControls';
 import { useOpsWatchlist, watchlistToSet, watchlistKey } from '../utils/useOpsWatchlist';
 import { useUrlNumber } from '../utils/useUrlState';
 import { OpsServicePicker } from '../components/OpsServicePicker';
@@ -69,7 +68,7 @@ function OpsStatusBoard() {
   const styles = useStyles2(getStyles);
   const envParam = sanitizeParam(searchParams.get('environment') ?? '');
   const envFilters = useMemo(() => (envParam ? envParam.split(',').filter(Boolean) : []), [envParam]);
-  const { from, fromMs, toMs, setTimeRange, refresh: refreshTimeRange } = useTimeRange();
+  const { from, fromMs, toMs, refresh: refreshTimeRange } = useTimeRange();
   const { watchlist, loading: watchlistLoading, error: watchlistError, add, remove } = useOpsWatchlist();
   const [pickerOpen, setPickerOpen] = useState(false);
 
@@ -77,7 +76,6 @@ function OpsStatusBoard() {
   const rawSize = searchParams.get('size') ?? 'md';
   const cardSize: CardSize = VALID_CARD_SIZES.has(rawSize) ? (rawSize as CardSize) : 'md';
 
-  const [refreshInterval, setRefreshInterval] = useUrlNumber('refresh', 60000);
   const [rotationInterval, setRotationInterval] = useUrlNumber('rotation', 10000);
 
   // Page state that auto-resets when filters change
@@ -175,8 +173,6 @@ function OpsStatusBoard() {
       refetchSparklines();
     }
   }, [isRelativeRange, refreshTimeRange, refetch, refetchPrev, refetchSparklines, cardSize]);
-
-  const { secondsUntilRefresh } = useAutoRefresh(handleRefresh, refreshInterval);
 
   // Build watchlist lookup set
   const watchlistSet = useMemo(() => watchlistToSet(watchlist), [watchlist]);
@@ -323,7 +319,6 @@ function OpsStatusBoard() {
     [appNavigate]
   );
 
-  const refreshOptions = useMemo(() => REFRESH_INTERVALS.map((r) => ({ label: r.label, value: String(r.value) })), []);
   const openPicker = useCallback(() => setPickerOpen(true), []);
   const closePicker = useCallback(() => setPickerOpen(false), []);
 
@@ -368,18 +363,7 @@ function OpsStatusBoard() {
               />
             )}
             <RadioButtonGroup size="sm" options={CARD_SIZE_OPTIONS} value={cardSize} onChange={(v) => setCardSize(v)} />
-            <Combobox
-              options={QUICK_TIME_RANGES}
-              value={from}
-              onChange={(v) => setTimeRange(v?.value ?? 'now-1h', 'now')}
-              width={18}
-            />
-            <Combobox
-              options={refreshOptions}
-              value={String(refreshInterval)}
-              onChange={(v) => setRefreshInterval(Number(v.value))}
-              width={12}
-            />
+            <HeaderTimeControls onRefresh={handleRefresh} defaultRefresh="1m" />
             <Combobox
               options={ROTATION_INTERVALS}
               value={String(rotationInterval)}
@@ -387,10 +371,6 @@ function OpsStatusBoard() {
               width={10}
               placeholder="Rotate"
             />
-            <span className={styles.countdown}>
-              <Icon name="sync" size="sm" />
-              {secondsUntilRefresh}s
-            </span>
           </div>
         </div>
 
@@ -415,7 +395,7 @@ function OpsStatusBoard() {
                   <h3>No services configured</h3>
                   <p>
                     Add services directly from this dashboard, or use the{' '}
-                    <a href={`/plugins/nais-apm-app`}>plugin configuration</a> as a fallback.
+                    <a href={`/plugins/clickhouse-apm-app`}>plugin configuration</a> as a fallback.
                   </p>
                   <Button variant="secondary" onClick={openPicker}>
                     Add services
@@ -567,15 +547,6 @@ const getStyles = (theme: GrafanaTheme2) => ({
     a {
       color: ${theme.colors.text.link};
     }
-  `,
-  countdown: css`
-    display: inline-flex;
-    align-items: center;
-    gap: ${theme.spacing(0.5)};
-    font-size: ${theme.typography.bodySmall.fontSize};
-    color: ${theme.colors.text.secondary};
-    font-variant-numeric: tabular-nums;
-    min-width: 48px;
   `,
   pager: css`
     display: flex;

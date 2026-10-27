@@ -8,7 +8,7 @@
 
 ## Authorization as implemented
 
-- **Gate:** all `/api/plugins/nais-apm-app/resources/*` endpoints require an
+- **Gate:** all `/api/plugins/clickhouse-apm-app/resources/*` endpoints require an
   authenticated Grafana session (Viewer minimum with the app enabled). There is
   no per-endpoint role check by default — `UserFromContext` is used for
   attribution, not authorization.

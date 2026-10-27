@@ -11,7 +11,7 @@ info:
     See ./README.md for the auth model, caching semantics, and stability
     contract.
 servers:
-  - url: "{grafanaUrl}/api/plugins/nais-apm-app/resources"
+  - url: "{grafanaUrl}/api/plugins/clickhouse-apm-app/resources"
     variables:
       grafanaUrl:
         default: http://localhost:3000

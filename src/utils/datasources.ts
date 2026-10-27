@@ -6,6 +6,8 @@ interface PluginDatasources {
   metricsUid: string;
   tracesUid: string;
   logsUid: string;
+  /** Grafana ClickHouse datasource UID when ClickStack is configured. */
+  clickHouseUid: string;
   /** Whether the current traces/logs UIDs came from an environment override */
   isEnvSpecific: boolean;
   /** Whether the Loki UID specifically came from a per-environment override */
@@ -113,6 +115,7 @@ function getPluginDatasources(env?: string): PluginDatasources {
     metricsUid,
     tracesUid,
     logsUid,
+    clickHouseUid: jsonData.clickHouseDataSource?.uid || '',
     isEnvSpecific,
     isLogsEnvSpecific,
   };

@@ -76,8 +76,8 @@
       "value": "More than 5% of requests to my-svc are failing (5m window)"
     },
     {
-      "key": "nais_apm_url",
-      "value": "/a/nais-apm-app/services/team-a/my-svc?environment=prod-gcp"
+      "key": "clickhouse_apm_url",
+      "value": "/a/clickhouse-apm-app/services/team-a/my-svc?environment=prod-gcp"
     }
   ],
   "labels": [
@@ -91,7 +91,7 @@
     },
     {
       "key": "source",
-      "value": "nais-apm"
+      "value": "clickhouse-apm"
     }
   ]
 }

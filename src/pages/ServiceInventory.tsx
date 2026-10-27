@@ -19,7 +19,7 @@ import {
 import { dateMath, GrafanaTheme2 } from '@grafana/data';
 import { css } from '@emotion/css';
 import { getServices, getCapabilities, ServiceSummary, Capabilities } from '../api/client';
-import { QUICK_TIME_RANGES, describeTimeRange } from '../utils/timeRangeOptions';
+import { describeTimeRange } from '../utils/timeRangeOptions';
 import { useAppNavigate, sanitizeParam } from '../utils/navigation';
 import { formatDuration } from '../utils/format';
 import { sparklineColors } from '../utils/colors';
@@ -27,6 +27,8 @@ import { extractEnvironmentOptions, extractNamespaceOptions } from '../utils/opt
 import { useFetch } from '../utils/useFetch';
 import { FrameworkBadge } from '../components/FrameworkBadge';
 import { Sparkline } from '../components/Sparkline';
+import { AppTimeRangePicker } from '../components/AppTimeRangePicker';
+import { RefreshControl } from '../components/RefreshControl';
 import { useFavorites, serviceKey } from '../utils/useFavorites';
 import { createServiceSearchIndex, searchServices } from '../utils/serviceSearch';
 
@@ -38,18 +40,27 @@ const PAGE_SIZE_OPTIONS: Array<{ label: string; value: number }> = [
   { label: '25', value: 25 },
   { label: '50', value: 50 },
 ];
+/** Inventory queries stay bounded — wider windows hammer ClickHouse at fleet scale. */
 const MAX_INVENTORY_RANGE_MS = 12 * 60 * 60 * 1000;
-const INVENTORY_TIME_RANGES = QUICK_TIME_RANGES.filter((range) => range.value !== 'now-24h');
+
+function resolveInventoryRange(from: string, to: string): { from: string; to: string; fromMs: number; toMs: number } {
+  const parsedFrom = dateMath.toDateTime(from, {});
+  const parsedTo = dateMath.toDateTime(to, { roundUp: true });
+  if (!parsedFrom || !parsedTo) {
+    const now = Date.now();
+    return { from: 'now-5m', to: 'now', fromMs: now - 5 * 60_000, toMs: now };
+  }
+  const toMs = parsedTo.valueOf();
+  const fromMs = Math.max(parsedFrom.valueOf(), toMs - MAX_INVENTORY_RANGE_MS);
+  return { from, to, fromMs, toMs };
+}
 
 function ServiceInventory() {
   const styles = useStyles2(getStyles);
   const theme = useTheme2();
   const sc = sparklineColors(theme);
   const appNavigate = useAppNavigate();
-  const [{ from, fromMs, toMs }, setRange] = useState(() => {
-    const now = Date.now();
-    return { from: 'now-5m', fromMs: now - 5 * 60_000, toMs: now };
-  });
+  const [{ from, to, fromMs, toMs }, setRange] = useState(() => resolveInventoryRange('now-5m', 'now'));
   const { isFavorite, toggle: toggleFavorite, count: favCount } = useFavorites();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -67,14 +78,14 @@ function ServiceInventory() {
     }
   }, [searchParams, setSearchParams]);
 
-  const selectRange = (value: string) => {
-    const parsedFrom = dateMath.toDateTime(value, {});
-    if (!parsedFrom) {
-      throw new Error(`Invalid inventory time range: ${value}`);
-    }
-    const now = Date.now();
-    setRange({ from: value, fromMs: Math.max(parsedFrom.valueOf(), now - MAX_INVENTORY_RANGE_MS), toMs: now });
-  };
+  const applyRange = useCallback((nextFrom: string, nextTo: string) => {
+    setRange(resolveInventoryRange(nextFrom, nextTo));
+  }, []);
+
+  const handleRefresh = useCallback(() => {
+    // Re-resolve relative ranges; absolute windows just re-query the same span.
+    setRange((prev) => resolveInventoryRange(prev.from, prev.to));
+  }, []);
 
   const {
     data: fetchResult,
@@ -378,13 +389,17 @@ function ServiceInventory() {
                   </div>
                 )}
               </div>
-              <Combobox
-                options={INVENTORY_TIME_RANGES}
-                value={from}
-                onChange={(v) => selectRange(v?.value ?? 'now-5m')}
-                width={22}
-                prefixIcon="clock-nine"
-              />
+              <div className={styles.timeControls}>
+                <AppTimeRangePicker
+                  from={from}
+                  to={to}
+                  fromMs={fromMs}
+                  toMs={toMs}
+                  onChange={applyRange}
+                  maxRangeMs={MAX_INVENTORY_RANGE_MS}
+                />
+                <RefreshControl onRefresh={handleRefresh} />
+              </div>
             </div>
             {/* Row 2: View options (pills) */}
             <div className={styles.viewRow}>
@@ -603,7 +618,7 @@ function ServiceInventory() {
 
         {!loading && services.length === 0 && caps?.spanMetrics.detected && (
           <Alert severity="info" title="No services found">
-            No services found in {describeTimeRange(from, 'now')}. Select a wider time range to find older activity.
+            No services found in {describeTimeRange(from, to)}. Select a wider time range to find older activity.
           </Alert>
         )}
       </div>
@@ -648,6 +663,12 @@ const getStyles = (theme: GrafanaTheme2) => ({
     display: flex;
     gap: ${theme.spacing(1)};
     align-items: center;
+  `,
+  timeControls: css`
+    display: inline-flex;
+    align-items: center;
+    gap: ${theme.spacing(0.5)};
+    flex-shrink: 0;
   `,
   viewRow: css`
     display: flex;

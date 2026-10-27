@@ -23,9 +23,9 @@ import (
 const maxVersions = 20
 
 // Deploy annotations are tagged per the #64 Phase 0 contract:
-// nais-apm:deploy + service:<app> (+ env:<env>) + version:<sha>.
+// clickhouse-apm:deploy + service:<app> (+ env:<env>) + version:<sha>.
 const (
-	deployAnnotationTag = "nais-apm:deploy"
+	deployAnnotationTag = "clickhouse-apm:deploy"
 	versionTagPrefix    = "version:"
 )
 
@@ -44,7 +44,7 @@ type VersionStat struct {
 	// Exception occurrences on this version in range.
 	Exceptions float64 `json:"exceptions"`
 	// DeployedAtMs is the deploy annotation timestamp for this version,
-	// when a matching nais-apm:deploy annotation exists in range.
+	// when a matching clickhouse-apm:deploy annotation exists in range.
 	DeployedAtMs int64 `json:"deployedAtMs,omitempty"`
 }
 

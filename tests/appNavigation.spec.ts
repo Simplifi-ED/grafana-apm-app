@@ -77,8 +77,8 @@ test.describe('smoke: app navigation', () => {
     const pluginNav = page
       .getByRole('link', { name: /Services/i })
       .or(page.getByRole('tab', { name: /Services/i }))
-      .or(page.getByRole('button', { name: /Expand section.*Nais APM/i }))
-      .or(page.getByRole('heading', { name: /Nais APM/i }));
+      .or(page.getByRole('button', { name: /Expand section.*ClickStack APM/i }))
+      .or(page.getByRole('heading', { name: /ClickStack APM/i }));
     await expect(pluginNav.first()).toBeVisible({ timeout: 15_000 });
   });
 
@@ -91,15 +91,15 @@ test.describe('smoke: app navigation', () => {
     const jobsNav = page
       .getByRole('link', { name: /Jobs/i })
       .or(page.getByRole('tab', { name: /Jobs/i }))
-      .or(page.getByRole('button', { name: /Expand section.*Nais APM/i }))
-      .or(page.getByRole('heading', { name: /Nais APM/i }));
+      .or(page.getByRole('button', { name: /Expand section.*ClickStack APM/i }))
+      .or(page.getByRole('heading', { name: /ClickStack APM/i }));
     await expect(jobsNav.first()).toBeVisible({ timeout: 15_000 });
 
     const serviceMapNav = page
       .getByRole('link', { name: /Service Map/i })
       .or(page.getByRole('tab', { name: /Service Map/i }))
-      .or(page.getByRole('button', { name: /Expand section.*Nais APM/i }))
-      .or(page.getByRole('heading', { name: /Nais APM/i }));
+      .or(page.getByRole('button', { name: /Expand section.*ClickStack APM/i }))
+      .or(page.getByRole('heading', { name: /ClickStack APM/i }));
     await expect(serviceMapNav.first()).toBeVisible({ timeout: 15_000 });
   });
 });

@@ -12,7 +12,6 @@ import {
   getNewExceptionsPrometheusRule,
   getServiceAlerts,
 } from '../../api/client';
-import { apmDocs } from '../../utils/docsLinks';
 import { useFetch } from '../../utils/useFetch';
 import { useUrlParams } from '../../utils/useUrlState';
 import { FiringAlertDrawer } from './alerts/FiringAlertDrawer';
@@ -218,12 +217,6 @@ export function AlertsTab({ service, namespace, environment }: AlertsTabProps) {
               Go to Issues
             </Button>
           </div>
-        </div>
-
-        <div className={styles.docs}>
-          <TextLink href={apmDocs.createAlerts()} external variant="bodySmall">
-            About alert templates
-          </TextLink>
         </div>
       </section>
 
@@ -555,9 +548,6 @@ const getStyles = (theme: GrafanaTheme2) => ({
   cardDesc: css`
     font-size: ${theme.typography.bodySmall.fontSize};
     color: ${theme.colors.text.secondary};
-  `,
-  docs: css`
-    margin-top: ${theme.spacing(1.5)};
   `,
   yamlHint: css`
     margin-top: ${theme.spacing(1)};

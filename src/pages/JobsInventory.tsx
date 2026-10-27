@@ -1,16 +1,15 @@
 import React, { useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { PluginPage } from '@grafana/runtime';
-import { Alert, Badge, Combobox, FilterPill, Icon, Input, MultiCombobox, Tooltip, useStyles2 } from '@grafana/ui';
+import { Alert, Badge, FilterPill, Icon, Input, MultiCombobox, Tooltip, useStyles2 } from '@grafana/ui';
 import { GrafanaTheme2, dateTime } from '@grafana/data';
 import { css } from '@emotion/css';
 import { getJobs, JobEntry } from '../api/jobs';
 import { DataState } from '../components/DataState';
 import { useTimeRange } from '../utils/timeRange';
-import { QUICK_TIME_RANGES } from '../utils/timeRangeOptions';
 import { useAppNavigate, sanitizeParam } from '../utils/navigation';
 import { useFetch } from '../utils/useFetch';
-import { RefreshControl } from '../components/RefreshControl';
+import { HeaderTimeControls } from '../components/HeaderTimeControls';
 import { usePluginDatasources } from '../utils/datasources';
 import { buildLokiExploreUrl } from '../utils/explore';
 import { createServiceSearchIndex, searchServices } from '../utils/serviceSearch';
@@ -116,7 +115,7 @@ function SortTh({
 function JobsInventory() {
   const styles = useStyles2(getStyles);
   const appNavigate = useAppNavigate();
-  const { from, fromMs, toMs, setTimeRange, refresh: refreshTimeRange } = useTimeRange();
+  const { from, fromMs, toMs, refresh: refreshTimeRange } = useTimeRange();
   const { logsUid } = usePluginDatasources();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -287,14 +286,7 @@ function JobsInventory() {
                     />
                   </div>
                 </div>
-                <Combobox
-                  options={QUICK_TIME_RANGES}
-                  value={from}
-                  onChange={(v) => setTimeRange(v?.value ?? 'now-1h', 'now')}
-                  width={22}
-                  prefixIcon="clock-nine"
-                />
-                <RefreshControl onRefresh={handleRefresh} />
+                <HeaderTimeControls onRefresh={handleRefresh} />
               </div>
               <div className={styles.viewRow}>
                 <FilterPill

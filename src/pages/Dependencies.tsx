@@ -6,10 +6,9 @@ import { css } from '@emotion/css';
 import { getGlobalDependencies, DependencySummary, DependenciesResponse } from '../api/client';
 import { formatDuration, formatRate, formatErrorRate } from '../utils/format';
 import { useTimeRange } from '../utils/timeRange';
-import { QUICK_TIME_RANGES } from '../utils/timeRangeOptions';
 import { useAppNavigate, sanitizeParam } from '../utils/navigation';
 import { DepTypeIcon, formatDepType } from '../components/DepTypeIcon';
-import { RefreshControl } from '../components/RefreshControl';
+import { HeaderTimeControls } from '../components/HeaderTimeControls';
 import { SortHeader, ImpactBar, useTableSort, getTableStyles } from '../components/SortableTable';
 import { useFetch } from '../utils/useFetch';
 import { useConfiguredEnvironments } from '../utils/datasources';
@@ -20,7 +19,7 @@ function Dependencies() {
   const appNavigate = useAppNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const envFilter = sanitizeParam(searchParams.get('environment') ?? '');
-  const { from, fromMs, toMs, setTimeRange, refresh: refreshTimeRange } = useTimeRange();
+  const { from, fromMs, toMs, refresh: refreshTimeRange } = useTimeRange();
 
   // Read configured environment names from plugin datasource config
   const configuredEnvs = useConfiguredEnvironments();
@@ -115,13 +114,7 @@ function Dependencies() {
             services called by your applications.
           </p>
           <div className={styles.headerControls}>
-            <Combobox
-              options={QUICK_TIME_RANGES}
-              value={from}
-              onChange={(v) => setTimeRange(v?.value ?? 'now-1h', 'now')}
-              width={22}
-            />
-            <RefreshControl onRefresh={handleRefresh} />
+            <HeaderTimeControls onRefresh={handleRefresh} />
           </div>
         </div>
 

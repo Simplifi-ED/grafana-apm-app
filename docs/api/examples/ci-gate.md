@@ -65,7 +65,7 @@ jobs:
           from=$((now - 3600))
           curl -sf \
             -H "Authorization: Bearer $GRAFANA_SA_TOKEN" \
-            "$GRAFANA_URL/api/plugins/nais-apm-app/resources/services/$NAMESPACE/$SERVICE/issues?environment=$ENVIRONMENT&from=$from&to=$now" \
+            "$GRAFANA_URL/api/plugins/clickhouse-apm-app/resources/services/$NAMESPACE/$SERVICE/issues?environment=$ENVIRONMENT&from=$from&to=$now" \
             | jq -r '.issues[].fingerprint' | sort -u > baseline.txt
           echo "Baseline fingerprints:"; cat baseline.txt
 
@@ -87,7 +87,7 @@ jobs:
           from=$(( now - OBSERVE_MINUTES * 60 ))
           curl -sf \
             -H "Authorization: Bearer $GRAFANA_SA_TOKEN" \
-            "$GRAFANA_URL/api/plugins/nais-apm-app/resources/services/$NAMESPACE/$SERVICE/issues?environment=$ENVIRONMENT&from=$from&to=$now" \
+            "$GRAFANA_URL/api/plugins/clickhouse-apm-app/resources/services/$NAMESPACE/$SERVICE/issues?environment=$ENVIRONMENT&from=$from&to=$now" \
             | jq -r '.issues[].fingerprint' | sort -u > current.txt
           echo "Current fingerprints:"; cat current.txt
 
@@ -100,7 +100,7 @@ jobs:
             # Print titles for the new fingerprints for a friendlier log.
             curl -sf \
               -H "Authorization: Bearer $GRAFANA_SA_TOKEN" \
-              "$GRAFANA_URL/api/plugins/nais-apm-app/resources/services/$NAMESPACE/$SERVICE/issues?environment=$ENVIRONMENT&from=$from&to=$now" \
+              "$GRAFANA_URL/api/plugins/clickhouse-apm-app/resources/services/$NAMESPACE/$SERVICE/issues?environment=$ENVIRONMENT&from=$from&to=$now" \
               | jq -r --argjson fps "$(printf '%s\n' "$new_fps" | jq -R . | jq -s .)" \
                   '.issues[] | select(.fingerprint as $f | $fps | index($f)) | "  \(.fingerprint)  \(.title)  (count=\(.count), sessions=\(.sessions))"'
             exit 1
@@ -117,7 +117,7 @@ jobs:
 
   ```bash
   curl -sf -H "Authorization: Bearer $GRAFANA_SA_TOKEN" \
-    "$GRAFANA_URL/api/plugins/nais-apm-app/resources/services/$NAMESPACE/$SERVICE/triage" \
+    "$GRAFANA_URL/api/plugins/clickhouse-apm-app/resources/services/$NAMESPACE/$SERVICE/triage" \
     | jq -r '.states | to_entries[] | select(.value.status != "active") | .key' \
     | sort -u > triaged.txt
   # then: comm -13 <(sort -u baseline.txt triaged.txt) current.txt

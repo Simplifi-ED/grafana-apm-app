@@ -29,11 +29,11 @@ jest.mock('../api/client', () => ({
 function renderBoard(namespace = 'myteam') {
   return render(
     <MemoryRouter
-      initialEntries={[`/a/nais-apm-app/namespaces/${namespace}/status`]}
+      initialEntries={[`/a/clickhouse-apm-app/namespaces/${namespace}/status`]}
       future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
     >
       <Routes>
-        <Route path="/a/nais-apm-app/namespaces/:namespace/status" element={<StatusBoard />} />
+        <Route path="/a/clickhouse-apm-app/namespaces/:namespace/status" element={<StatusBoard />} />
       </Routes>
     </MemoryRouter>
   );

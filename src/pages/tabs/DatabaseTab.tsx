@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { useStyles2, LinkButton, Badge, Alert, TextLink } from '@grafana/ui';
+import { useStyles2, LinkButton, Badge, Alert } from '@grafana/ui';
 import { GrafanaTheme2 } from '@grafana/data';
 import { css } from '@emotion/css';
 import { getEndpoints, getRuntimeMetrics, EndpointGroups, RuntimeResponse } from '../../api/client';
@@ -10,7 +10,6 @@ import { DataState } from '../../components/DataState';
 import { DepTypeIcon, formatDepType } from '../../components/DepTypeIcon';
 import { otel } from '../../otelconfig';
 import { buildDatabaseScene, buildDbTracesExploreUrl } from './database/scene';
-import { apmDocs } from '../../utils/docsLinks';
 import { useSceneTimeSync } from '../../utils/useSceneTimeSync';
 import { QueryOperationsTable } from './database/QueryOperationsTable';
 import { ConnectionPoolSection } from './database/ConnectionPoolSection';
@@ -287,8 +286,8 @@ function EmptyStateBody() {
         <li>
           <strong>Span-metrics aggregation.</strong> Those spans must be aggregated into{' '}
           <code>traces_spanmetrics_*</code> metrics with <code>db_system</code> as a dimension. This is platform-side
-          (Tempo metrics-generator) and is usually already in place on nais — if the Traces tab shows database spans but
-          this tab stays empty, that pipeline is the place to look.
+          (Tempo metrics-generator) and is usually already in place in the collector — if the Traces tab shows database
+          spans but this tab stays empty, that pipeline is the place to look.
         </li>
         <li>
           <strong>Connection-pool metrics (only for the pool panels).</strong> Pool health and
@@ -298,11 +297,6 @@ function EmptyStateBody() {
           today.
         </li>
       </ol>
-      <p className={styles.docsLink}>
-        <TextLink href={apmDocs.databaseQueries()} external variant="bodySmall">
-          Instrument database queries with ClickStack APM
-        </TextLink>
-      </p>
     </div>
   );
 }
@@ -323,11 +317,6 @@ function MissingPoolMetricsNote() {
           JDBC/HikariCP pools. Driver-managed pools (e.g. the MongoDB Java driver) and Oracle UCP are not surfaced here
           today.
         </p>
-        <p className={styles.docsLink}>
-          <TextLink href={apmDocs.databaseQueries()} external variant="bodySmall">
-            Instrument database queries with ClickStack APM
-          </TextLink>
-        </p>
       </div>
     </Alert>
   );
@@ -347,12 +336,7 @@ function MissingSpansNote() {
           OpenTelemetry CLIENT-kind spans with a <code>db.system</code> attribute, aggregated through the span-metrics
           pipeline (<code>traces_spanmetrics_*</code> with a <code>db_system</code> dimension). Auto-instrumentation
           (OTel Java agent, Node.js <code>pg</code>/<code>mongodb</code> instrumentations) produces these spans without
-          code changes; the span-metrics aggregation is platform-side and usually already in place on nais.
-        </p>
-        <p className={styles.docsLink}>
-          <TextLink href={apmDocs.databaseQueries()} external variant="bodySmall">
-            Instrument database queries with ClickStack APM
-          </TextLink>
+          code changes; the span-metrics aggregation is platform-side and usually already in place in the collector.
         </p>
       </div>
     </Alert>

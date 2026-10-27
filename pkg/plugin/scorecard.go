@@ -1,7 +1,6 @@
 package plugin
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -16,16 +15,9 @@ import (
 	"github.com/nais/grafana-otel-plugin/pkg/plugin/queries"
 )
 
-// Service scorecard (M7): ownership/runbook/repo enrichment from the nais
-// Console GraphQL API plus an "observability readiness" score computed from
-// signals the plugin already probes (span metrics, traces, logs, runtime
-// metrics, browser telemetry, alert rules).
-//
-// Console enrichment degrades per-field: each Console fact is fetched with
-// its own small GraphQL query, so a deployed schema lacking one field only
-// omits that field. When no nais API URL/token is configured the console
-// section is {configured:false} and the UI shows nothing — silent, not an
-// error (the local/dev case).
+// Service scorecard: an "observability readiness" score computed from signals
+// the plugin already probes (span metrics, traces, logs, runtime metrics,
+// browser telemetry, alert rules).
 
 const (
 	// scorecardCacheTTL is deliberately long: the checks are presence probes
@@ -38,11 +30,6 @@ const (
 	// maxScorecardRuleScan caps how many alert rules the "has alert rules"
 	// check inspects — rulers can hold tens of thousands of rules fleet-wide.
 	maxScorecardRuleScan = 5000
-	// scorecardConsoleAppsPageSize caps the team applications listing used to
-	// find this service's ingresses.
-	scorecardConsoleAppsPageSize = 100
-	// maxScorecardIngresses caps ingress links returned to the UI.
-	maxScorecardIngresses = 10
 )
 
 // ScorecardCheck is one observability readiness check with an enablement hint.
@@ -50,8 +37,8 @@ type ScorecardCheck struct {
 	Key   string `json:"key"`
 	Label string `json:"label"`
 	OK    bool   `json:"ok"`
-	// Hint says how to enable the capability (one sentence, nais-flavored) —
-	// or, for a not-applicable check, why it does not apply.
+	// Hint says how to enable the capability — or, for a not-applicable check,
+	// why it does not apply.
 	Hint string `json:"hint"`
 	// NotApplicable marks a check that does not apply to this service (e.g.
 	// browser telemetry for a pure JVM backend). Not counted in Score/Total.
@@ -67,21 +54,9 @@ type ScorecardReadiness struct {
 	Checks []ScorecardCheck `json:"checks"`
 }
 
-// ScorecardConsole carries ownership enrichment from the nais Console API.
-// All fields except Configured are best-effort and omitted when the deployed
-// schema (or the data) lacks them.
-type ScorecardConsole struct {
-	Configured    bool     `json:"configured"`
-	TeamSlug      string   `json:"teamSlug,omitempty"`
-	SlackChannel  string   `json:"slackChannel,omitempty"`
-	RepositoryURL string   `json:"repositoryUrl,omitempty"`
-	Ingresses     []string `json:"ingresses,omitempty"`
-}
-
 // ScorecardResponse is the /scorecard payload.
 type ScorecardResponse struct {
 	Readiness ScorecardReadiness `json:"readiness"`
-	Console   ScorecardConsole   `json:"console"`
 }
 
 // scorecardResponseCache lazily builds the dedicated long-TTL cache. Kept
@@ -132,16 +107,7 @@ func (a *App) handleScorecard(w http.ResponseWriter, req *http.Request) {
 }
 
 func (a *App) computeScorecard(ctx context.Context, headers http.Header, namespace, service, env string) ScorecardResponse {
-	var (
-		wg        sync.WaitGroup
-		readiness ScorecardReadiness
-		console   ScorecardConsole
-	)
-	wg.Add(2)
-	go func() { defer wg.Done(); readiness = a.computeReadiness(ctx, headers, namespace, service, env) }()
-	go func() { defer wg.Done(); console = a.fetchConsoleEnrichment(ctx, namespace, service) }()
-	wg.Wait()
-	return ScorecardResponse{Readiness: readiness, Console: console}
+	return ScorecardResponse{Readiness: a.computeReadiness(ctx, headers, namespace, service, env)}
 }
 
 // ---------------------------------------------------------------------------
@@ -155,15 +121,15 @@ func (a *App) computeReadiness(ctx context.Context, headers http.Header, namespa
 	// Fixed order and fixed slots: each goroutine writes only its own index.
 	checks := []ScorecardCheck{
 		{Key: "spanMetrics", Label: "Span metrics (RED)",
-			Hint: "Enable auto-instrumentation in your nais manifest (spec.observability.autoInstrumentation) so traces produce RED span metrics."},
-		{Key: "traces", Label: "Traces in Tempo",
-			Hint: "Export OTLP traces to the collector — nais auto-instrumentation does this out of the box."},
-		{Key: "logs", Label: "Logs in Loki",
-			Hint: "Ship logs to Loki by adding an `- id: loki` entry under spec.observability.logging.destinations in your nais manifest."},
+			Hint: "Export span metrics (or enable a metrics-generator / spanmetrics connector) so RED panels have data."},
+		{Key: "traces", Label: "Traces",
+			Hint: "Export OTLP traces to your collector / ClickStack so distributed traces appear."},
+		{Key: "logs", Label: "Logs",
+			Hint: "Ship application logs via OTLP (or Loki in dual-mode) so log patterns and correlation work."},
 		{Key: "runtimeMetrics", Label: "Runtime metrics",
 			Hint: "Runtime metrics (JVM/Node.js/Go/process) arrive with the OTel agent — enable auto-instrumentation for your runtime."},
-		{Key: "browserTelemetry", Label: "Browser telemetry (Faro)",
-			Hint: "Instrument your frontend with Grafana Faro or the OpenTelemetry Browser SDK to get web vitals, errors and sessions."},
+		{Key: "browserTelemetry", Label: "Browser telemetry",
+			Hint: "Instrument your frontend with @hyperdx/browser, Grafana Faro, or the OpenTelemetry Browser SDK."},
 		{Key: "alertRules", Label: "Alert rules",
 			Hint: "No alert rule mentions this service — start with 'Alert on error rate' in the service actions menu."},
 	}
@@ -464,203 +430,4 @@ func (a *App) proxyGET(ctx context.Context, headers http.Header, token, reqURL s
 		return nil, fmt.Errorf("HTTP %d", resp.StatusCode)
 	}
 	return io.ReadAll(io.LimitReader(resp.Body, 10<<20))
-}
-
-// ---------------------------------------------------------------------------
-// nais Console enrichment
-// ---------------------------------------------------------------------------
-
-// scorecardTeamQuery fetches team ownership facts. Shaped like naissync.go's
-// queries; the nais schema exposes team(slug: Slug!) with slackChannel.
-const scorecardTeamQuery = `query($slug: Slug!) {
-  team(slug: $slug) { slug slackChannel }
-}`
-
-// scorecardAppsQuery lists the team's applications with ingress URLs; the
-// service's ingresses are picked out client-side (no by-name filter arg is
-// assumed, keeping the query on the widely-deployed schema surface).
-const scorecardAppsQuery = `query($slug: Slug!, $first: Int!) {
-  team(slug: $slug) {
-    applications(first: $first) {
-      nodes { name ingresses { url } }
-    }
-  }
-}`
-
-// fetchConsoleEnrichment queries the nais Console GraphQL API for ownership
-// facts. Each fact uses its own query so a schema lacking one field degrades
-// per-field: the failing query is logged and its fields omitted.
-func (a *App) fetchConsoleEnrichment(ctx context.Context, namespace, service string) ScorecardConsole {
-	if a.settings.NaisAPIURL == "" || a.naisToken == "" {
-		return ScorecardConsole{Configured: false}
-	}
-	out := ScorecardConsole{Configured: true}
-	if namespace == "" {
-		// Without a namespace there is no team to resolve — nais teams own
-		// their namespace, so the namespace IS the team slug.
-		return out
-	}
-	logger := log.DefaultLogger.With("handler", "scorecard", "team", namespace)
-
-	var (
-		wg   sync.WaitGroup
-		mu   sync.Mutex
-		vars = map[string]any{"slug": namespace}
-	)
-
-	// Team slug + slack channel.
-	wg.Go(func() {
-		var resp struct {
-			Team struct {
-				Slug         string `json:"slug"`
-				SlackChannel string `json:"slackChannel"`
-			} `json:"team"`
-		}
-		if err := a.naisGraphQL(ctx, scorecardTeamQuery, vars, &resp); err != nil {
-			logger.Debug("Console team query degraded", "error", err)
-			return
-		}
-		mu.Lock()
-		out.TeamSlug = resp.Team.Slug
-		out.SlackChannel = resp.Team.SlackChannel
-		mu.Unlock()
-	})
-
-	// Ingress URLs for this application.
-	wg.Go(func() {
-		var resp struct {
-			Team struct {
-				Applications struct {
-					Nodes []struct {
-						Name      string `json:"name"`
-						Ingresses []struct {
-							URL string `json:"url"`
-						} `json:"ingresses"`
-					} `json:"nodes"`
-				} `json:"applications"`
-			} `json:"team"`
-		}
-		appsVars := map[string]any{"slug": namespace, "first": scorecardConsoleAppsPageSize}
-		if err := a.naisGraphQL(ctx, scorecardAppsQuery, appsVars, &resp); err != nil {
-			logger.Debug("Console applications query degraded", "error", err)
-			return
-		}
-		var ingresses []string
-		for _, node := range resp.Team.Applications.Nodes {
-			if node.Name != service {
-				continue
-			}
-			for _, ing := range node.Ingresses {
-				if ing.URL != "" && len(ingresses) < maxScorecardIngresses {
-					ingresses = append(ingresses, ing.URL)
-				}
-			}
-			break
-		}
-		mu.Lock()
-		out.Ingresses = ingresses
-		mu.Unlock()
-	})
-
-	// Repository URL, derived from the latest deployment's trigger URL —
-	// reuses the deployments query naissync.go already exercises against the
-	// deployed schema, so it survives Application-type schema drift.
-	wg.Go(func() {
-		deployments, err := a.fetchNaisDeployments(ctx, a.naisToken)
-		if err != nil {
-			logger.Debug("Console deployments query degraded", "error", err)
-			return
-		}
-		for _, d := range deployments {
-			if d.TeamSlug != namespace {
-				continue
-			}
-			match := false
-			for _, r := range d.Resources {
-				if (r.Kind == "Application" || r.Kind == "Job" || r.Kind == "Naisjob") && r.Name == service {
-					match = true
-					break
-				}
-			}
-			if !match {
-				continue
-			}
-			if repo := deriveRepoURL(d.TriggerURL); repo != "" {
-				mu.Lock()
-				out.RepositoryURL = repo
-				mu.Unlock()
-				return
-			}
-		}
-	})
-
-	wg.Wait()
-	return out
-}
-
-// deriveRepoURL extracts the repository URL from a GitHub Actions trigger URL
-// (https://github.com/{owner}/{repo}/actions/runs/N → https://github.com/{owner}/{repo}).
-// Returns "" for anything that doesn't look like one.
-func deriveRepoURL(triggerURL string) string {
-	if !strings.HasPrefix(triggerURL, "https://") {
-		return ""
-	}
-	idx := strings.Index(triggerURL, "/actions/")
-	if idx <= 0 {
-		return ""
-	}
-	repo := triggerURL[:idx]
-	// Expect scheme://host/owner/repo — 5 slash-separated parts.
-	if parts := strings.Split(repo, "/"); len(parts) != 5 || parts[3] == "" || parts[4] == "" {
-		return ""
-	}
-	return repo
-}
-
-// naisGraphQL posts one GraphQL query to the nais Console API and unmarshals
-// the data envelope into out. Auth and shape mirror fetchNaisDeployments.
-func (a *App) naisGraphQL(ctx context.Context, query string, vars map[string]any, out any) error {
-	body, err := json.Marshal(map[string]any{"query": query, "variables": vars})
-	if err != nil {
-		return err
-	}
-
-	ctx, cancel := context.WithTimeout(ctx, scorecardProbeTimeout)
-	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, a.settings.NaisAPIURL, bytes.NewReader(body))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+a.naisToken)
-
-	resp, err := a.healthClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("querying nais API: %w", err)
-	}
-	defer resp.Body.Close() //nolint:errcheck
-	raw, err := io.ReadAll(io.LimitReader(resp.Body, 10<<20))
-	if err != nil {
-		return err
-	}
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("nais API returned %d: %s", resp.StatusCode, truncateStr(string(raw)))
-	}
-
-	var envelope struct {
-		Data   json.RawMessage `json:"data"`
-		Errors []struct {
-			Message string `json:"message"`
-		} `json:"errors"`
-	}
-	if err := json.Unmarshal(raw, &envelope); err != nil {
-		return fmt.Errorf("unmarshaling nais response: %w", err)
-	}
-	if len(envelope.Errors) > 0 {
-		return fmt.Errorf("nais API error: %s", envelope.Errors[0].Message)
-	}
-	if len(envelope.Data) == 0 {
-		return fmt.Errorf("nais API returned no data")
-	}
-	return json.Unmarshal(envelope.Data, out)
 }

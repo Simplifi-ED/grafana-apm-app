@@ -18,7 +18,7 @@ All plugin state piggybacks on Grafana-owned storage, accessed only through
 stable Grafana APIs:
 
 - **Triage** — an append-only event log written as org annotations
-  (`nais-apm:triage` + `app:<team>/<app>` + `fp:<fingerprint>` tags), current
+  (`clickhouse-apm:triage` + `app:<team>/<app>` + `fp:<fingerprint>` tags), current
   state derived by a newest-event-wins fold at read time. No mutable rows, no
   locks, no leader: concurrent replicas/users append and the fold converges.
 - **Per-user mutes** — Grafana plugin user storage (isolated behind
@@ -92,11 +92,11 @@ The per-service `States()` read (the uncached per-page-load query):
 **Two audit findings sharpen the triggers:**
 
 1. **Read latency couples to GLOBAL volume, not per-service volume** — the
-   two-tag AND filter includes the ultra-common `nais-apm:triage` tag, and
+   two-tag AND filter includes the ultra-common `clickhouse-apm:triage` tag, and
    Grafana's tag matching scans the popular-tag set. One team's page load
    pays for every team's cumulative history. Mitigation exists in code
    before any storage change: query by the rare `app:<ns>/<svc>` tag only
-   and filter the `nais-apm:triage` tag client-side.
+   and filter the `clickhouse-apm:triage` tag client-side.
 2. **The correctness cliff is exactly `maxTriageEvents=1000` per service**
    (demonstrated: a resolve pushed past the newest-1000 window silently
    reverts to active). Mitigation: paginate the fetch, or fold with early

@@ -7,14 +7,13 @@ import { useSearchParams } from 'react-router-dom';
 import { getServiceMap, ServiceMapResponse } from '../api/client';
 import { getClusteredServiceMap, ClusteredServiceMapResponse, totalClusteredServices } from '../api/servicemap';
 import { useTimeRange } from '../utils/timeRange';
-import { QUICK_TIME_RANGES } from '../utils/timeRangeOptions';
 import { useAppNavigate, sanitizeParam } from '../utils/navigation';
 import { useUrlParams } from '../utils/useUrlState';
 import { useConfiguredEnvironments } from '../utils/datasources';
 import { useFetch } from '../utils/useFetch';
 import { ServiceGraph, toGraphData } from '../components/ServiceGraph';
 import { CopyMermaidButton } from '../components/CopyMermaidButton';
-import { RefreshControl } from '../components/RefreshControl';
+import { HeaderTimeControls } from '../components/HeaderTimeControls';
 import { DataState } from '../components/DataState';
 
 type MapView = 'namespaces' | 'services';
@@ -33,7 +32,7 @@ function ServiceMap() {
   const appNavigate = useAppNavigate();
   const [searchParams] = useSearchParams();
   const setUrlParams = useUrlParams();
-  const { from, fromMs, toMs, setTimeRange, refresh: refreshTimeRange } = useTimeRange();
+  const { from, fromMs, toMs, refresh: refreshTimeRange } = useTimeRange();
   const envFilter = sanitizeParam(searchParams.get('environment') ?? '');
 
   const configuredEnvs = useConfiguredEnvironments();
@@ -138,13 +137,7 @@ function ServiceMap() {
                 placeholder="Environment"
               />
             )}
-            <Combobox
-              options={QUICK_TIME_RANGES}
-              value={from}
-              onChange={(v) => setTimeRange(v?.value ?? 'now-1h', 'now')}
-              width={22}
-            />
-            <RefreshControl onRefresh={handleRefresh} />
+            <HeaderTimeControls onRefresh={handleRefresh} />
           </div>
         </div>
 

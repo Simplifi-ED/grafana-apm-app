@@ -41,7 +41,7 @@ test.describe('Jobs', () => {
   test('page heading is visible', async ({ page }) => {
     const heading = page
       .getByRole('heading', { name: /Jobs/i })
-      .or(page.getByRole('heading', { name: /Nais APM/i }))
+      .or(page.getByRole('heading', { name: /ClickStack APM/i }))
       .or(page.getByRole('tab', { name: /Jobs/i }))
       .or(page.getByRole('link', { name: /Jobs/i }));
     await expect(heading.first()).toBeVisible({ timeout: 15_000 });

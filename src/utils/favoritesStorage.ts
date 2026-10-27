@@ -3,7 +3,7 @@
  * versioned schema and subscribable store for React integration.
  */
 
-const STORAGE_KEY = 'nais-apm-favorites';
+const STORAGE_KEY = 'clickhouse-apm-favorites';
 
 interface StorageSchema {
   version: 1;

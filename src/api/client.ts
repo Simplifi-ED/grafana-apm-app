@@ -1444,7 +1444,7 @@ export async function getSourcemapDoctor(
   );
 }
 
-/** Feedback captured via @nais/apm's captureFeedback(), newest first. */
+/** Feedback captured via browser SDK (e.g. Faro / HyperDX), newest first. */
 export async function getFeedback(
   namespace: string,
   service: string,

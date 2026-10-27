@@ -21,6 +21,7 @@
 | Service inventory | `GET /services` → ServiceInventory | `otel_metrics_sum` (`traces.spanmetrics.calls`) + `otel_traces` p95 | 🟨 | Live inventory SQL verified; Grafana DS path unit-tested via mock |
 | Capabilities | `GET /capabilities` | sum metrics probes | 🟨 | Detects spanmetrics + service graph + lists services/envs |
 | Operations RED | `GET .../operations` | spanmetrics + traces quantiles | 🟨 | |
+| Overview RED timeseries | Scenes panels | `otel_metrics_sum` + `otel_traces` | 🟨 | ClickHouse SQL scenes when no Prom UID |
 | Endpoints | `GET .../endpoints` | spanmetrics → protocol groups | 🟨 | Maps CH operations into HTTP/DB/client/messaging groups |
 | Service health | `GET .../health` | — | 🟧 | Still Prom when configured |
 | Trace breakdown | `GET .../traces/breakdown` | `otel_traces` | 🟨 | Replaces Tempo TraceQL |

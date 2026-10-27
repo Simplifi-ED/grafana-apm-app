@@ -29,7 +29,7 @@ var (
 	_ backend.CheckHealthHandler    = (*App)(nil)
 )
 
-// App is the Nais APM plugin backend.
+// App is the ClickStack APM plugin backend.
 type App struct {
 	backend.CallResourceHandler
 
@@ -47,7 +47,6 @@ type App struct {
 
 	respCache *responseCache // short-lived response cache for expensive queries
 
-	naisToken      string         // nais Console API token (scorecard enrichment + deploy sync)
 	scorecardOnce  sync.Once      // lazily builds the dedicated long-TTL scorecard cache
 	scorecardCache *responseCache // see scorecardResponseCache()
 
@@ -126,10 +125,10 @@ func NewApp(_ context.Context, settings backend.AppInstanceSettings) (instancemg
 	}
 
 	// Read Grafana service account token from secureJsonData.
-	// When deployed behind an OAuth2 proxy (e.g., Wonderwall/Nais), the browser's
-	// session cookies are for the proxy, not for Grafana. Since the plugin backend
-	// calls Grafana's datasource proxy API on localhost (bypassing the proxy),
-	// we need a service account token to authenticate those internal API calls.
+	// When Grafana sits behind an OAuth2 proxy, the browser's session cookies are
+	// for the proxy, not for Grafana. Since the plugin backend calls Grafana's
+	// datasource proxy API on localhost (bypassing the proxy), we need a service
+	// account token to authenticate those internal API calls.
 	if token, ok := settings.DecryptedSecureJSONData["serviceAccountToken"]; ok && token != "" {
 		app.serviceToken = token
 		logger.Info("Service account token configured for internal API calls")
@@ -163,11 +162,6 @@ func NewApp(_ context.Context, settings backend.AppInstanceSettings) (instancemg
 		"envOverrides", len(app.settings.TracesDataSource.ByEnvironment)+len(app.settings.LogsDataSource.ByEnvironment)+len(app.settings.MetricsDataSource.ByEnvironment),
 		"grafanaURL", app.grafanaURL,
 	)
-
-	// nais deploy sync (#64 Phase 2) — enabled only when both the GraphQL URL
-	// (jsonData.naisApiUrl) and token (secureJsonData.naisApiToken) are set.
-	app.naisToken = settings.DecryptedSecureJSONData["naisApiToken"]
-	app.startNaisDeploySync(app.naisToken)
 
 	mux := http.NewServeMux()
 	app.registerRoutes(mux)

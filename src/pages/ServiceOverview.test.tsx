@@ -65,6 +65,10 @@ jest.mock('./buildServiceScene', () => ({
   buildDeployAnnotationsLayer: () => undefined,
 }));
 
+jest.mock('./buildClickStackServiceScene', () => ({
+  buildClickStackServiceScene: () => ({ Component: () => null }),
+}));
+
 // Every tab body is stubbed — this file tests the registry, not tab content.
 jest.mock('./tabs/OverviewTab', () => ({ OverviewTab: () => <div data-testid="overview-tab" /> }));
 jest.mock('./tabs/IssuesTab', () => ({ IssuesTab: () => <div data-testid="issues-tab" /> }));

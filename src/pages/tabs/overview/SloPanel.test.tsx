@@ -68,8 +68,6 @@ describe('SloPanel', () => {
     // burn = 0.0001 / 0.001 = 0.10× budget
     expect(screen.getByText('0.10')).toBeInTheDocument();
     // The burn-rate alert actions link to the create-alerts how-to.
-    const docsLink = screen.getByRole('link', { name: /About alert templates/ });
-    expect(docsLink).toHaveAttribute('href', 'https://doc.nais.io/observability/apm/how-to/create-alerts/');
   });
 
   it('exposes the colour-coded budget bar status as text (WCAG 1.4.1)', async () => {

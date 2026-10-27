@@ -21,7 +21,7 @@ type Tier int
 
 const (
 	// TierOverride uses an explicit fingerprint set by the SDK
-	// (@nais/apm captureException fingerprint option → context_fingerprint).
+	// (browser SDK captureException fingerprint option → context_fingerprint).
 	TierOverride Tier = 0
 	// TierTypeMessage groups by exception type + normalized message.
 	TierTypeMessage Tier = 2

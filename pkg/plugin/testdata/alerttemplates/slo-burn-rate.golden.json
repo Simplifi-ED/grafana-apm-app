@@ -76,8 +76,8 @@
       "value": "fast error budget burn on my-svc: the 1h error ratio is above 14.4x the 99.9% SLO budget (confirmed over 5m)"
     },
     {
-      "key": "nais_apm_url",
-      "value": "/a/nais-apm-app/services/team-a/my-svc?environment=prod-gcp"
+      "key": "clickhouse_apm_url",
+      "value": "/a/clickhouse-apm-app/services/team-a/my-svc?environment=prod-gcp"
     }
   ],
   "labels": [
@@ -91,7 +91,7 @@
     },
     {
       "key": "source",
-      "value": "nais-apm"
+      "value": "clickhouse-apm"
     },
     {
       "key": "severity",

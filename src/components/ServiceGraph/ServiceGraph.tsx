@@ -131,11 +131,22 @@ function ServiceGraphInner({
 
   const rfEdges = useMemo<Edge[]>(
     () =>
-      visibleEdges.map((e) => ({
-        id: e.id,
-        source: e.source,
-        target: e.target,
-      })),
+      visibleEdges.map((e) => {
+        const label = [e.mainStat, e.secondaryStat].filter(Boolean).join(' · ');
+        return {
+          id: e.id,
+          source: e.source,
+          target: e.target,
+          label: label || undefined,
+          labelStyle: { fill: 'var(--grafana-text-secondary, #9b9b9b)', fontSize: 10, fontWeight: 500 },
+          labelBgStyle: {
+            fill: 'var(--grafana-background-primary, #111)',
+            fillOpacity: 0.85,
+          },
+          labelBgPadding: [4, 2] as [number, number],
+          labelBgBorderRadius: 4,
+        };
+      }),
     [visibleEdges]
   );
 
@@ -276,12 +287,15 @@ const getStyles = (theme: GrafanaTheme2) => ({
       font-family: ${theme.typography.fontFamily};
     }
     .react-flow__edge-path {
-      stroke: ${theme.colors.border.medium};
-      stroke-width: 1;
+      stroke: ${theme.colors.text.disabled};
+      stroke-width: 1.5;
     }
     .react-flow__edge:hover .react-flow__edge-path {
       stroke: ${theme.colors.primary.text};
-      stroke-width: 2;
+      stroke-width: 2.5;
+    }
+    .react-flow__edge-text {
+      font-family: ${theme.typography.fontFamily};
     }
     .react-flow__controls {
       border: 1px solid ${theme.colors.border.weak};

@@ -7,9 +7,9 @@ import (
 	"github.com/nais/grafana-otel-plugin/pkg/plugin/queries"
 )
 
-// HyperDX / @hyperdx/otel-web emits one Internal span named "webvitals" per
-// measurement; the vital name is a SpanAttributes key (lcp/fcp/cls/inp/ttfb/fid)
-// with the numeric value as a string.
+// SpanNameWebVitals is the HyperDX / @hyperdx/otel-web Internal span name used
+// once per measurement; the vital name is a SpanAttributes key
+// (lcp/fcp/cls/inp/ttfb/fid) with the numeric value as a string.
 const SpanNameWebVitals = "webvitals"
 
 // WebVitalsSQL returns p75 for each Core Web Vital from otel_traces webvitals spans.

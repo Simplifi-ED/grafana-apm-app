@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { PluginPage } from '@grafana/runtime';
-import { Combobox, IconButton, MultiCombobox, useStyles2 } from '@grafana/ui';
+import { IconButton, MultiCombobox, useStyles2 } from '@grafana/ui';
 import { GrafanaTheme2, PageLayoutType } from '@grafana/data';
 import { css } from '@emotion/css';
 import {
@@ -15,7 +15,6 @@ import {
   NamespaceAlertsResponse,
 } from '../api/client';
 import { useTimeRange } from '../utils/timeRange';
-import { QUICK_TIME_RANGES } from '../utils/timeRangeOptions';
 import { useAppNavigate, sanitizeParam } from '../utils/navigation';
 import { extractEnvironmentOptions } from '../utils/options';
 import { getSectionStyles } from '../utils/styles';
@@ -23,7 +22,7 @@ import { useFetch } from '../utils/useFetch';
 import { ServiceGraph, toGraphData } from '../components/ServiceGraph';
 import { CopyMermaidButton } from '../components/CopyMermaidButton';
 import { PageHeader } from '../components/PageHeader';
-import { RefreshControl } from '../components/RefreshControl';
+import { HeaderTimeControls } from '../components/HeaderTimeControls';
 import { DataState } from '../components/DataState';
 import { NamespaceStats } from './namespace/NamespaceStats';
 import { NeedsAttention } from './namespace/NeedsAttention';
@@ -42,7 +41,7 @@ function NamespaceOverview() {
   const svcSearch = searchParams.get('svcSearch') ?? '';
   const svcPage = Math.max(1, parseInt(searchParams.get('svcPage') ?? '1', 10) || 1);
   const depPage = Math.max(1, parseInt(searchParams.get('depPage') ?? '1', 10) || 1);
-  const { from, fromMs, toMs, setTimeRange, refresh: refreshTimeRange } = useTimeRange();
+  const { from, fromMs, toMs, refresh: refreshTimeRange } = useTimeRange();
   const healthFilter = searchParams.get('healthFilter') ?? '';
 
   // Fetch all services for this namespace (filter by env client-side for multi-select)
@@ -231,13 +230,7 @@ function NamespaceOverview() {
                   width={28}
                 />
               )}
-              <Combobox
-                options={QUICK_TIME_RANGES}
-                value={from}
-                onChange={(v) => setTimeRange(v?.value ?? 'now-1h', 'now')}
-                width={22}
-              />
-              <RefreshControl onRefresh={handleRefresh} />
+              <HeaderTimeControls onRefresh={handleRefresh} />
             </>
           }
         />

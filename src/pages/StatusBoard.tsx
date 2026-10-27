@@ -1,20 +1,19 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { PluginPage } from '@grafana/runtime';
-import { Combobox, Icon, MultiCombobox, RadioButtonGroup, useStyles2 } from '@grafana/ui';
+import { Combobox, MultiCombobox, RadioButtonGroup, useStyles2 } from '@grafana/ui';
 import { GrafanaTheme2, PageLayoutType } from '@grafana/data';
 import { css } from '@emotion/css';
 import { getServices, ServiceSummary } from '../api/client';
 import { useTimeRange } from '../utils/timeRange';
-import { QUICK_TIME_RANGES } from '../utils/timeRangeOptions';
 import { useAppNavigate, sanitizeParam } from '../utils/navigation';
 import { extractEnvironmentOptions } from '../utils/options';
 import { useFetch } from '../utils/useFetch';
 import { getServiceHealth, healthSeverity } from '../utils/health';
-import { useAutoRefresh, REFRESH_INTERVALS } from '../utils/useInterval';
 import { StatusCard, CardStatus, CardSize, CARD_DIMENSIONS } from '../components/StatusCard';
 import { PageHeader } from '../components/PageHeader';
 import { DataState } from '../components/DataState';
+import { HeaderTimeControls } from '../components/HeaderTimeControls';
 import { useUrlNumber } from '../utils/useUrlState';
 
 /** How long to keep showing disappeared services (30 minutes). */
@@ -70,13 +69,12 @@ function StatusBoard() {
   const styles = useStyles2(getStyles);
   const envParam = sanitizeParam(searchParams.get('environment') ?? '');
   const envFilters = useMemo(() => (envParam ? envParam.split(',').filter(Boolean) : []), [envParam]);
-  const { from, fromMs, toMs, setTimeRange, refresh: refreshTimeRange } = useTimeRange();
+  const { from, fromMs, toMs, refresh: refreshTimeRange } = useTimeRange();
 
   // Card size from URL (validated)
   const rawSize = searchParams.get('size') ?? 'sm';
   const cardSize: CardSize = VALID_CARD_SIZES.has(rawSize) ? (rawSize as CardSize) : 'sm';
 
-  const [refreshInterval, setRefreshInterval] = useUrlNumber('refresh', 60000);
   const [rotationInterval, setRotationInterval] = useUrlNumber('rotation', 10000);
 
   // Page state that auto-resets when filters change (avoids setState-in-effect)
@@ -171,8 +169,6 @@ function StatusBoard() {
       refetchSparklines();
     }
   }, [isRelativeRange, refreshTimeRange, refetch, refetchPrev, refetchSparklines, cardSize]);
-
-  const { secondsUntilRefresh } = useAutoRefresh(handleRefresh, refreshInterval);
 
   // Environment options (derived from sidecar-filtered services)
   const allServices = useMemo(() => (fetchResult ?? []).filter((s) => !s.isSidecar), [fetchResult]);
@@ -356,8 +352,6 @@ function StatusBoard() {
     appNavigate(`namespaces/${encodeURIComponent(decodedNs)}`, Object.keys(params).length > 0 ? params : undefined);
   }, [appNavigate, decodedNs, envFilters]);
 
-  const refreshOptions = useMemo(() => REFRESH_INTERVALS.map((r) => ({ label: r.label, value: String(r.value) })), []);
-
   return (
     <PluginPage layout={PageLayoutType.Canvas}>
       <div className={styles.container}>
@@ -382,18 +376,7 @@ function StatusBoard() {
                 value={cardSize}
                 onChange={(v) => setCardSize(v)}
               />
-              <Combobox
-                options={QUICK_TIME_RANGES}
-                value={from}
-                onChange={(v) => setTimeRange(v?.value ?? 'now-1h', 'now')}
-                width={18}
-              />
-              <Combobox
-                options={refreshOptions}
-                value={String(refreshInterval)}
-                onChange={(v) => setRefreshInterval(Number(v.value))}
-                width={12}
-              />
+              <HeaderTimeControls onRefresh={handleRefresh} defaultRefresh="1m" />
               <Combobox
                 options={ROTATION_INTERVALS}
                 value={String(rotationInterval)}
@@ -401,10 +384,6 @@ function StatusBoard() {
                 width={10}
                 placeholder="Rotate"
               />
-              <span className={styles.countdown}>
-                <Icon name="sync" size="sm" />
-                {secondsUntilRefresh}s
-              </span>
             </>
           }
         />
@@ -496,15 +475,6 @@ const getStyles = (theme: GrafanaTheme2) => ({
     padding: ${theme.spacing(0.5)} 0;
     height: 100%;
     align-content: start;
-  `,
-  countdown: css`
-    display: inline-flex;
-    align-items: center;
-    gap: ${theme.spacing(0.5)};
-    font-size: ${theme.typography.bodySmall.fontSize};
-    color: ${theme.colors.text.secondary};
-    font-variant-numeric: tabular-nums;
-    min-width: 48px;
   `,
   pager: css`
     display: flex;

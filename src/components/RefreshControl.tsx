@@ -1,37 +1,67 @@
-import React, { useCallback, useEffect, useRef } from 'react';
-import { Combobox, useStyles2 } from '@grafana/ui';
-import { GrafanaTheme2 } from '@grafana/data';
-import { css } from '@emotion/css';
-import { useAutoRefresh, REFRESH_INTERVALS } from '../utils/useInterval';
-import { useUrlString } from '../utils/useUrlState';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { RefreshPicker, defaultIntervals } from '@grafana/ui';
+import { rangeUtil } from '@grafana/data';
+import { useAutoRefresh } from '../utils/useInterval';
+import { useUrlParams } from '../utils/useUrlState';
 
-const OFF = 'off';
-
-/** Options for the refresh interval picker, keyed by label ("30s") for readable URLs. */
-const REFRESH_OPTIONS: Array<{ label: string; value: string }> = [
-  { label: 'Off', value: OFF },
-  ...REFRESH_INTERVALS.map((r) => ({ label: r.label, value: r.label })),
-];
+/** Off is an empty RefreshPicker value; stored as `refresh=off` when the default is not off. */
+const OFF = '';
+const OFF_PARAM = 'off';
 
 interface RefreshControlProps {
-  /** Called on every refresh tick. Wire this to refreshTimeRange()/refetch(). */
+  /** Called on every refresh tick and when the refresh button is clicked. */
   onRefresh: () => void;
+  /**
+   * Default interval written as a Grafana duration (`30s`, `1m`). Empty/off
+   * by default — status boards pass `1m` so wall displays keep refreshing.
+   */
+  defaultInterval?: string;
+  isLoading?: boolean;
 }
 
 /**
- * RefreshPicker-like control for useFetch-based (non-Scene) pages.
+ * Native Grafana RefreshPicker for useFetch-based (non-Scene) pages.
  *
  * Persists the chosen interval in the URL (`refresh=30s`), consistent with
- * Grafana dashboards. Off by default — when off, the param is removed from
- * the URL and no timer runs. While active, shows a countdown to the next
- * refresh (same styling as the status boards).
+ * Grafana dashboards. Off by default (param removed). Includes the immediate
+ * refresh button plus the interval dropdown — same control as Explore/dashboards.
  */
-export function RefreshControl({ onRefresh }: RefreshControlProps) {
-  const styles = useStyles2(getStyles);
-  const [refresh, setRefresh] = useUrlString('refresh', OFF);
+export function RefreshControl({ onRefresh, defaultInterval = OFF, isLoading }: RefreshControlProps) {
+  const [searchParams] = useSearchParams();
+  const setParams = useUrlParams();
 
-  // Map the URL value (e.g. "30s") to milliseconds; unknown values mean off.
-  const intervalMs = REFRESH_INTERVALS.find((r) => r.label === refresh)?.value ?? 0;
+  const refresh = useMemo(() => {
+    const raw = searchParams.get('refresh');
+    if (raw === null) {
+      return defaultInterval;
+    }
+    if (raw === OFF_PARAM || raw === '') {
+      return OFF;
+    }
+    return raw;
+  }, [searchParams, defaultInterval]);
+
+  const setRefresh = useCallback(
+    (interval: string) => {
+      if (!interval) {
+        // Explicit off: omit when default is off; write refresh=off otherwise
+        // so a non-off default (status boards) can actually be disabled.
+        setParams({ refresh: defaultInterval === OFF ? null : OFF_PARAM });
+        return;
+      }
+      if (interval === defaultInterval) {
+        setParams({ refresh: null });
+        return;
+      }
+      setParams({ refresh: interval });
+    },
+    [defaultInterval, setParams]
+  );
+
+  // Map URL value → ms. Accept Grafana durations (`30s`) and legacy numeric
+  // ms strings from older status-board URLs (`60000`).
+  const intervalMs = parseRefreshMs(refresh);
 
   // Pages recreate their refetch callbacks on every render; route through a
   // ref so an unstable onRefresh identity never restarts the interval timer.
@@ -41,40 +71,59 @@ export function RefreshControl({ onRefresh }: RefreshControlProps) {
   });
   const stableOnRefresh = useCallback(() => onRefreshRef.current(), []);
 
-  const { secondsUntilRefresh } = useAutoRefresh(stableOnRefresh, intervalMs);
+  useAutoRefresh(stableOnRefresh, intervalMs);
+
+  const value = intervalMs > 0 ? normalizeRefreshValue(refresh) : OFF;
 
   return (
-    <div className={styles.wrapper} data-testid="refresh-control">
-      <Combobox
-        aria-label="Refresh interval"
-        options={REFRESH_OPTIONS}
-        value={intervalMs > 0 ? refresh : OFF}
-        onChange={(v) => setRefresh(v?.value ?? OFF)}
-        width={10}
-        prefixIcon="sync"
+    <div data-testid="refresh-control">
+      <RefreshPicker
+        value={value}
+        intervals={defaultIntervals}
+        onRefresh={stableOnRefresh}
+        onIntervalChanged={(interval) => setRefresh(interval || OFF)}
+        isLoading={isLoading}
+        isOnCanvas
       />
-      {intervalMs > 0 && (
-        <span className={styles.countdown} data-testid="refresh-countdown">
-          {secondsUntilRefresh}s
-        </span>
-      )}
     </div>
   );
 }
 
-const getStyles = (theme: GrafanaTheme2) => ({
-  wrapper: css`
-    display: inline-flex;
-    align-items: center;
-    gap: ${theme.spacing(0.5)};
-  `,
-  countdown: css`
-    display: inline-flex;
-    align-items: center;
-    gap: ${theme.spacing(0.5)};
-    font-size: ${theme.typography.bodySmall.fontSize};
-    color: ${theme.colors.text.secondary};
-    font-variant-numeric: tabular-nums;
-    min-width: 32px;
-  `,
-});
+/** Convert a URL refresh value to milliseconds; unknown/empty → 0 (off). */
+function parseRefreshMs(raw: string): number {
+  if (!raw || raw === OFF_PARAM) {
+    return 0;
+  }
+  const asNum = Number(raw);
+  if (Number.isFinite(asNum) && asNum > 0) {
+    return asNum;
+  }
+  try {
+    return rangeUtil.intervalToMs(raw);
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * Prefer a Grafana duration label in the picker. Legacy numeric ms URLs stay
+ * functional via parseRefreshMs; display them as the matching default interval
+ * when possible so the button label looks right.
+ */
+function normalizeRefreshValue(raw: string): string {
+  if (!raw || raw === OFF_PARAM) {
+    return OFF;
+  }
+  const asNum = Number(raw);
+  if (Number.isFinite(asNum) && asNum > 0) {
+    const match = defaultIntervals.find((label) => {
+      try {
+        return rangeUtil.intervalToMs(label) === asNum;
+      } catch {
+        return false;
+      }
+    });
+    return match ?? raw;
+  }
+  return raw;
+}

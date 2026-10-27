@@ -45,7 +45,7 @@ describe('Components/AppConfig', () => {
     props = {
       plugin: {
         meta: {
-          id: 'nais-apm-app',
+          id: 'clickhouse-apm-app',
           name: 'ClickStack APM',
           type: PluginType.app,
           enabled: true,

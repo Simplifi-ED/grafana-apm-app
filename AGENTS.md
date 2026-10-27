@@ -53,7 +53,7 @@ docker compose -f docker-compose.demo.yaml up  # With OTel Demo traffic
 - **Backend proxy** — Go backend proxies to Mimir/Tempo/Loki via Grafana's datasource proxy (`/api/datasources/proxy/uid/{uid}`), never direct URLs
 - **Capability detection** — backend auto-detects metric namespaces, duration units, and available signals; frontend adapts UI based on capabilities
 - **Per-environment datasources** — config supports mapping `deployment.environment` values to different Tempo/Loki UIDs
-- **Plugin ID** — `nais-apm-app` in URLs, binary is `gpx_apm`
+- **Plugin ID** — still `clickhouse-apm-app` in URLs (fork identity TBD), binary is `gpx_apm`; display name is ClickStack APM
 
 ## Constraints
 

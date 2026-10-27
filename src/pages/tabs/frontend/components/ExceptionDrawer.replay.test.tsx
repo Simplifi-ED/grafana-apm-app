@@ -90,8 +90,6 @@ it('shows Play replay only when the probe finds recording chunks', async () => {
     })
   );
   // The replay section footer links to the enable-session-replay how-to.
-  const docsLink = screen.getByRole('link', { name: /Enable session replay/ });
-  expect(docsLink).toHaveAttribute('href', 'https://doc.nais.io/observability/apm/how-to/enable-session-replay/');
 });
 
 it('labels snapshot-only sessions View snapshot', async () => {

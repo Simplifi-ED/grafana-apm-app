@@ -96,8 +96,6 @@ describe('PatternsPanel', () => {
     expect(screen.getByText('NEW')).toBeInTheDocument();
     expect(screen.getByText('server patterns')).toBeInTheDocument();
     // Header links to the log-patterns how-to.
-    const docsLink = screen.getByRole('link', { name: /About log patterns/ });
-    expect(docsLink).toHaveAttribute('href', 'https://doc.nais.io/observability/apm/how-to/log-patterns/');
   });
 
   it('applies the pattern filter literal on row click', async () => {

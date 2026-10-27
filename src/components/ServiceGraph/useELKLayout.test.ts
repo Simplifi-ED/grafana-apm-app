@@ -18,8 +18,8 @@ import type { Node, Edge } from '@xyflow/react';
 
 describe('ELK layout configuration', () => {
   // Directly test the constants and configuration that useELKLayout uses
-  const DEFAULT_NODE_WIDTH = 160;
-  const DEFAULT_NODE_HEIGHT = 42;
+  const DEFAULT_NODE_WIDTH = 120;
+  const DEFAULT_NODE_HEIGHT = 128;
   const GROUP_PADDING = 40;
   const MAX_LAYOUT_NODES = 300;
 
@@ -73,8 +73,8 @@ describe('ELK layout configuration', () => {
       }));
 
       expect(elkChildren).toEqual([
-        { id: 'a', width: 160, height: 42 },
-        { id: 'b', width: 160, height: 42 },
+        { id: 'a', width: 120, height: 128 },
+        { id: 'b', width: 120, height: 128 },
       ]);
     });
 

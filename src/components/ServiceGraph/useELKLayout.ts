@@ -18,8 +18,9 @@ interface LayoutResult {
 
 const elk = new ELK();
 
-const DEFAULT_NODE_WIDTH = 160;
-const DEFAULT_NODE_HEIGHT = 42;
+// Sized for Tempo-style circular nodes (circle + caption under).
+const DEFAULT_NODE_WIDTH = 120;
+const DEFAULT_NODE_HEIGHT = 128;
 const GROUP_PADDING = 40;
 
 const MAX_LAYOUT_NODES = 300;

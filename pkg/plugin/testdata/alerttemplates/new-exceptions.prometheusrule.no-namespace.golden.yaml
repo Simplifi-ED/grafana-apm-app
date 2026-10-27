@@ -15,14 +15,14 @@
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
-  name: "nais-apm-new-exceptions-my-svc"
+  name: "clickhouse-apm-new-exceptions-my-svc"
   namespace: "REPLACE-WITH-YOUR-NAMESPACE"
   labels:
     team: "REPLACE-WITH-YOUR-NAMESPACE"
     app: "my-svc"
 spec:
   groups:
-    - name: nais-apm-new-exceptions
+    - name: clickhouse-apm-new-exceptions
       # 7d range vector — evaluate at the same 5m the Grafana variant ships.
       interval: 5m
       rules:
@@ -44,4 +44,4 @@ spec:
             message: "Exception {{ $labels.hash }} in my-svc was not seen in the previous 7 days"
             consequence: "Users are hitting an error this service has not produced before — most likely a regression from a recent deploy."
             action: "Open the issue in APM (dashboard_url), triage it, and resolve or ignore it so it stops alerting."
-            dashboard_url: "https://grafana.example.test/a/nais-apm-app/services/_/my-svc?exceptionHash={{ $labels.hash }}&tab=issues"
+            dashboard_url: "https://grafana.example.test/a/clickhouse-apm-app/services/_/my-svc?exceptionHash={{ $labels.hash }}&tab=issues"

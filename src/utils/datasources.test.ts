@@ -173,6 +173,7 @@ describe('usePluginDatasources', () => {
     });
     expect(result.current.tracesUid).toBe('');
     expect(result.current.logsUid).toBe('');
+    expect(result.current.clickHouseUid).toBe('clickhouse');
   });
 
   it('returns configured UIDs after fetch completes', async () => {

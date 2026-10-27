@@ -6,7 +6,7 @@
  * separate content-hashed chunk instead of the initial module.js bundle.
  *
  * Version pairing: @grafana/rrweb-player is pinned to 2.0.0-grafana.2 —
- * Grafana's rrweb fork. The @nais/apm recorder uses the same fork release;
+ * Grafana's rrweb fork. HyperDX / browser recorders typically use a compatible release;
  * player and recorder MUST come from the same fork version or replay
  * fidelity breaks (rrweb 2.x is alpha, event formats drift).
  */

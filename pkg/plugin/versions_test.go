@@ -126,12 +126,12 @@ func TestQueryFrontendVersionsDeployEnrichment(t *testing.T) {
 		}
 		gotQuery = r.URL.Query()
 		_ = json.NewEncoder(w).Encode([]grafanaAnnotation{
-			{Time: 2_000_000, Tags: []string{"nais-apm:deploy", "service:my-app", "version:bbbb222"}},
-			{Time: 1_000_000, Tags: []string{"nais-apm:deploy", "service:my-app", "version:aaaa111"}},
+			{Time: 2_000_000, Tags: []string{"clickhouse-apm:deploy", "service:my-app", "version:bbbb222"}},
+			{Time: 1_000_000, Tags: []string{"clickhouse-apm:deploy", "service:my-app", "version:aaaa111"}},
 			// Re-deploy of aaaa111: earliest marker wins for deployedAtMs.
-			{Time: 1_500_000, Tags: []string{"nais-apm:deploy", "service:my-app", "version:aaaa111"}},
+			{Time: 1_500_000, Tags: []string{"clickhouse-apm:deploy", "service:my-app", "version:aaaa111"}},
 			// Annotation without a version tag is ignored.
-			{Time: 3_000_000, Tags: []string{"nais-apm:deploy", "service:my-app"}},
+			{Time: 3_000_000, Tags: []string{"clickhouse-apm:deploy", "service:my-app"}},
 		})
 	}))
 	t.Cleanup(annSrv.Close)
@@ -161,8 +161,8 @@ func TestQueryFrontendVersionsDeployEnrichment(t *testing.T) {
 		t.Errorf("bbbb222 deployedAtMs = %d, want 2000000", resp.Versions[1].DeployedAtMs)
 	}
 
-	// Contract tags: nais-apm:deploy + service + env (single env selected).
-	wantTags := []string{"nais-apm:deploy", "service:my-app", "env:dev"}
+	// Contract tags: clickhouse-apm:deploy + service + env (single env selected).
+	wantTags := []string{"clickhouse-apm:deploy", "service:my-app", "env:dev"}
 	if got := gotQuery["tags"]; len(got) != 3 || got[0] != wantTags[0] || got[1] != wantTags[1] || got[2] != wantTags[2] {
 		t.Errorf("annotation tags = %v, want %v", got, wantTags)
 	}

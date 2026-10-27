@@ -41,17 +41,11 @@ describe('FrontendTab setup placeholder links', () => {
     renderTab();
 
     const faro = await screen.findByRole('link', { name: /Faro Quick Start Guide/ });
-    expect(faro).toHaveAttribute(
-      'href',
-      'https://grafana.com/docs/faro-web-sdk/latest/tutorials/quick-start-browser/'
-    );
+    expect(faro).toHaveAttribute('href', 'https://grafana.com/docs/faro-web-sdk/latest/tutorials/quick-start-browser/');
 
     const otelLinks = screen.getAllByRole('link', { name: /OpenTelemetry Browser SDK/ });
     expect(otelLinks.length).toBeGreaterThanOrEqual(1);
-    expect(otelLinks[0]).toHaveAttribute(
-      'href',
-      'https://opentelemetry.io/docs/languages/js/getting-started/browser/'
-    );
+    expect(otelLinks[0]).toHaveAttribute('href', 'https://opentelemetry.io/docs/languages/js/getting-started/browser/');
 
     expect(screen.queryByRole('link', { name: /@nais\/apm/ })).not.toBeInTheDocument();
   });

@@ -86,9 +86,9 @@ export function OverviewTab({
         {scene ? (
           <scene.Component key={sceneKey} model={scene} />
         ) : (
-          <Alert severity="info" title="Prometheus RED charts unavailable">
-            ClickStack mode serves inventory, health, and operations from ClickHouse. Time-series RED panels need a
-            metrics datasource (Mimir/Prometheus) configured alongside ClickHouse, or a future CH-backed scene.
+          <Alert severity="info" title="RED charts unavailable">
+            Configure a ClickHouse datasource (ClickStack) or a Prometheus/Mimir metrics datasource to show rate, error,
+            and duration timeseries.
           </Alert>
         )}
       </div>

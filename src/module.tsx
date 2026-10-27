@@ -100,14 +100,14 @@ export const plugin = new AppPlugin<{}>()
     title: 'APM: Services',
     description: 'View all services and their health',
     targets: [PluginExtensionPoints.CommandPalette],
-    path: '/a/nais-apm-app/services',
+    path: '/a/clickhouse-apm-app/services',
     icon: 'list-ul',
   })
   .addLink({
     title: 'APM: My Apps',
     description: 'View your favorite services',
     targets: [PluginExtensionPoints.CommandPalette],
-    path: '/a/nais-apm-app/favorites',
+    path: '/a/clickhouse-apm-app/favorites',
     icon: 'star',
   })
   .addLink({

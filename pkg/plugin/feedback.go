@@ -13,7 +13,7 @@ import (
 	"github.com/nais/grafana-otel-plugin/pkg/plugin/queries"
 )
 
-// feedbackEventName is the Faro event name @nais/apm's captureFeedback()
+// feedbackEventName is the Faro event name browser SDK's captureFeedback()
 // pushes (sdk/src/feedback.ts) — the wire contract this reader is built
 // against.
 const feedbackEventName = "faro.feedback"
@@ -29,7 +29,7 @@ const eventDataPrefix = "event_data_"
 const maxFeedback = 200
 
 // FeedbackEntry is one piece of user feedback captured via
-// `@nais/apm`'s captureFeedback() (M6 seed).
+// `browser SDK`'s captureFeedback() (M6 seed).
 type FeedbackEntry struct {
 	TimeMs      int64  `json:"timeMs"`
 	Message     string `json:"message"`

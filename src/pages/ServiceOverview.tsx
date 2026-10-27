@@ -19,6 +19,7 @@ import { useAppNavigate, sanitizeParam } from '../utils/navigation';
 import { useServiceData } from '../utils/useServiceData';
 import { getAlertTemplate, buildAlertRuleUrl } from '../api/client';
 import { buildServiceScene } from './buildServiceScene';
+import { buildClickStackServiceScene } from './buildClickStackServiceScene';
 import { OverviewTab } from './tabs/OverviewTab';
 import { IssuesTab } from './tabs/IssuesTab';
 import { TracesTab } from './tabs/TracesTab';
@@ -97,6 +98,7 @@ function ServiceOverviewInner({ namespace, service }: { namespace: string; servi
   const metricsUid = ds.metricsUid;
   const tracesUid = ds.tracesUid;
   const logsUid = ds.logsUid;
+  const clickHouseUid = ds.clickHouseUid;
   // Gate metric names on capabilities being loaded so the scene is never
   // built with wrong default metric names.  When caps is null the scene
   // will be null (loading state) until the /capabilities response arrives.
@@ -191,11 +193,11 @@ function ServiceOverviewInner({ namespace, service }: { namespace: string; servi
 
   const percentileLabel = PERCENTILE_OPTIONS.find((o) => o.value === percentile)?.label ?? 'P95';
 
-  // Scenes for RED panels — rebuild only when actual values change (not object refs).
-  // The scene is null until capabilities load (callsMetric/durationBucket are gated above).
-  const scene = useMemo(
-    () =>
-      buildServiceScene({
+  // Scenes for RED panels — Prom when metrics DS is set; otherwise ClickHouse
+  // spanmetrics/traces (ClickStack-primary). Null only when neither path works.
+  const scene = useMemo(() => {
+    if (metricsUid) {
+      return buildServiceScene({
         service,
         namespace,
         envFilter,
@@ -213,31 +215,46 @@ function ServiceOverviewInner({ namespace, service }: { namespace: string; servi
         serviceNameLabel: labelOverrides.serviceNameLabel,
         serviceNamespaceLabel: labelOverrides.serviceNamespaceLabel,
         deploymentEnvLabel: labelOverrides.deploymentEnvLabel,
-      }),
-    [
-      service,
-      namespace,
-      envFilter,
-      percentile,
-      percentileLabel,
-      from,
-      to,
-      metricsUid,
-      tracesUid,
-      logsUid,
-      callsMetric,
-      durationBucket,
-      durationUnit,
-      hasServerSpans,
-      labelOverrides.serviceNameLabel,
-      labelOverrides.serviceNamespaceLabel,
-      labelOverrides.deploymentEnvLabel,
-    ]
-  );
+      });
+    }
+    if (clickHouseUid) {
+      return buildClickStackServiceScene({
+        service,
+        namespace,
+        envFilter,
+        percentile,
+        percentileLabel,
+        from,
+        to,
+        clickHouseUid,
+        hasServerSpans,
+      });
+    }
+    return null;
+  }, [
+    service,
+    namespace,
+    envFilter,
+    percentile,
+    percentileLabel,
+    from,
+    to,
+    metricsUid,
+    tracesUid,
+    logsUid,
+    clickHouseUid,
+    callsMetric,
+    durationBucket,
+    durationUnit,
+    hasServerSpans,
+    labelOverrides.serviceNameLabel,
+    labelOverrides.serviceNamespaceLabel,
+    labelOverrides.deploymentEnvLabel,
+  ]);
 
   // Key that changes when the scene is rebuilt — forces React to unmount/remount
   // the Scenes component so it properly re-activates with the new model.
-  const sceneKey = `${metricsUid}|${callsMetric}|${durationBucket}|${hasServerSpans}|${envFilter}|${percentile}`;
+  const sceneKey = `${metricsUid}|${clickHouseUid}|${callsMetric}|${durationBucket}|${hasServerSpans}|${envFilter}|${percentile}`;
 
   // Follow the global header time range: the scene rebuilds on from/to string
   // changes, this re-resolves relative ranges in place on a refresh tick.
