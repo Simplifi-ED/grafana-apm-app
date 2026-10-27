@@ -78,7 +78,11 @@ export function ServerTab({ service, namespace, fromMs, toMs, environment, onVie
   const hasInternal = internal.length > 0;
   const hasClient = client.length > 0;
   const hasGraphQL = graphql?.detected === true;
-  const hasAny = hasHTTP || hasGRPC || hasDB || hasMessaging || hasInternal || hasClient || hasGraphQL;
+  // Probe-driven empty (letter H / ticket 16): show hint when CH returns detected:false + hint
+  // so GraphQL is not silent forever. Do not invent fake zero operations.
+  const showGraphQLHint = Boolean(graphql && !graphql.detected && graphql.hint);
+  const hasAny =
+    hasHTTP || hasGRPC || hasDB || hasMessaging || hasInternal || hasClient || hasGraphQL || showGraphQLHint;
 
   if (!hasAny) {
     return (
@@ -96,7 +100,7 @@ export function ServerTab({ service, namespace, fromMs, toMs, environment, onVie
           {graphql.operations && graphql.operations.length > 0 && (
             <GraphQLSection
               title="GraphQL Operations"
-              subtitle={graphql.framework ?? ''}
+              subtitle={[graphql.framework, graphql.source].filter(Boolean).join(' · ')}
               operations={graphql.operations}
               urlPrefix="gql"
             />
@@ -104,7 +108,19 @@ export function ServerTab({ service, namespace, fromMs, toMs, environment, onVie
           {graphql.fetchers && graphql.fetchers.length > 0 && (
             <GraphQLSection title="GraphQL Resolvers" subtitle="Datafetchers" operations={graphql.fetchers} />
           )}
+          {(!graphql.operations || graphql.operations.length === 0) &&
+            (!graphql.fetchers || graphql.fetchers.length === 0) && (
+              <Alert severity="info" title="GraphQL detected">
+                GraphQL signals are present ({graphql.framework || graphql.source || 'unknown'}), but no operations were
+                aggregated in this time window.
+              </Alert>
+            )}
         </>
+      )}
+      {showGraphQLHint && graphql?.hint && (
+        <Alert severity="info" title="GraphQL not detected">
+          {graphql.hint}
+        </Alert>
       )}
 
       {hasHTTP && (

@@ -55,7 +55,12 @@ type FrontendVersionsResponse struct {
 	LatestVersion string `json:"latestVersion,omitempty"`
 	// Unavailable indicates Loki is not configured/reachable for this env.
 	Unavailable bool `json:"unavailable,omitempty"`
+	// Hint is set in ClickStack mode for alias-miss or missing service.version
+	// enablement (ticket 13/21) — empty-state copy, never fake zeros.
+	Hint string `json:"hint,omitempty"`
 }
+
+const versionsEnablementHint = "No browser app version (service.version) on @hyperdx/otel-web resources in range. Emit otelResourceAttributes['service.version'] from the app — see plan ticket 21. Do not use rum.version (SDK)."
 
 // handleFrontendVersions returns per-app_version release health stats.
 // GET /services/{namespace}/{service}/frontend/versions?from=&to=&environment=
@@ -71,6 +76,11 @@ func (a *App) handleFrontendVersions(w http.ResponseWriter, req *http.Request) {
 	}
 
 	from, to := parseTimeRange(req)
+
+	if a.clickStackMode() {
+		writeJSON(w, a.fetchFrontendVersionsClickHouse(ctx, a.chForRequest(req), service, env, from, to))
+		return
+	}
 
 	lokiURL := a.lokiURL(env)
 	if lokiURL == "" {

@@ -42,7 +42,7 @@ org-scoped, and it does **not** emit an `X-Cache` header.
 | `serviceGraph` | object | `{ detected, prefix? }`. |
 | `tempo` | object | `{ available, error? }`. |
 | `loki` | object | `{ available, error? }`. |
-| `pyroscope` | object | `{ available, uid? }`. |
+| `pyroscope` | object | `{ available, uid? }`. Prefers `jsonData.pyroscopeDataSource.uid` when set; else first Pyroscope/Phlare DS. Profiling tab always visible — empty hint when `available` is false. |
 | `services` | array&lt;string&gt; | Discovered service names. |
 | `environments` | array&lt;string&gt;? | Discovered environment values. |
 | `tempoByEnv` | object? | Per-environment Tempo status. |

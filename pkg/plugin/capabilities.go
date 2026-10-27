@@ -231,8 +231,8 @@ func (a *App) detectCapabilities(ctx context.Context, headers http.Header, servi
 		mu.Unlock()
 	})
 
-	// Pyroscope profiling datasource detection (M7). Lists Grafana datasources
-	// and matches on the Pyroscope/Phlare type — no configured UID needed.
+	// Pyroscope profiling datasource detection (M7 / letter J). Prefers
+	// jsonData.pyroscopeDataSource.uid when set; otherwise first Pyroscope/Phlare type.
 	wg.Go(func() {
 		result := a.detectPyroscope(ctx, headers, serviceToken)
 		mu.Lock()
@@ -365,16 +365,21 @@ var pyroscopeDataSourceTypes = map[string]bool{
 	"phlare":                       true,
 }
 
-// detectPyroscope lists Grafana's datasources and returns the first Pyroscope
-// (or legacy Phlare) datasource found. Profiling is gated on a platform
-// decision to run Pyroscope; production has none today, so the common result
-// is {Available: false} and the Profiling tab simply never appears. Any error
-// (no Grafana URL, transport failure, non-2xx, unparseable body) degrades to
-// "unavailable" rather than surfacing — the feature is optional.
+// detectPyroscope lists Grafana's datasources and returns a Pyroscope (or
+// legacy Phlare) datasource. When jsonData.pyroscopeDataSource.uid is set,
+// that UID is preferred if it exists and is a profiling type; otherwise the
+// first matching type wins. Any error (no Grafana URL, transport failure,
+// non-2xx, unparseable body, or configured UID missing) degrades to
+// unavailable — the Profiling tab shows an enablement hint, not fake data.
 func (a *App) detectPyroscope(ctx context.Context, headers http.Header, serviceToken string) queries.PyroscopeCapability {
 	logger := log.DefaultLogger.With("handler", "capabilities", "probe", "pyroscope")
 	if a.grafanaURL == "" {
 		return queries.PyroscopeCapability{}
+	}
+
+	preferredUID := ""
+	if a.settings.PyroscopeDataSource.UID != "" {
+		preferredUID = a.settings.PyroscopeDataSource.UID
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
@@ -411,13 +416,28 @@ func (a *App) detectPyroscope(ctx context.Context, headers http.Header, serviceT
 		return queries.PyroscopeCapability{}
 	}
 
+	var firstMatch queries.PyroscopeCapability
 	for _, ds := range dss {
-		if pyroscopeDataSourceTypes[ds.Type] {
-			logger.Info("Detected Pyroscope datasource", "uid", ds.UID, "type", ds.Type)
-			return queries.PyroscopeCapability{Available: true, UID: ds.UID}
+		if !pyroscopeDataSourceTypes[ds.Type] {
+			continue
+		}
+		cap := queries.PyroscopeCapability{Available: true, UID: ds.UID}
+		if preferredUID != "" && ds.UID == preferredUID {
+			logger.Info("Detected Pyroscope datasource (configured UID)", "uid", ds.UID, "type", ds.Type)
+			return cap
+		}
+		if !firstMatch.Available {
+			firstMatch = cap
 		}
 	}
-	return queries.PyroscopeCapability{}
+	if preferredUID != "" {
+		logger.Warn("Configured Pyroscope UID not found among profiling datasources", "uid", preferredUID)
+		return queries.PyroscopeCapability{}
+	}
+	if firstMatch.Available {
+		logger.Info("Detected Pyroscope datasource", "uid", firstMatch.UID)
+	}
+	return firstMatch
 }
 
 // capMu and capCache are initialized in App struct

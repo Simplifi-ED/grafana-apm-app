@@ -10,15 +10,15 @@ const DETAIL_PATH = `/services/${NAMESPACE}/${SERVICE}`;
 
 // Tabs that are always present regardless of which datasources are configured
 // (they render an empty/setup state when there's no data). "Backend" is the
-// merged Endpoints (RED) + Runtime (USE) tab (docs/ia-review-2.md).
-const ALWAYS_PRESENT_TABS = ['Overview', 'Alerts', 'Backend', 'Frontend', 'Database'] as const;
+// merged Endpoints (RED) + Runtime (USE) tab (docs/ia-review-2.md). Profiling
+// is always shown (letter J) with an enablement hint when Pyroscope is absent.
+const ALWAYS_PRESENT_TABS = ['Overview', 'Alerts', 'Backend', 'Frontend', 'Database', 'Profiling'] as const;
 
 // Capability-gated tabs — only rendered when their datasource is detected
 // (Issues/Logs need Loki, Dependencies needs service-graph metrics, Traces
-// needs Tempo, Profiling needs Pyroscope). Without those in CI these are
-// typically absent, so we assert on them conditionally (if the tab exists,
-// clicking it must render a state).
-const GATED_TABS = ['Issues', 'Dependencies', 'Traces', 'Logs', 'Profiling'] as const;
+// needs Tempo). Without those in CI these are typically absent, so we assert
+// on them conditionally (if the tab exists, clicking it must render a state).
+const GATED_TABS = ['Issues', 'Dependencies', 'Traces', 'Logs'] as const;
 
 /** The service-detail tab bar (Grafana <TabsBar> renders role="tablist"). */
 function tabList(page: Page) {
@@ -134,8 +134,17 @@ test.describe('Service Detail', () => {
     ]);
   });
 
+  test('Profiling tab renders a meaningful state', async ({ page }) => {
+    await page.getByRole('tab', { name: 'Profiling', exact: true }).first().click();
+    await expectMeaningfulTabState(page, 'Profiling', [
+      page.getByText('Pyroscope not configured').first(),
+      page.getByText(/Profile type|Flame graph/i).first(),
+      page.getByText(/ticket 18/i).first(),
+    ]);
+  });
+
   test('capability-gated tabs render a state when present', async ({ page }) => {
-    // Without Tempo/Loki/Pyroscope these tabs are hidden. When present, they
+    // Without Tempo/Loki these tabs are hidden. When present, they
     // must render a meaningful state (never a blank screen) on click.
     let checked = 0;
     for (const label of GATED_TABS) {

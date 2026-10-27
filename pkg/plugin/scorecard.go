@@ -132,13 +132,14 @@ func scorecardBaseChecks() []ScorecardCheck {
 			Hint: "Instrument your frontend with @hyperdx/browser, Grafana Faro, or the OpenTelemetry Browser SDK."},
 		{Key: "alertRules", Label: "Alert rules",
 			Hint: "No alert rule mentions this service — start with 'Alert on error rate' in the service actions menu."},
-		// Visible but unscored until enablement tickets 16–18 (ticket 22).
+		// Visible but unscored until enablement tickets 16–17 (ticket 22).
 		{Key: "graphql", Label: "GraphQL",
 			Hint: "Waiting on GraphQL signal enablement (ticket 16).", NotApplicable: true},
 		{Key: "jobs", Label: "Jobs",
 			Hint: "Waiting on Jobs / KSM signal enablement (ticket 17).", NotApplicable: true},
+		// Letter J / ticket 18: scored from detectPyroscope (see applyProfilingCheck).
 		{Key: "profiling", Label: "Profiling",
-			Hint: "Waiting on Pyroscope datasource enablement (ticket 18).", NotApplicable: true},
+			Hint: "Install grafana-pyroscope-datasource and provision a Pyroscope DS (ticket 18)."},
 	}
 }
 
@@ -193,11 +194,13 @@ func (a *App) computeReadiness(ctx context.Context, headers http.Header, namespa
 	go func() { defer wg.Done(); checks[5].OK = a.checkAlertRules(ctx, headers, token, service) }()
 	wg.Wait()
 
+	a.applyProfilingCheck(ctx, headers, token, checks)
 	return tallyScorecard(checks)
 }
 
-// computeReadinessClickHouse runs ticket-22 CH probes for the Nais 6 keys and
-// keeps graphql/jobs/profiling as unscored N/A placeholders until 16–18.
+// computeReadinessClickHouse runs ticket-22 CH probes for the Nais 6 keys,
+// scores Profiling via detectPyroscope (letter J / 18), and keeps graphql/jobs
+// as unscored N/A placeholders until 16–17.
 func (a *App) computeReadinessClickHouse(ctx context.Context, headers http.Header, namespace, service, env string) ScorecardReadiness {
 	now := time.Now()
 	from := now.Add(-scorecardTraceLookback)
@@ -267,7 +270,23 @@ func (a *App) computeReadinessClickHouse(ctx context.Context, headers http.Heade
 	go func() { defer wg.Done(); checks[5].OK = a.checkAlertRules(ctx, headers, token, service) }()
 	wg.Wait()
 
+	a.applyProfilingCheck(ctx, headers, token, checks)
 	return tallyScorecard(checks)
+}
+
+// applyProfilingCheck sets the Profiling scorecard slot from the live Pyroscope
+// DS probe (index 8 in scorecardBaseChecks). No fake OK.
+func (a *App) applyProfilingCheck(ctx context.Context, headers http.Header, token string, checks []ScorecardCheck) {
+	const profilingIdx = 8
+	if profilingIdx >= len(checks) || checks[profilingIdx].Key != "profiling" {
+		return
+	}
+	pyro := a.detectPyroscope(ctx, headers, token)
+	checks[profilingIdx].NotApplicable = false
+	checks[profilingIdx].OK = pyro.Available
+	if !pyro.Available {
+		checks[profilingIdx].Hint = "Waiting on Pyroscope datasource enablement (ticket 18)."
+	}
 }
 
 func (a *App) chProbeNonEmpty(ctx context.Context, ch *queries.ClickHouseClient, sql string) bool {

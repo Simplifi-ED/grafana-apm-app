@@ -147,3 +147,37 @@ func TestDetectPyroscopeForwardsServiceToken(t *testing.T) {
 		t.Errorf("Authorization = %q, want %q", gotAuth, "Bearer svc-token-123")
 	}
 }
+
+func TestDetectPyroscopePrefersConfiguredUID(t *testing.T) {
+	srv := fakeDatasourcesServer(t, []map[string]string{
+		{"uid": "first-pyro", "type": "grafana-pyroscope-datasource"},
+		{"uid": "pyroscope", "type": "grafana-pyroscope-datasource"},
+	}, http.StatusOK)
+	defer srv.Close()
+
+	t.Run("prefers jsonData.pyroscopeDataSource.uid when present", func(t *testing.T) {
+		app := pyroscopeTestApp(srv.URL)
+		app.settings.PyroscopeDataSource.UID = "pyroscope"
+		got := app.detectPyroscope(context.Background(), http.Header{}, "")
+		if !got.Available || got.UID != "pyroscope" {
+			t.Fatalf("got %+v, want available uid=pyroscope", got)
+		}
+	})
+
+	t.Run("configured UID missing → unavailable (no silent fallback)", func(t *testing.T) {
+		app := pyroscopeTestApp(srv.URL)
+		app.settings.PyroscopeDataSource.UID = "missing-uid"
+		got := app.detectPyroscope(context.Background(), http.Header{}, "")
+		if got.Available {
+			t.Fatalf("expected unavailable when configured UID missing, got %+v", got)
+		}
+	})
+
+	t.Run("no configured UID → first matching type", func(t *testing.T) {
+		app := pyroscopeTestApp(srv.URL)
+		got := app.detectPyroscope(context.Background(), http.Header{}, "")
+		if !got.Available || got.UID != "first-pyro" {
+			t.Fatalf("got %+v, want available uid=first-pyro", got)
+		}
+	})
+}

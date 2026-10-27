@@ -37,6 +37,7 @@ type State = {
   tracesUid: string;
   logsUid: string;
   clickHouseUid: string;
+  pyroscopeUid: string;
   metricNamespace: string;
   durationUnit: string;
   labelOverrides: LabelOverrides;
@@ -78,6 +79,7 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
     tracesUid: jsonData?.tracesDataSource?.uid || '',
     logsUid: jsonData?.logsDataSource?.uid || '',
     clickHouseUid: jsonData?.clickHouseDataSource?.uid || '',
+    pyroscopeUid: jsonData?.pyroscopeDataSource?.uid || '',
     metricNamespace: jsonData?.metricNamespace || '',
     durationUnit: jsonData?.durationUnit || '',
     labelOverrides: jsonData?.labelOverrides ?? {},
@@ -103,6 +105,9 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
   const [tempoOptions, setTempoOptions] = useState<Array<{ label: string; value: string; description?: string }>>([]);
   const [lokiOptions, setLokiOptions] = useState<Array<{ label: string; value: string; description?: string }>>([]);
   const [clickHouseOptions, setClickHouseOptions] = useState<
+    Array<{ label: string; value: string; description?: string }>
+  >([]);
+  const [pyroscopeOptions, setPyroscopeOptions] = useState<
     Array<{ label: string; value: string; description?: string }>
   >([]);
   const [dsLoaded, setDsLoaded] = useState(false);
@@ -134,11 +139,15 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
         const tempo = datasources.filter((ds) => ds.type === 'tempo').map(toOption);
         const loki = datasources.filter((ds) => ds.type === 'loki').map(toOption);
         const clickhouse = datasources.filter((ds) => ds.type === 'grafana-clickhouse-datasource').map(toOption);
+        const pyroscope = datasources
+          .filter((ds) => ds.type === 'grafana-pyroscope-datasource' || ds.type === 'phlare')
+          .map(toOption);
 
         setPromOptions(prom);
         setTempoOptions(tempo);
         setLokiOptions(loki);
         setClickHouseOptions(clickhouse);
+        setPyroscopeOptions(pyroscope);
         setDsLoaded(true);
 
         // Auto-fill empty fields: prefer isDefault, then sole datasource
@@ -159,6 +168,9 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
           if (!prev.clickHouseUid) {
             const def = datasources.find((d) => d.type === 'grafana-clickhouse-datasource' && d.isDefault);
             updates.clickHouseUid = def?.uid || (clickhouse.length === 1 ? clickhouse[0].value! : '');
+          }
+          if (!prev.pyroscopeUid && pyroscope.length === 1) {
+            updates.pyroscopeUid = pyroscope[0].value!;
           }
 
           // Auto-detect environment overrides from naming patterns
@@ -399,6 +411,9 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
         clickHouseDataSource: state.clickHouseUid
           ? { uid: state.clickHouseUid, type: 'grafana-clickhouse-datasource' }
           : undefined,
+        pyroscopeDataSource: state.pyroscopeUid
+          ? { uid: state.pyroscopeUid, type: 'grafana-pyroscope-datasource' }
+          : undefined,
         metricNamespace: state.metricNamespace || undefined,
         durationUnit: state.durationUnit || undefined,
         labelOverrides: Object.values(state.labelOverrides).some(Boolean) ? state.labelOverrides : undefined,
@@ -503,6 +518,28 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
             />
           ) : (
             <Input width={40} value={state.logsUid} placeholder="e.g., loki" onChange={onChange('logsUid')} />
+          )}
+        </Field>
+        <Field
+          label="Profiling (Pyroscope)"
+          description="Optional. Preferred UID for the Profiling tab. When empty, the plugin auto-detects the first grafana-pyroscope-datasource (or legacy phlare)."
+        >
+          {dsLoaded && pyroscopeOptions.length > 0 ? (
+            <Combobox
+              options={pyroscopeOptions}
+              value={state.pyroscopeUid || null}
+              onChange={(v) => setState((prev) => ({ ...prev, pyroscopeUid: v?.value ?? '' }))}
+              width={40}
+              placeholder="Select Pyroscope datasource..."
+              isClearable
+            />
+          ) : (
+            <Input
+              width={40}
+              value={state.pyroscopeUid}
+              placeholder="e.g., pyroscope (optional)"
+              onChange={onChange('pyroscopeUid')}
+            />
           )}
         </Field>
       </FieldSet>

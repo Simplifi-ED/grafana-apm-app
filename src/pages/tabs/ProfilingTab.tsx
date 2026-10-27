@@ -17,8 +17,8 @@ import { useSceneTimeSync } from '../../utils/useSceneTimeSync';
 interface ProfilingTabProps {
   service: string;
   namespace: string;
-  /** UID of the detected Pyroscope datasource (caps.pyroscope.uid). The tab is
-   * only mounted when this is set, so it is always a real UID here. */
+  /** UID of the detected Pyroscope datasource (caps.pyroscope.uid). Only mounted
+   * when capabilities report available — empty-state lives in ServiceOverview. */
   pyroscopeUid: string;
   /** Pyroscope conventionally labels services under `service_name`; overridable
    * for parity with the app's label config. */
@@ -44,14 +44,13 @@ const PYROSCOPE_DS_TYPE = 'grafana-pyroscope-datasource';
 /**
  * ProfilingTab renders continuous-profiling views for a service from a
  * Pyroscope datasource: a samples-over-time series and a flame graph for the
- * selected profile type (CPU or memory). It is only reachable when the backend
- * /capabilities probe reports `pyroscope.available` — production has no
- * Pyroscope today, so in practice the tab is hidden entirely.
+ * selected profile type (CPU or memory). Mounted only when
+ * capabilities.pyroscope.available; otherwise ServiceOverview shows the
+ * ticket-18 enablement empty-state (no fake profiles).
  *
  * Follow-up (both Tempo + Pyroscope present): span→profile links — Tempo trace
  * spans carry a pyroscope profile id that deep-links into a span-scoped flame
- * graph (the datasource's `spanSelector` query field). Not built here because
- * production runs neither datasource in tandem yet.
+ * graph (the datasource's `spanSelector` query field).
  */
 export function ProfilingTab({ service, pyroscopeUid, serviceNameLabel = 'service_name' }: ProfilingTabProps) {
   const styles = useStyles2(getStyles);

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/grafana/grafana-plugin-sdk-go/backend/log"
+	"github.com/nais/grafana-otel-plugin/pkg/plugin/chquery"
 	"github.com/nais/grafana-otel-plugin/pkg/plugin/queries"
 )
 
@@ -105,11 +106,218 @@ func (a *App) handleGraphQLMetrics(w http.ResponseWriter, req *http.Request) {
 
 	from, to := parseTimeRange(req)
 
+	if a.clickStackMode() {
+		ch := a.chForRequest(req)
+		writeJSON(w, a.queryGraphQLMetricsClickHouse(ctx, ch, namespace, service, environment, from, to))
+		return
+	}
+
 	orgID := req.Header.Get("X-Grafana-Org-Id")
 	ck := cacheKey("graphql", orgID, roundedUnix(from), roundedUnix(to), namespace, service, environment)
 	a.writeCached(w, ck, "querying graphql metrics failed", func() (any, error) {
 		return a.queryGraphQLMetrics(ctx, namespace, service, environment, from, to), nil
 	})
+}
+
+// queryGraphQLMetricsClickHouse detects GraphQL via Nais metric probes in
+// otel_metrics_* OR OTel span attrs on otel_traces (ticket 16 / letter H).
+func (a *App) queryGraphQLMetricsClickHouse(
+	ctx context.Context,
+	ch *queries.ClickHouseClient,
+	namespace, service, environment string,
+	from, to time.Time,
+) GraphQLMetricsResponse {
+	logger := log.DefaultLogger.With("handler", "graphql-clickhouse")
+	if ch == nil || service == "" {
+		return GraphQLMetricsResponse{Hint: chquery.GraphQLHintUndetected}
+	}
+
+	// Metrics use scrape identity when aliased; spans use inventory ServiceName
+	// (fixture graphql-demo matches inventory).
+	metricService := service
+	if scrape, ok := a.ResolveServiceAlias(service); ok && scrape != "" {
+		metricService = scrape
+	}
+
+	lookbackFrom := to.Add(-5 * time.Minute)
+	if lookbackFrom.Before(from) {
+		lookbackFrom = from
+	}
+	opts := queries.ClickHouseQueryOptions{From: lookbackFrom, To: to, Limit: 200}
+
+	if resp := a.queryGraphQLFromCHMetrics(ctx, ch, logger, namespace, metricService, lookbackFrom, to, opts); resp.Detected {
+		return resp
+	}
+	if resp := a.queryGraphQLFromCHSpans(ctx, ch, logger, namespace, service, environment, from, to, opts); resp.Detected {
+		return resp
+	}
+	return GraphQLMetricsResponse{Hint: chquery.GraphQLHintUndetected}
+}
+
+func (a *App) queryGraphQLFromCHMetrics(
+	ctx context.Context,
+	ch *queries.ClickHouseClient,
+	logger log.Logger,
+	namespace, scrapeService string,
+	from, to time.Time,
+	opts queries.ClickHouseQueryOptions,
+) GraphQLMetricsResponse {
+	disc, err := ch.Query(ctx, chquery.GraphQLMetricDiscoverSQL(scrapeService, namespace, from, to), opts)
+	if err != nil {
+		logger.Warn("graphql CH metric discovery failed", "error", err, "service", scrapeService)
+		return GraphQLMetricsResponse{}
+	}
+	metricNames := chquery.ParseGraphQLMetricNames(disc.Maps())
+	if len(metricNames) == 0 {
+		return GraphQLMetricsResponse{}
+	}
+
+	for _, probe := range graphqlProbes {
+		if !metricNames[probe.countMetric] {
+			continue
+		}
+		logger.Debug("detected GraphQL framework (CH metrics)", "framework", probe.framework, "service", scrapeService)
+		opsRes, qerr := ch.Query(ctx, chquery.GraphQLMetricOpsSQL(
+			scrapeService, namespace,
+			probe.countMetric, probe.sumMetric, probe.opLabel, probe.typeLabel, probe.errorFilter,
+			from, to, 50,
+		), opts)
+		if qerr != nil {
+			logger.Warn("graphql CH metric ops failed", "error", qerr, "framework", probe.framework)
+			continue
+		}
+		ops := mapCHGraphQLOps(chquery.ParseGraphQLOpRows(opsRes.Maps(), probe.latencyUnit))
+		resp := GraphQLMetricsResponse{
+			Detected:   true,
+			Framework:  probe.framework,
+			Source:     "metrics",
+			Operations: ops,
+		}
+		if probe.framework == frameworkDGS && metricNames["graphql_datafetcher_seconds_count"] {
+			fRes, ferr := ch.Query(ctx, chquery.GraphQLMetricOpsSQL(
+				scrapeService, namespace,
+				"graphql_datafetcher_seconds_count", "graphql_datafetcher_seconds_sum",
+				"graphql_field_name", "", `graphql_outcome!="SUCCESS"`,
+				from, to, 50,
+			), opts)
+			if ferr == nil {
+				resp.Fetchers = mapCHGraphQLOps(chquery.ParseGraphQLOpRows(fRes.Maps(), "s"))
+			}
+		}
+		return resp
+	}
+
+	// pdl-style per-query-name metrics: graphql_{QueryName}_seconds_count
+	pdlOps := a.queryPDLOperationsClickHouse(ctx, ch, logger, scrapeService, namespace, metricNames, from, to, opts)
+	if len(pdlOps) > 0 {
+		return GraphQLMetricsResponse{
+			Detected:   true,
+			Framework:  "Custom (per-query)",
+			Source:     "metrics",
+			Operations: pdlOps,
+		}
+	}
+	return GraphQLMetricsResponse{}
+}
+
+func (a *App) queryPDLOperationsClickHouse(
+	ctx context.Context,
+	ch *queries.ClickHouseClient,
+	logger log.Logger,
+	scrapeService, namespace string,
+	metricNames map[string]bool,
+	from, to time.Time,
+	opts queries.ClickHouseQueryOptions,
+) []GraphQLOperation {
+	var countMetrics []string
+	for name := range metricNames {
+		if !strings.HasPrefix(name, "graphql_") || !strings.HasSuffix(name, "_seconds_count") {
+			continue
+		}
+		excluded := false
+		for _, prefix := range knownGraphQLPrefixes {
+			if strings.HasPrefix(name, prefix) {
+				excluded = true
+				break
+			}
+		}
+		if !excluded {
+			countMetrics = append(countMetrics, name)
+		}
+	}
+	if len(countMetrics) == 0 {
+		return nil
+	}
+	sort.Strings(countMetrics)
+
+	ops := make([]GraphQLOperation, 0, len(countMetrics))
+	for _, countMetric := range countMetrics {
+		name := strings.TrimPrefix(countMetric, "graphql_")
+		name = strings.TrimSuffix(name, "_seconds_count")
+		sumMetric := strings.Replace(countMetric, "_count", "_sum", 1)
+		res, err := ch.Query(ctx, chquery.GraphQLPDLOpSQL(
+			scrapeService, namespace, name, countMetric, sumMetric, from, to,
+		), opts)
+		if err != nil {
+			logger.Debug("pdl CH op failed", "metric", countMetric, "error", err)
+			continue
+		}
+		ops = append(ops, mapCHGraphQLOps(chquery.ParseGraphQLOpRows(res.Maps(), "s"))...)
+	}
+	sort.Slice(ops, func(i, j int) bool { return ops[i].Rate > ops[j].Rate })
+	return ops
+}
+
+func (a *App) queryGraphQLFromCHSpans(
+	ctx context.Context,
+	ch *queries.ClickHouseClient,
+	logger log.Logger,
+	namespace, service, environment string,
+	from, to time.Time,
+	opts queries.ClickHouseQueryOptions,
+) GraphQLMetricsResponse {
+	det, err := ch.Query(ctx, chquery.GraphQLSpanDetectSQL(service, namespace, environment, from, to), opts)
+	if err != nil {
+		logger.Warn("graphql CH span detect failed", "error", err, "service", service)
+		return GraphQLMetricsResponse{}
+	}
+	if len(det.Maps()) == 0 || chquery.ParseFloat(det.Maps()[0]["c"]) <= 0 {
+		return GraphQLMetricsResponse{}
+	}
+	opsRes, err := ch.Query(ctx, chquery.GraphQLSpanOpsSQL(service, namespace, environment, from, to, 50), opts)
+	if err != nil {
+		logger.Warn("graphql CH span ops failed", "error", err, "service", service)
+		return GraphQLMetricsResponse{Detected: true, Framework: "OpenTelemetry spans", Source: "spans"}
+	}
+	ops := mapCHGraphQLOps(chquery.ParseGraphQLOpRows(opsRes.Maps(), "s"))
+	return GraphQLMetricsResponse{
+		Detected:   true,
+		Framework:  "OpenTelemetry spans",
+		Source:     "spans",
+		Operations: ops,
+	}
+}
+
+func mapCHGraphQLOps(rows []chquery.GraphQLOpRow) []GraphQLOperation {
+	if len(rows) == 0 {
+		return nil
+	}
+	ops := make([]GraphQLOperation, 0, len(rows))
+	for _, r := range rows {
+		op := GraphQLOperation{
+			Name:        r.Name,
+			Type:        r.Type,
+			Rate:        r.Rate,
+			AvgLatency:  r.AvgLatency,
+			LatencyUnit: r.LatencyUnit,
+		}
+		if r.HasErrorRate {
+			er := r.ErrorRate
+			op.ErrorRate = &er
+		}
+		ops = append(ops, op)
+	}
+	return ops
 }
 
 func (a *App) queryGraphQLMetrics(ctx context.Context, namespace, service, environment string, _, to time.Time) GraphQLMetricsResponse {

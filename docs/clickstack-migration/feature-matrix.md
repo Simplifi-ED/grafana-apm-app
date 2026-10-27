@@ -33,8 +33,8 @@
 | Issues / exceptions | `GET .../issues` | `otel_traces` | 🟨 | **F** shipped: HyperDX browser (`unhandledrejection`/`error.*`) + server `Events.exception` badged (**19**/ **20**); empty UX + alias/probe hints (**13**) |
 | Issue occurrences / drawer | CH spans + `rum.sessionId` | `otel_traces`, `hyperdx_sessions` | 🟨 | **F** shipped; replay deep-link via `rum.sessionId`; Faro Loki not required |
 | Frontend Web Vitals | `GET .../frontend` + tab | `otel_traces` `webvitals` | 🟨 | HyperDX live |
-| Frontend versions | `GET .../frontend/versions` | `ResourceAttributes['service.version']` | 🚧 | **G** gated on **21** (`service.version` empty on browser today; do not use `rum.version`) |
-| Frontend Feedback | Feedback UI | `otel_traces` `SpanName=faro.feedback` | 🚧 | Contract locked (**21**); Sanad emit pending deploy; letter **G** |
+| Frontend versions | `GET .../frontend/versions` | `ResourceAttributes['service.version']` | 🟨 | **G** shipped: `@hyperdx/otel-web` GROUP BY `service.version` (never `rum.version`); probe + alias/enablement empty (**13**/**21**) |
+| Frontend Feedback | Feedback UI | `otel_traces` `SpanName=faro.feedback` | 🟨 | **G** shipped: Faro-shaped CH query + Issues Feedback panel; probe empty until Sanad **21** deploy |
 | Frontend sessions list | `GET .../frontend/sessions` | `hyperdx_sessions` + error enrich from traces | 🟨 | **F** polish: errors/user enrich, alias hint, ClickStack empty copy |
 | Session replay | replay / probe / recordings | `hyperdx_sessions` | ✅ | |
 | Service map | `GET /service-map` | `traces_service_graph_*` | 🟨 | |
@@ -42,12 +42,12 @@
 | Database top queries / N+1 | DB tab | `otel_traces` db attrs | 🟨 | **D** `chquery` top queries + N+1 |
 | Runtime metrics | Runtime tab | `otel_metrics_*` `go_*`/`process_*` | 🟨 | **C** shipped: alias → scrape `ServiceName`; Go/process CH queries; miss → hint |
 | Custom metrics | Custom tab | `otel_metrics_*` | 🟨 | **C** shipped: denylist discovery across gauge/sum/hist/summary |
-| GraphQL | GraphQL tab | TBD metrics/spans | 🚧 | **H** gated on **16** |
+| GraphQL | GraphQL / Server tab | `otel_metrics_*` probes ∨ `otel_traces` `graphql.operation.*` | 🟨 | **H** CH detect path; live demo still **16** |
 | Alerts / templates | Alerts UI | Grafana UA + CH SQL | 🟨 | **D** list/firing (**10**); full catalog CH SQL eval (**27**) |
-| Scorecard | Scorecard | CH probes | 🟨 | **D** Nais 6 + graphql/jobs/profiling N/A (**22**) |
-| Jobs | Jobs UI | KSM/Prom and/or `kube_*` in CH | 🚧 | **I** gated on **17** |
+| Scorecard | Scorecard | CH probes | 🟨 | **D** Nais 6 + graphql/jobs N/A (**22**); **J** profiling scored via Pyroscope probe |
+| Jobs | Jobs UI | KSM/Prom and/or `kube_*` in CH | 🟨 | **I** Path A Prom preferred; Path B CH `kube_*` probe; soft-unavailable + ticket **17** hint when empty |
 | Triage / watchlist / sourcemap | annotations / HTTP | N/A | ✅ | |
-| Profiling | Profiling tab | Pyroscope DS | 🚧 | **J** gated on **18** |
+| Profiling | Profiling tab | Pyroscope DS | 🟨 | **J** always-visible tab; real flame graphs when DS present; empty+hint otherwise (**18**) |
 | Service identity aliases | plugin `jsonData.serviceAliases` | — | 🟨 | **A** / **15** — resolve helper + AppConfig; Runtime/Custom CH queries in **C** |
 
 ---
@@ -94,9 +94,9 @@ Plan tracker: `.scratch/clickstack-nais-parity/map.md`.
 | D | Alerts / Scorecard / DB / deps health | 🟨 shipped this session |
 | E | Explore depth | 🟨 filter chips + Advanced SQL + CH-primary; Explore links UID-gated |
 | F | Issues + Sessions UX | 🟨 unit-tested; Sanad smoke pending |
-| G | Versions + Feedback | **21** |
-| H | GraphQL | **16** |
-| I | Jobs | **17** |
-| J | Profiling | **18** |
+| G | Versions + Feedback | 🟨 unit-tested; live **21** smoke pending |
+| H | GraphQL | 🟨 plugin CH path; live emitter **16** |
+| I | Jobs | 🟨 Path A/B shipped; live Sanad needs **17** KSM |
+| J | Profiling | 🟨 shipped (probe + empty hint); live DS still **18** |
 
 Platform **16–18/21** start in parallel with A. Gated tabs: capability probe + empty-state (**13**), no fake zeros.

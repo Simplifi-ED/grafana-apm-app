@@ -172,4 +172,34 @@ describe('Components/AppConfig', () => {
     const payload = submittedPayload();
     expect(payload.jsonData.serviceAliases).toEqual({ 'nova-api': 'nova-app' });
   });
+
+  test('persists optional pyroscopeDataSource.uid on save', async () => {
+    const plugin = {
+      meta: {
+        ...props.plugin.meta,
+        enabled: true,
+        jsonData: {
+          ...props.plugin.meta.jsonData,
+          pyroscopeDataSource: { uid: 'pyroscope', type: 'grafana-pyroscope-datasource' },
+        },
+      },
+    };
+
+    await act(async () => {
+      // @ts-ignore
+      render(<AppConfig plugin={plugin} query={props.query} />);
+    });
+
+    expect(screen.getByDisplayValue('pyroscope')).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId(testIds.appConfig.submit));
+    });
+
+    const payload = submittedPayload();
+    expect(payload.jsonData.pyroscopeDataSource).toEqual({
+      uid: 'pyroscope',
+      type: 'grafana-pyroscope-datasource',
+    });
+  });
 });

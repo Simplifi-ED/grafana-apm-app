@@ -21,6 +21,7 @@ type scorecardFixture struct {
 	runtime     bool
 	browser     bool
 	alertRule   bool
+	pyroscope   bool   // grafana-pyroscope-datasource present at /api/datasources
 	sdkLanguage string // telemetry_sdk_language answered by the language probe ("" → no series)
 }
 
@@ -63,11 +64,17 @@ func newScorecardApp(t *testing.T, fx scorecardFixture) *App {
 	}))
 	t.Cleanup(prom.Close)
 
-	// Fake Grafana: datasource proxy for Tempo search + Loki index/stats, and
-	// the Grafana-managed rules API.
+	// Fake Grafana: datasource proxy for Tempo search + Loki index/stats,
+	// /api/datasources (Pyroscope probe), and the Grafana-managed rules API.
 	grafana := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		switch {
+		case r.URL.Path == "/api/datasources":
+			dss := []map[string]string{{"uid": "prom", "type": "prometheus"}}
+			if fx.pyroscope {
+				dss = append(dss, map[string]string{"uid": "pyroscope", "type": "grafana-pyroscope-datasource"})
+			}
+			_ = json.NewEncoder(w).Encode(dss)
 		case strings.Contains(r.URL.Path, "/proxy/uid/tempo/api/search"):
 			if fx.traces {
 				_, _ = w.Write([]byte(`{"traces":[{"traceID":"abc"}]}`))
@@ -140,48 +147,54 @@ func TestScorecardReadinessScore(t *testing.T) {
 			name:      "nothing instrumented",
 			fx:        scorecardFixture{},
 			wantScore: 0,
-			wantTotal: 6,
+			wantTotal: 7,
+			wantOK:    map[string]bool{"profiling": false},
+			wantNA:    map[string]bool{"profiling": false},
 		},
 		{
-			name:      "fully instrumented",
-			fx:        scorecardFixture{spanMetrics: true, traces: true, logs: true, runtime: true, browser: true, alertRule: true},
-			wantScore: 6,
-			wantTotal: 6,
+			name: "fully instrumented including Pyroscope",
+			fx: scorecardFixture{
+				spanMetrics: true, traces: true, logs: true, runtime: true,
+				browser: true, alertRule: true, pyroscope: true,
+			},
+			wantScore: 7,
+			wantTotal: 7,
+			wantOK:    map[string]bool{"profiling": true},
 		},
 		{
 			name:      "backend service, unknown language: Faro stays actionable",
 			fx:        scorecardFixture{spanMetrics: true, traces: true, logs: true, runtime: true},
 			wantScore: 4,
-			wantTotal: 6,
+			wantTotal: 7,
 			wantOK: map[string]bool{
 				"spanMetrics": true, "traces": true, "logs": true,
-				"runtimeMetrics": true, "browserTelemetry": false, "alertRules": false,
+				"runtimeMetrics": true, "browserTelemetry": false, "alertRules": false, "profiling": false,
 			},
 		},
 		{
 			name:      "pure JVM backend: Faro not applicable, excluded from score",
 			fx:        scorecardFixture{spanMetrics: true, traces: true, logs: true, runtime: true, sdkLanguage: "java"},
 			wantScore: 4,
-			wantTotal: 5,
+			wantTotal: 6,
 			wantOK: map[string]bool{
 				"spanMetrics": true, "traces": true, "logs": true,
 				"runtimeMetrics": true, "browserTelemetry": false, "alertRules": false,
 			},
-			wantNA: map[string]bool{"browserTelemetry": true},
+			wantNA: map[string]bool{"browserTelemetry": true, "profiling": false},
 		},
 		{
 			name:      "node service: Faro stays applicable (SSR/BFF ambiguity)",
 			fx:        scorecardFixture{spanMetrics: true, sdkLanguage: "nodejs"},
 			wantScore: 1,
-			wantTotal: 6,
+			wantTotal: 7,
 			wantOK:    map[string]bool{"browserTelemetry": false},
-			wantNA:    map[string]bool{"browserTelemetry": false},
+			wantNA:    map[string]bool{"browserTelemetry": false, "profiling": false},
 		},
 		{
 			name:      "JVM service WITH faro data: check passes and stays applicable",
 			fx:        scorecardFixture{browser: true, sdkLanguage: "java"},
 			wantScore: 1,
-			wantTotal: 6,
+			wantTotal: 7,
 			wantOK:    map[string]bool{"browserTelemetry": true},
 			wantNA:    map[string]bool{"browserTelemetry": false},
 		},
@@ -189,8 +202,8 @@ func TestScorecardReadinessScore(t *testing.T) {
 			name:      "alert rule via grafana-managed rules",
 			fx:        scorecardFixture{alertRule: true},
 			wantScore: 1,
-			wantTotal: 6,
-			wantOK:    map[string]bool{"alertRules": true},
+			wantTotal: 7,
+			wantOK:    map[string]bool{"alertRules": true, "profiling": false},
 		},
 	}
 
@@ -212,7 +225,7 @@ func TestScorecardReadinessScore(t *testing.T) {
 					t.Errorf("check %q missing label/hint", c.Key)
 				}
 			}
-			for _, gated := range []string{"graphql", "jobs", "profiling"} {
+			for _, gated := range []string{"graphql", "jobs"} {
 				if !byKey[gated].NotApplicable {
 					t.Errorf("check %q should be NotApplicable until enablement", gated)
 				}

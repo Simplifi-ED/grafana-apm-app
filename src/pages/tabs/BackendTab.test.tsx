@@ -136,6 +136,46 @@ describe('ServerTab (standalone, backward-compat)', () => {
     expect(await screen.findByText('/health')).toBeInTheDocument();
     expect(screen.getByText('HTTP Endpoints')).toBeInTheDocument();
   });
+
+  it('shows GraphQL operations when detected (letter H)', async () => {
+    (getEndpoints as jest.Mock).mockResolvedValue(emptyEndpoints);
+    (getGraphQLMetrics as jest.Mock).mockResolvedValue({
+      detected: true,
+      framework: 'OpenTelemetry spans',
+      source: 'spans',
+      operations: [
+        { name: 'GetInvoice', type: 'query', rate: 0.01, errorRate: 0, avgLatency: 0.012, latencyUnit: 's' },
+      ],
+    });
+
+    render(
+      <MemoryRouter>
+        <ServerTab service="graphql-demo" namespace="demo" fromMs={1000} toMs={2000} environment="ci" />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('GraphQL Operations')).toBeInTheDocument();
+    expect(screen.getByText('GetInvoice')).toBeInTheDocument();
+    expect(screen.queryByText('GraphQL not detected')).not.toBeInTheDocument();
+  });
+
+  it('shows probe hint when GraphQL undetected (no fake zeros)', async () => {
+    (getEndpoints as jest.Mock).mockResolvedValue(emptyEndpoints);
+    (getGraphQLMetrics as jest.Mock).mockResolvedValue({
+      detected: false,
+      hint: 'No GraphQL metrics or spans detected in ClickHouse for this service. ticket 16.',
+    });
+
+    render(
+      <MemoryRouter>
+        <ServerTab service="checkout" namespace="team-a" fromMs={1000} toMs={2000} />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('GraphQL not detected')).toBeInTheDocument();
+    expect(screen.getByText(/ticket 16/)).toBeInTheDocument();
+    expect(screen.queryByText('GraphQL Operations')).not.toBeInTheDocument();
+  });
 });
 
 describe('RuntimeTab (standalone, backward-compat)', () => {

@@ -39,6 +39,12 @@ export interface AppPluginSettings {
    * Optional while the LGTM path remains; required for ClickHouse-backed queries.
    */
   clickHouseDataSource?: DsRef;
+  /**
+   * Optional preferred Grafana Pyroscope (or legacy Phlare) datasource UID for
+   * the Profiling tab. When omitted, /capabilities auto-detects the first
+   * matching DS type.
+   */
+  pyroscopeDataSource?: DsRef;
   metricNamespace?: string;
   durationUnit?: string;
   labelOverrides?: LabelOverrides;

@@ -83,8 +83,12 @@ type GraphQLOperation struct {
 type GraphQLMetricsResponse struct {
 	Detected   bool               `json:"detected"`
 	Framework  string             `json:"framework,omitempty"`
+	Source     string             `json:"source,omitempty"` // "metrics" | "spans" (ClickStack)
 	Operations []GraphQLOperation `json:"operations,omitempty"`
 	Fetchers   []GraphQLOperation `json:"fetchers,omitempty"` // DGS datafetchers
+	// Hint is set when ClickStack mode finds neither GraphQL metrics nor spans
+	// (ticket 16 / letter H — probe-driven empty, not silent forever).
+	Hint string `json:"hint,omitempty"`
 }
 
 // ---------------------------------------------------------------------------

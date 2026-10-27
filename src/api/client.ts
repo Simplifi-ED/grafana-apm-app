@@ -841,6 +841,8 @@ export interface FrontendVersionsResponse {
   /** Version tag on the newest deploy annotation in range. */
   latestVersion?: string;
   unavailable?: boolean;
+  /** ClickStack: alias-miss or missing service.version enablement (ticket 13/21). */
+  hint?: string;
 }
 
 export async function getFrontendVersions(
@@ -1108,8 +1110,12 @@ export interface GraphQLOperation {
 export interface GraphQLMetricsResponse {
   detected: boolean;
   framework?: string;
+  /** ClickStack: "metrics" | "spans" when detected */
+  source?: string;
   operations?: GraphQLOperation[];
   fetchers?: GraphQLOperation[];
+  /** ClickStack: probe-driven empty copy when neither signal is present */
+  hint?: string;
 }
 
 export async function getGraphQLMetrics(
@@ -1424,6 +1430,8 @@ export interface FeedbackEntry {
 export interface FeedbackResponse {
   feedback: FeedbackEntry[];
   unavailable?: boolean;
+  /** ClickStack: alias-miss or missing faro.feedback enablement (ticket 13/21). */
+  hint?: string;
 }
 
 // ---- Source-map doctor (#60) ----

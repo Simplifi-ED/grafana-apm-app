@@ -144,7 +144,8 @@ describe('ServiceInventory — Time range', () => {
 
     expect(screen.getByText(/Last 5 minutes/i)).toBeInTheDocument();
     for (const [from, to] of jest.mocked(getServices).mock.calls) {
-      expect(to - from).toBe(5 * 60 * 1000);
+      // Allow 1ms clock skew between successive Date.now() reads in the page.
+      expect(to - from).toBeCloseTo(5 * 60 * 1000, -2);
     }
   });
 

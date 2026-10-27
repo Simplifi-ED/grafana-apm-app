@@ -7,6 +7,7 @@ import { usePluginDatasources } from '../../utils/datasources';
 import { useFetch } from '../../utils/useFetch';
 import { IssuesTable } from './frontend/components/IssuesTable';
 import { VersionsPanel } from './frontend/components/VersionsPanel';
+import { FeedbackPanel } from './frontend/components/FeedbackPanel';
 import { SessionsPanel } from './frontend/components/SessionsPanel';
 import { ExceptionDrawer } from './frontend/components/ExceptionDrawer';
 import { useExceptionDrawerState } from './frontend/useExceptionDrawer';
@@ -45,40 +46,40 @@ export function IssuesTab({ service, namespace, clickHouseUid, environment }: Is
     closeDrawer,
   } = useExceptionDrawerState(namespace, service, environment);
 
-  // Single cheap probe (backend-cached) for browser telemetry: the Releases
-  // and Sessions panels are Faro-based and pure noise on backend-only
-  // services. Hidden until the probe proves browser data — panels appearing
-  // after load beats panels flickering away.
+  // Single cheap probe (backend-cached) for browser telemetry: Releases /
+  // Feedback / Sessions are pure noise on backend-only services. ClickStack
+  // uses CH (no Loki); Faro path still needs hasLoki. Ticket 13: panels stay
+  // visible with empty/hint states — no fake zeros.
   const { data: frontendProbe } = useFetch(
     () => getFrontendMetrics(namespace, service, environment || undefined),
     [namespace, service, environment]
   );
   const hasBrowserData = !!frontendProbe?.available;
-  const hasVersions = hasBrowserData && !!frontendProbe?.hasLoki;
-  const hasSessions = hasBrowserData && (!!frontendProbe?.hasLoki || !!clickHouseUid);
+  const clickStack = !!clickHouseUid;
+  const hasBrowserEnrichment = hasBrowserData && (!!frontendProbe?.hasLoki || clickStack);
 
   return (
     <div className={styles.container}>
       <div className={styles.panel}>
         <IssuesTable namespace={namespace} service={service} environment={environment} />
       </div>
-      {hasBrowserData && (
+      {hasBrowserEnrichment && (
         <>
-          {hasVersions && (
-            <div className={styles.panel}>
-              <VersionsPanel namespace={namespace} service={service} environment={environment} hideWhenEmpty />
-            </div>
-          )}
-          {hasSessions && (
-            <div className={styles.panel}>
-              <SessionsPanel
-                namespace={namespace}
-                service={service}
-                environment={environment}
-                clickStack={!!clickHouseUid}
-              />
-            </div>
-          )}
+          <div className={styles.panel}>
+            <VersionsPanel
+              namespace={namespace}
+              service={service}
+              environment={environment}
+              hideWhenEmpty={!clickStack}
+              clickStack={clickStack}
+            />
+          </div>
+          <div className={styles.panel}>
+            <FeedbackPanel namespace={namespace} service={service} environment={environment} clickStack={clickStack} />
+          </div>
+          <div className={styles.panel}>
+            <SessionsPanel namespace={namespace} service={service} environment={environment} clickStack={clickStack} />
+          </div>
         </>
       )}
       {(drawerLoading ||

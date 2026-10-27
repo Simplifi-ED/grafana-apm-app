@@ -12,6 +12,7 @@ import { FrameworkBadge } from '../components/FrameworkBadge';
 import { ScorecardBadge } from '../components/ScorecardBadge';
 import { PageHeader } from '../components/PageHeader';
 import { ErrorBoundary } from '../components/ErrorBoundary';
+import { DataState } from '../components/DataState';
 import { usePluginDatasources, useHasEnvironmentOverrides, usePluginLabelOverrides } from '../utils/datasources';
 import { useTimeRange } from '../utils/timeRange';
 import { useCapabilities, getMetricNames, getPyroscope } from '../utils/capabilities';
@@ -88,8 +89,8 @@ function ServiceOverviewInner({ namespace, service }: { namespace: string; servi
   const { from, to, fromMs, toMs } = useTimeRange();
   const { caps } = useCapabilities();
   const metrics = getMetricNames(caps);
-  // Profiling is opt-in: show the tab only when a Pyroscope datasource is
-  // actually detected (production has none today, so it stays hidden).
+  // Profiling tab is always visible (letter J). Real flame graphs when
+  // capabilities.pyroscope.available; otherwise enablement empty-state (ticket 18).
   const pyroscope = getPyroscope(caps);
   const pyroscopeAvailable = pyroscope?.available === true;
   // Stable primitive refs for Scenes useMemo — avoids re-creating the entire
@@ -112,6 +113,7 @@ function ServiceOverviewInner({ namespace, service }: { namespace: string; servi
   const tabParam = rawTabParam === 'server' || rawTabParam === 'runtime' ? 'backend' : rawTabParam;
   // A capability-gated tab whose datasource is known-unavailable would render
   // content while its TabsBar button is hidden — fall back to Overview then.
+  // Profiling stays navigable with an empty/hint state when Pyroscope is absent.
   const clickHouseAvailable = caps?.clickHouse?.available === true;
   const tracesAvailable = clickHouseAvailable || caps?.tempo?.available !== false;
   const logsAvailable = clickHouseAvailable || caps?.loki?.available !== false;
@@ -119,8 +121,7 @@ function ServiceOverviewInner({ namespace, service }: { namespace: string; servi
     caps != null &&
     ((['issues', 'logs'].includes(tabParam) && !logsAvailable) ||
       (tabParam === 'traces' && !tracesAvailable) ||
-      (tabParam === 'dependencies' && caps.serviceGraph?.detected === false) ||
-      (tabParam === 'profiling' && !pyroscopeAvailable));
+      (tabParam === 'dependencies' && caps.serviceGraph?.detected === false));
   const activeTab: TabId = VALID_TABS.includes(tabParam as TabId) && !tabUnavailable ? (tabParam as TabId) : 'overview';
   const setActiveTab = useCallback(
     (tab: TabId) => {
@@ -403,9 +404,7 @@ function ServiceOverviewInner({ namespace, service }: { namespace: string; servi
             <Tab label="Traces" active={activeTab === 'traces'} onChangeTab={() => setActiveTab('traces')} />
           )}
           {logsAvailable && <Tab label="Logs" active={activeTab === 'logs'} onChangeTab={() => setActiveTab('logs')} />}
-          {pyroscopeAvailable && (
-            <Tab label="Profiling" active={activeTab === 'profiling'} onChangeTab={() => setActiveTab('profiling')} />
-          )}
+          <Tab label="Profiling" active={activeTab === 'profiling'} onChangeTab={() => setActiveTab('profiling')} />
         </TabsBar>
 
         {/* Info banner when viewing without environment filter and env overrides are configured */}
@@ -578,7 +577,7 @@ function ServiceOverviewInner({ namespace, service }: { namespace: string; servi
             </div>
           )}
 
-          {visitedTabs.has('profiling') && pyroscopeAvailable && (
+          {visitedTabs.has('profiling') && (
             <div
               style={{
                 display: activeTab === 'profiling' ? 'flex' : 'none',
@@ -588,7 +587,25 @@ function ServiceOverviewInner({ namespace, service }: { namespace: string; servi
               }}
             >
               <ErrorBoundary label="Profiling tab" resetKeys={[namespace, service, activeTab]}>
-                <ProfilingTab service={service} namespace={namespace} pyroscopeUid={pyroscope?.uid ?? ''} />
+                {pyroscopeAvailable ? (
+                  <ProfilingTab service={service} namespace={namespace} pyroscopeUid={pyroscope?.uid ?? ''} />
+                ) : (
+                  <DataState
+                    empty
+                    emptyTitle="Pyroscope not configured"
+                    emptyMessage={
+                      <>
+                        Continuous profiling needs a Grafana Pyroscope datasource (ticket 18). Install{' '}
+                        <code>grafana-pyroscope-datasource</code>, provision a DS (suggested UID <code>pyroscope</code>
+                        ), optionally set plugin <code>jsonData.pyroscopeDataSource.uid</code>, then confirm{' '}
+                        <code>capabilities.pyroscope.available</code>. See docs/configuration.md § Profiling. No fake
+                        profiles are shown.
+                      </>
+                    }
+                  >
+                    {null}
+                  </DataState>
+                )}
               </ErrorBoundary>
             </div>
           )}

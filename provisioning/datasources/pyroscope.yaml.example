@@ -4,7 +4,8 @@
 #   GF_INSTALL_PLUGINS=grafana-clickhouse-datasource,grafana-pyroscope-datasource
 #
 # The plugin auto-detects the first DS of type grafana-pyroscope-datasource or
-# phlare via GET /capabilities — no plugin jsonData UID required.
+# phlare via GET /capabilities. Optionally pin plugin
+# jsonData.pyroscopeDataSource.uid to this UID (AppConfig → Profiling).
 # Suggested UID: pyroscope
 
 apiVersion: 1

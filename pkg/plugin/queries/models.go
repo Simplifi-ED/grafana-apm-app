@@ -82,6 +82,12 @@ type PluginSettings struct {
 	// the plugin still supports the LGTM path; required for ClickStack mode.
 	ClickHouseDataSource DataSourceRef `json:"clickHouseDataSource"`
 
+	// PyroscopeDataSource is an optional preferred Grafana Pyroscope (or legacy
+	// Phlare) datasource UID for the Profiling tab. When empty, /capabilities
+	// auto-detects the first matching DS type. When set, that UID is preferred
+	// if it exists and is a profiling type.
+	PyroscopeDataSource DataSourceRef `json:"pyroscopeDataSource"`
+
 	// Optional overrides (auto-detected if empty)
 	MetricNamespace string `json:"metricNamespace,omitempty"`
 	DurationUnit    string `json:"durationUnit,omitempty"`
@@ -116,9 +122,9 @@ type Capabilities struct {
 	// mode). Available=false means the tunnel/DS is unreachable — not "no data".
 	ClickHouse *DataSourceStatus `json:"clickHouse,omitempty"`
 
-	// Pyroscope profiling datasource availability (M7). Gated on a platform
-	// decision to run Pyroscope; production has none today, so the common
-	// value is {Available: false} and the Profiling tab never appears.
+	// Pyroscope profiling datasource availability (M7 / letter J). When
+	// available=false the Profiling tab stays visible with an enablement hint
+	// (ticket 18) — no fake profiles.
 	Pyroscope PyroscopeCapability `json:"pyroscope"`
 
 	// Per-environment datasource availability

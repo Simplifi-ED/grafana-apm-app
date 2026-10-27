@@ -54,8 +54,64 @@ func TestAggregateJobsUnavailable(t *testing.T) {
 	if len(resp.Jobs) != 0 {
 		t.Errorf("Jobs = %d, want 0", len(resp.Jobs))
 	}
-	if resp.Note == "" {
-		t.Errorf("expected an explanatory Note when unavailable")
+	if resp.Note == "" || !strings.Contains(resp.Note, "ticket 17") {
+		t.Errorf("expected enablement Note, got %q", resp.Note)
+	}
+}
+
+func TestResolveJobs_NoDatasources(t *testing.T) {
+	app := &App{otelCfg: otelconfig.Default()}
+	req := httptest.NewRequest(http.MethodGet, "/jobs", nil)
+	resp := app.resolveJobs(context.Background(), req, "", time.Unix(2000, 0))
+	if resp.Available || len(resp.Jobs) != 0 {
+		t.Fatalf("want unavailable empty, got %+v", resp)
+	}
+	if !strings.Contains(resp.Note, "platforms-flux") {
+		t.Errorf("note=%q", resp.Note)
+	}
+}
+
+func TestQueryJobsClickHouse_MapsIntoAggregate(t *testing.T) {
+	// Simulate Path B rows → aggregateJobs (same join as Prom).
+	rm := map[string][]queries.PromResult{
+		"cronjobInfo": {
+			pvSchedule(map[string]string{
+				ksmLabelCluster: "prod", ksmLabelNamespace: "prod-nova", ksmLabelCronjob: "gfs-backup-retention",
+			}, "0 3 * * *"),
+		},
+		"jobOwner": {
+			pv(map[string]string{
+				ksmLabelCluster: "prod", ksmLabelNamespace: "prod-nova",
+				ksmLabelJobName: "gfs-backup-retention-1",
+				ksmLabelOwnerKind: ownerKindCronJob, ksmLabelOwnerName: "gfs-backup-retention",
+			}, "1"),
+		},
+		"jobSucceeded": {
+			pv(map[string]string{
+				ksmLabelCluster: "prod", ksmLabelNamespace: "prod-nova",
+				ksmLabelJobName: "gfs-backup-retention-1",
+			}, "1"),
+		},
+		"jobStart": {
+			pv(map[string]string{
+				ksmLabelCluster: "prod", ksmLabelNamespace: "prod-nova",
+				ksmLabelJobName: "gfs-backup-retention-1",
+			}, "1000"),
+		},
+		"jobCompletion": {
+			pv(map[string]string{
+				ksmLabelCluster: "prod", ksmLabelNamespace: "prod-nova",
+				ksmLabelJobName: "gfs-backup-retention-1",
+			}, "1060"),
+		},
+	}
+	resp := aggregateJobs(rm)
+	if !resp.Available {
+		t.Fatal("Available=false")
+	}
+	e := findJob(resp.Jobs, "gfs-backup-retention")
+	if e == nil || e.Status != "ok" || e.LastRun == nil || e.LastRun.DurationSec != 60 {
+		t.Fatalf("%+v", e)
 	}
 }
 

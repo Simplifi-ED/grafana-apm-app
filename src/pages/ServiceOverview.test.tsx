@@ -186,17 +186,22 @@ describe('ServiceOverview tab registry', () => {
   });
 });
 
-describe('ServiceOverview Profiling tab (M7 Pyroscope gating)', () => {
+describe('ServiceOverview Profiling tab (letter J / Pyroscope)', () => {
   const capsWithPyroscope = {
     ...baseCaps,
     pyroscope: { available: true, uid: 'pyro-uid' },
   };
 
-  it('hides the Profiling tab when no Pyroscope capability is present (the production default)', () => {
+  it('always shows the Profiling tab; empty enablement hint when no Pyroscope DS', () => {
     (capabilitiesUtils.useCapabilities as jest.Mock).mockReturnValue({ caps: baseCaps, loading: false });
     renderPage();
 
-    expect(screen.queryByText('Profiling')).not.toBeInTheDocument();
+    expect(screen.getByText('Profiling')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Profiling'));
+
+    expect(screen.queryByTestId('profiling-tab')).not.toBeInTheDocument();
+    expect(screen.getByText('Pyroscope not configured')).toBeInTheDocument();
+    expect(screen.getByText(/ticket 18/i)).toBeInTheDocument();
   });
 
   describe('ServiceOverview Logs tab', () => {
@@ -213,7 +218,7 @@ describe('ServiceOverview Profiling tab (M7 Pyroscope gating)', () => {
     });
   });
 
-  it('shows the Profiling tab and mounts it when a Pyroscope datasource is available', () => {
+  it('mounts ProfilingTab when a Pyroscope datasource is available', () => {
     (capabilitiesUtils.useCapabilities as jest.Mock).mockReturnValue({ caps: capsWithPyroscope, loading: false });
     renderPage();
 
@@ -226,11 +231,13 @@ describe('ServiceOverview Profiling tab (M7 Pyroscope gating)', () => {
     expect(screen.getByTestId('profiling-tab')).toBeInTheDocument();
   });
 
-  it('falls back to Overview when deep-linked to tab=profiling without the datasource', () => {
+  it('keeps tab=profiling when deep-linked without the datasource (empty hint, not Overview fallback)', () => {
     (capabilitiesUtils.useCapabilities as jest.Mock).mockReturnValue({ caps: baseCaps, loading: false });
     renderPage(['/services/team-a/my-svc?tab=profiling']);
 
     expect(screen.queryByTestId('profiling-tab')).not.toBeInTheDocument();
-    expect(screen.getByTestId('overview-tab')).toBeInTheDocument();
+    expect(screen.getByText('Pyroscope not configured')).toBeInTheDocument();
+    const params = new URLSearchParams(screen.getByTestId('location-search').textContent ?? '');
+    expect(params.get('tab')).toBe('profiling');
   });
 });

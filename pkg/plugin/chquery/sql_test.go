@@ -471,6 +471,71 @@ func TestTopDBQueriesSQL(t *testing.T) {
 	}
 }
 
+func TestBrowserVersionsSQL_UsesServiceVersionNotRumVersion(t *testing.T) {
+	from, to := time.Now().Add(-time.Hour), time.Now()
+	sql := BrowserVersionsSQL("nova-frontend", from, to, "prod", 20)
+	for _, want := range []string{
+		"service.version",
+		"@hyperdx/otel-web",
+		"telemetry.sdk.name",
+		"rum.sessionId",
+		"nova-frontend",
+		"unhandledrejection",
+	} {
+		if !strings.Contains(sql, want) {
+			t.Errorf("versions SQL missing %q\n%s", want, sql)
+		}
+	}
+	if strings.Contains(sql, "rum.version") {
+		t.Fatalf("must never query rum.version (SDK): %s", sql)
+	}
+	probe := BrowserVersionsProbeSQL("nova-frontend", "prod", from, to)
+	if !strings.Contains(probe, "service.version") || strings.Contains(probe, "rum.version") {
+		t.Fatalf("probe=%s", probe)
+	}
+	parsed := ParseVersionGroupsMaps([]map[string]any{
+		{"version": "1.72.1", "sessions": 10.0, "err_sessions": 1.0, "exceptions": 3.0},
+		{"version": "", "sessions": 5.0},
+	})
+	if len(parsed) != 1 || parsed[0].Version != "1.72.1" || parsed[0].ErrSessions != 1 {
+		t.Fatalf("%+v", parsed)
+	}
+}
+
+func TestBrowserFeedbackSQL_FaroShapedContract(t *testing.T) {
+	from, to := time.Now().Add(-time.Hour), time.Now()
+	sql := BrowserFeedbackSQL("nova-frontend", from, to, "prod", "sess-1", "v1:abc", 50)
+	for _, want := range []string{
+		"faro.feedback",
+		"feedback.message",
+		"feedback.category",
+		"feedback.email",
+		"feedback.fingerprint",
+		"location.href",
+		"service.version",
+		"rum.sessionId",
+		"sess-1",
+		"v1:abc",
+	} {
+		if !strings.Contains(sql, want) {
+			t.Errorf("feedback SQL missing %q\n%s", want, sql)
+		}
+	}
+	if strings.Contains(sql, "/api/feedback") {
+		t.Fatal("must not bind to product HTTP /api/feedback")
+	}
+	probe := BrowserFeedbackProbeSQL("nova-frontend", "", from, to)
+	if !strings.Contains(probe, "faro.feedback") {
+		t.Fatalf("probe=%s", probe)
+	}
+	rows := ParseFeedbackRowsMaps([]map[string]any{
+		{"time_ms": int64(1000), "message": "hi", "category": "bug", "session_id": "s1", "app_version": "1.0"},
+	})
+	if len(rows) != 1 || rows[0].Message != "hi" || rows[0].AppVersion != "1.0" {
+		t.Fatalf("%+v", rows)
+	}
+}
+
 func TestErrorRateAlertSQL_UsesTimeFilterMacro(t *testing.T) {
 	sql := ErrorRateAlertSQL("nova-api", "ns", "prod")
 	for _, want := range []string{"$__timeFilter(TimeUnix)", MetricSpanCalls, "STATUS_CODE_ERROR", "SPAN_KIND_SERVER"} {

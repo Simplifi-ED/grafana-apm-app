@@ -11,6 +11,7 @@ jest.mock('../../api/client', () => ({
   getTriageStates: jest.fn().mockResolvedValue({}),
   getFrontendVersions: jest.fn().mockResolvedValue({ versions: [] }),
   getFrontendSessions: jest.fn().mockResolvedValue({ sessions: [] }),
+  getFeedback: jest.fn().mockResolvedValue({ feedback: [] }),
   getFrontendMetrics: jest.fn(),
   getExceptionGroups: jest.fn(),
 }));
@@ -28,6 +29,7 @@ jest.mock('@grafana/runtime', () => ({
 
 const getFrontendMetrics = client.getFrontendMetrics as jest.Mock;
 const getFrontendVersions = client.getFrontendVersions as jest.Mock;
+const getFeedback = client.getFeedback as jest.Mock;
 
 function renderTab(initialEntries: string[] = ['/']) {
   return render(
@@ -41,6 +43,7 @@ beforeEach(() => {
   mockFetch.mockReset();
   getFrontendMetrics.mockReset().mockResolvedValue({ available: true, hasLoki: true });
   getFrontendVersions.mockReset().mockResolvedValue({ versions: [] });
+  getFeedback.mockReset().mockResolvedValue({ feedback: [] });
 });
 
 describe('IssuesTab (#69 P1/P2/P3)', () => {
@@ -70,19 +73,21 @@ describe('IssuesTab (#69 P1/P2/P3)', () => {
 
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Releases' })).toBeInTheDocument());
     expect(screen.getByRole('heading', { name: 'Sessions' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Feedback' })).toBeInTheDocument();
   });
 
-  it('hides Releases and Sessions panels for backend-only services', async () => {
+  it('hides Releases, Feedback, and Sessions panels for backend-only services', async () => {
     getFrontendMetrics.mockResolvedValue({ available: false });
     renderTab();
 
     await waitFor(() => expect(screen.getByText('No issues')).toBeInTheDocument());
     await waitFor(() => expect(getFrontendMetrics).toHaveBeenCalled());
     expect(screen.queryByRole('heading', { name: 'Releases' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Feedback' })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Sessions' })).not.toBeInTheDocument();
   });
 
-  it('hides the Releases panel when a browser service has no version data', async () => {
+  it('hides the Releases panel when a Faro browser service has no version data', async () => {
     getFrontendVersions.mockResolvedValue({ versions: [] });
     renderTab();
 
@@ -90,6 +95,23 @@ describe('IssuesTab (#69 P1/P2/P3)', () => {
     await waitFor(() => expect(getFrontendVersions).toHaveBeenCalled());
     expect(screen.queryByRole('heading', { name: 'Releases' })).not.toBeInTheDocument();
     expect(screen.queryByText('No releases')).not.toBeInTheDocument();
+  });
+
+  it('shows Releases empty/hint shell on ClickStack even without version rows', async () => {
+    getFrontendMetrics.mockResolvedValue({ available: true });
+    getFrontendVersions.mockResolvedValue({
+      versions: [],
+      hint: 'No browser app version (service.version)… ticket 21.',
+    });
+    render(
+      <MemoryRouter>
+        <IssuesTab namespace="ns" service="svc" clickHouseUid="ch" />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Releases' })).toBeInTheDocument());
+    expect(screen.getByText(/ticket 21/)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Feedback' })).toBeInTheDocument();
   });
 
   it('opens the ExceptionDrawer from an issueId deep link (#69 P10)', async () => {

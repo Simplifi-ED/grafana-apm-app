@@ -24,13 +24,19 @@ Feature status: [clickstack-migration/feature-matrix.md](clickstack-migration/fe
 
 ### Profiling (Pyroscope) — optional, ticket 18
 
-The Profiling tab is **capability-gated**: it appears only when Grafana has a
-datasource of type `grafana-pyroscope-datasource` (or legacy `phlare`). The
-plugin probes `GET /api/datasources` — no plugin `jsonData` UID is required.
+The **Profiling** tab is always visible. When a Pyroscope DS is detected it
+renders real flame graphs; otherwise it shows an enablement empty-state (no
+fake profiles). Detection:
+
+1. Optional preferred UID: plugin `jsonData.pyroscopeDataSource.uid`
+2. Else auto-detect the first Grafana DS of type `grafana-pyroscope-datasource`
+   (or legacy `phlare`) via `GET /api/datasources`
+3. `GET .../capabilities` → `pyroscope: { available, uid? }`
 
 | Item | Value |
 |------|--------|
 | Suggested UID | `pyroscope` |
+| Optional plugin config | `jsonData.pyroscopeDataSource.uid` (AppConfig → Profiling) |
 | Example provisioning | [`provisioning/datasources/pyroscope.yaml.example`](../provisioning/datasources/pyroscope.yaml.example) |
 | Local overlay | `docker compose -f docker-compose.yaml -f docker-compose.pyroscope.yaml up` |
 

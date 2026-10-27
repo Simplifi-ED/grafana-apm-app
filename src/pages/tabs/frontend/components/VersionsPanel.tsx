@@ -15,20 +15,26 @@ interface VersionsPanelProps {
    * Render nothing instead of an empty shell when the service has no
    * app_version data (Issues tab, #69 review): the panel only earns its
    * space when it can actually answer the release question.
+   * ClickStack keeps the shell visible so ticket-13 empty/hint states show.
    */
   hideWhenEmpty?: boolean;
+  /** ClickStack / HyperDX path — empty-state copy differs from Faro/Loki. */
+  clickStack?: boolean;
 }
 
 /**
- * Per-release health (#64 Phase 1), answering "did the latest deploy
- * introduce (or fix) errors?": distinct sessions, adoption share (how much
- * traffic runs the new version), error-free-session rate, and exception
- * occurrences per app_version, computed query-time from Faro streams in
- * Loki. Deploy times come from clickhouse-apm:deploy Grafana annotations when the
- * Phase 0 contract is in place. The same data powers the Regressed badge in
- * the issues table.
+ * Per-release health (#64 Phase 1 / letter G): distinct sessions, adoption,
+ * error-free rate, and exceptions per app version. Faro/Loki uses app_version
+ * streams; ClickStack groups ResourceAttributes['service.version'] on
+ * @hyperdx/otel-web (never rum.version).
  */
-export function VersionsPanel({ namespace, service, environment, hideWhenEmpty = false }: VersionsPanelProps) {
+export function VersionsPanel({
+  namespace,
+  service,
+  environment,
+  hideWhenEmpty = false,
+  clickStack = false,
+}: VersionsPanelProps) {
   const styles = useStyles2(getStyles);
   const { fromMs, toMs } = useTimeRange();
 
@@ -38,10 +44,17 @@ export function VersionsPanel({ namespace, service, environment, hideWhenEmpty =
   );
 
   const versions = data?.versions ?? [];
+  const hasHint = !!data?.hint;
 
-  if (hideWhenEmpty && !loading && (versions.length === 0 || !!error || data?.unavailable)) {
+  if (hideWhenEmpty && !loading && !hasHint && (versions.length === 0 || !!error || data?.unavailable)) {
     return null;
   }
+
+  const emptyTitle = data?.hint?.includes('serviceAliases')
+    ? 'Configure service alias'
+    : data?.hint?.includes('service.version') || data?.hint?.includes('ticket 21')
+      ? 'App version not detected'
+      : 'No releases';
 
   return (
     <div className={styles.container}>
@@ -53,11 +66,19 @@ export function VersionsPanel({ namespace, service, environment, hideWhenEmpty =
       </div>
       <DataState
         loading={loading}
-        error={error ? 'Failed to load releases' : data?.unavailable ? 'Loki is not available' : null}
+        error={
+          error
+            ? 'Failed to load releases'
+            : data?.unavailable && !data?.hint
+              ? clickStack
+                ? 'Version telemetry is not available'
+                : 'Loki is not available'
+              : null
+        }
         empty={versions.length === 0}
         loadingText="Loading releases…"
-        emptyTitle="No releases"
-        emptyMessage="No app_version data in the selected time range."
+        emptyTitle={emptyTitle}
+        emptyMessage={data?.hint ? data.hint : 'No app version data for this service in the selected time range.'}
       >
         <table className={styles.table}>
           <thead>

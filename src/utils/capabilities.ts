@@ -57,8 +57,8 @@ type CapabilitiesWithProfiling = Capabilities & {
 /**
  * Reads the Pyroscope capability off the capabilities response. Returns
  * undefined while capabilities are still loading or when the backend omits the
- * field (older backend); callers gate the Profiling tab on `available === true`
- * so it appears only when a Pyroscope datasource is actually present.
+ * field (older backend). Callers keep the Profiling tab visible and show an
+ * enablement empty-state when `available !== true` (letter J / ticket 18).
  */
 export function getPyroscope(caps: Capabilities | null): PyroscopeCapability | undefined {
   return (caps as CapabilitiesWithProfiling | null)?.pyroscope;

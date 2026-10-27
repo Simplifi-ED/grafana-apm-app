@@ -8,17 +8,18 @@ import (
 	"time"
 
 	"github.com/grafana/grafana-plugin-sdk-go/backend/log"
+	"github.com/nais/grafana-otel-plugin/pkg/plugin/chquery"
 	"github.com/nais/grafana-otel-plugin/pkg/plugin/queries"
 )
 
 // ---------------------------------------------------------------------------
-// Cron/Naisjob monitoring view (#74).
+// Cron/Naisjob monitoring view (#74 / letter I).
 //
 // Built from the standard kube-state-metrics (KSM) job/cronjob families. These
 // label and metric names are the KSM public contract, NOT OTel span metrics, so
-// they are hardcoded here rather than sourced from otelconfig. For this view to
-// work the platform must expose the following series on the plugin's metrics
-// datasource (they are gauges, scraped from KSM):
+// they are hardcoded here rather than sourced from otelconfig.
+//
+// Path A (preferred): Prometheus/Mimir metricsDataSource with:
 //
 //	kube_cronjob_info{cronjob, namespace, k8s_cluster_name, schedule, timezone}
 //	kube_cronjob_status_last_schedule_time{cronjob, ...}   value = unix seconds
@@ -29,9 +30,22 @@ import (
 //	kube_job_status_start_time{job_name, ...}              value = unix seconds
 //	kube_job_status_completion_time{job_name, ...}         value = unix seconds
 //
-// When none of these are present the endpoint returns {available:false} and the
-// UI degrades to an explanatory empty state (capability gating).
+// Path B: same MetricNames in ClickHouse otel_metrics_gauge (KSM → OTel → CH).
+// nova_job_* app metrics are NOT a substitute (research 09).
+//
+// When neither path has series the endpoint returns {available:false} with an
+// enablement note (ticket 17 / platforms-flux KSM) — no fake zeros.
 // ---------------------------------------------------------------------------
+
+// jobsCHLookback is the gauge snapshot window ending at `to` for Path B.
+const jobsCHLookback = 2 * time.Hour
+
+// jobsEnablementNote is the soft-unavailable copy when KSM is not on Prom or CH.
+const jobsEnablementNote = "CronJob / Job monitoring needs kube-state-metrics " +
+	"(kube_cronjob_*, kube_job_*) on a Prometheus metricsDataSource (Path A) " +
+	"or the same series in ClickHouse otel_metrics_gauge (Path B). " +
+	"Deploy KSM via platforms-flux (enablement ticket 17). " +
+	"Application metrics such as nova_job_* are not a substitute."
 
 // Standard kube-state-metrics label names used to join and scope job series.
 const (
@@ -101,24 +115,41 @@ func (a *App) handleJobs(w http.ResponseWriter, req *http.Request) {
 	_, to := parseTimeRange(req)
 	namespace := queries.MustSanitizeLabel(req.URL.Query().Get("namespace"))
 
-	// Jobs need kube-state-metrics on Prometheus/Mimir — not present in
-	// ClickStack OTel tables. Return a soft unavailable payload so the UI
-	// shows the empty state instead of a 503.
-	if a.prom(ctx) == nil {
-		writeJSON(w, JobsResponse{
-			Available: false,
-			Jobs:      []JobEntry{},
-			Note: "CronJob / Job monitoring needs kube-state-metrics (kube_cronjob_*, kube_job_*) on a Prometheus datasource. " +
-				"ClickStack OpenTelemetry metrics in ClickHouse do not include those series.",
-		})
-		return
-	}
-
 	orgID := req.Header.Get("X-Grafana-Org-Id")
 	ck := cacheKey("jobs", orgID, roundedUnix(to), namespace)
 	a.writeCached(w, ck, "querying jobs failed", func() (any, error) {
-		return a.queryJobs(ctx, namespace, to), nil
+		return a.resolveJobs(ctx, req, namespace, to), nil
 	})
+}
+
+// resolveJobs prefers Path A (Prom/KSM), then Path B (CH kube_*), else soft-unavailable.
+func (a *App) resolveJobs(ctx context.Context, req *http.Request, namespace string, at time.Time) JobsResponse {
+	if a.prom(ctx) != nil {
+		resp := a.queryJobs(ctx, namespace, at)
+		if resp.Available {
+			return resp
+		}
+		// Prom configured but no KSM series — try CH before surfacing unavailable.
+		if ch := a.chForRequest(req); ch != nil {
+			if chResp := a.queryJobsClickHouse(ctx, ch, namespace, at); chResp.Available {
+				return chResp
+			}
+		}
+		if resp.Note == "" {
+			resp.Note = jobsEnablementNote
+		}
+		return resp
+	}
+
+	if ch := a.chForRequest(req); ch != nil {
+		return a.queryJobsClickHouse(ctx, ch, namespace, at)
+	}
+
+	return JobsResponse{
+		Available: false,
+		Jobs:      []JobEntry{},
+		Note:      jobsEnablementNote,
+	}
 }
 
 // ksmScope builds a KSM namespace label matcher, e.g. `{namespace="team-a"}`,
@@ -146,6 +177,57 @@ func (a *App) queryJobs(ctx context.Context, namespace string, at time.Time) Job
 	}, logger)
 
 	return aggregateJobs(resultMap)
+}
+
+// queryJobsClickHouse implements Path B: latest kube_* gauges from CH → aggregateJobs.
+func (a *App) queryJobsClickHouse(ctx context.Context, ch *queries.ClickHouseClient, namespace string, at time.Time) JobsResponse {
+	logger := log.DefaultLogger.With("handler", "jobs-clickhouse")
+	if ch == nil {
+		return JobsResponse{Available: false, Jobs: []JobEntry{}, Note: jobsEnablementNote}
+	}
+
+	from := at.Add(-jobsCHLookback)
+	if from.After(at) {
+		from = at.Add(-time.Hour)
+	}
+	opts := queries.ClickHouseQueryOptions{From: from, To: at, Limit: 5000, SkipLimitEnforcement: true}
+
+	probe, err := ch.Query(ctx, chquery.JobsKubeProbeSQL(from, at), opts)
+	if err != nil {
+		logger.Warn("jobs CH kube_* probe failed", "error", err)
+		return JobsResponse{Available: false, Jobs: []JobEntry{}, Note: jobsEnablementNote}
+	}
+	if probe.RowCount() == 0 || chquery.ParseFloat(probe.Maps()[0]["c"]) <= 0 {
+		return JobsResponse{Available: false, Jobs: []JobEntry{}, Note: jobsEnablementNote}
+	}
+
+	keyByMetric := map[string]string{
+		chquery.MetricKubeCronjobInfo:         "cronjobInfo",
+		chquery.MetricKubeCronjobLastSchedule: "lastSchedule",
+		chquery.MetricKubeCronjobNextSchedule: "nextSchedule",
+		chquery.MetricKubeJobOwner:            "jobOwner",
+		chquery.MetricKubeJobSucceeded:        "jobSucceeded",
+		chquery.MetricKubeJobFailed:           "jobFailed",
+		chquery.MetricKubeJobStartTime:        "jobStart",
+		chquery.MetricKubeJobCompletionTime:   "jobCompletion",
+	}
+	resultMap := make(map[string][]queries.PromResult, len(keyByMetric))
+	for _, metric := range chquery.JobsKubeMetricNames {
+		key := keyByMetric[metric]
+		res, qerr := ch.Query(ctx, chquery.JobsGaugeLatestSQL(metric, namespace, from, at), opts)
+		if qerr != nil {
+			logger.Warn("jobs CH gauge query failed", "metric", metric, "error", qerr)
+			resultMap[key] = nil
+			continue
+		}
+		resultMap[key] = chquery.ParseJobsGaugeRows(res.Maps())
+	}
+
+	resp := aggregateJobs(resultMap)
+	if !resp.Available && resp.Note == "" {
+		resp.Note = jobsEnablementNote
+	}
+	return resp
 }
 
 // jobRec is the joined per-job record assembled from the KSM job families.
@@ -198,7 +280,7 @@ func aggregateJobs(resultMap map[string][]queries.PromResult) JobsResponse {
 		return JobsResponse{
 			Available: false,
 			Jobs:      []JobEntry{},
-			Note:      "kube-state-metrics job families (kube_cronjob_info / kube_job_owner) are not available on the metrics datasource",
+			Note:      jobsEnablementNote,
 		}
 	}
 

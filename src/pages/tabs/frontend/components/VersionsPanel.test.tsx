@@ -101,4 +101,33 @@ describe('VersionsPanel', () => {
 
     await waitFor(() => expect(screen.getByText('Loki is not available')).toBeInTheDocument());
   });
+
+  it('surfaces ClickStack alias-miss hint and does not hide', async () => {
+    getFrontendVersions.mockResolvedValue({
+      versions: [],
+      hint: 'No serviceAliases entry for "nova-frontend". Add jsonData.serviceAliases…',
+    });
+    render(
+      <MemoryRouter>
+        <VersionsPanel namespace="ns" service="svc" hideWhenEmpty clickStack />
+      </MemoryRouter>
+    );
+    await waitFor(() => expect(screen.getByText(/serviceAliases/)).toBeInTheDocument());
+    expect(screen.getByText('Configure service alias')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Releases' })).toBeInTheDocument();
+  });
+
+  it('surfaces enablement hint when service.version is absent', async () => {
+    getFrontendVersions.mockResolvedValue({
+      versions: [],
+      hint: 'No browser app version (service.version) on @hyperdx/otel-web… ticket 21. Do not use rum.version (SDK).',
+    });
+    render(
+      <MemoryRouter>
+        <VersionsPanel namespace="ns" service="svc" clickStack />
+      </MemoryRouter>
+    );
+    await waitFor(() => expect(screen.getByText('App version not detected')).toBeInTheDocument());
+    expect(screen.getByText(/ticket 21/)).toBeInTheDocument();
+  });
 });

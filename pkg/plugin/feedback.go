@@ -46,7 +46,12 @@ type FeedbackResponse struct {
 	Feedback []FeedbackEntry `json:"feedback"`
 	// Unavailable indicates Loki is not configured/reachable for this env.
 	Unavailable bool `json:"unavailable,omitempty"`
+	// Hint is set in ClickStack mode for alias-miss or missing faro.feedback
+	// enablement (ticket 13/21) — empty-state copy, never fake zeros.
+	Hint string `json:"hint,omitempty"`
 }
+
+const feedbackEnablementHint = "No faro.feedback events in ClickHouse for this service in range. Emit HyperDX addAction('faro.feedback', …) from the app — see plan ticket 21. Do not bind Feedback UI to HTTP /api/feedback spans."
 
 // handleFeedback returns recent user feedback for a frontend app, optionally
 // scoped to a session or joined to an issue via fingerprint.
@@ -65,6 +70,11 @@ func (a *App) handleFeedback(w http.ResponseWriter, req *http.Request) {
 	from, to := parseTimeRange(req)
 	sessionID := strings.TrimSpace(req.URL.Query().Get("sessionId"))
 	fingerprint := strings.TrimSpace(req.URL.Query().Get("fingerprint"))
+
+	if a.clickStackMode() {
+		writeJSON(w, a.fetchFeedbackClickHouse(ctx, a.chForRequest(req), service, env, from, to, sessionID, fingerprint))
+		return
+	}
 
 	lokiUID := a.settings.LogsDataSource.Resolve(env).UID
 	if lokiUID == "" {

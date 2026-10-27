@@ -1073,6 +1073,131 @@ LIMIT 50`, table, where, chquery.TimestampFilter(from, to))
 	return FrontendSessionsResponse{Sessions: out}
 }
 
+func (a *App) fetchFrontendVersionsClickHouse(
+	ctx context.Context,
+	ch *queries.ClickHouseClient,
+	service, environment string,
+	from, to time.Time,
+) FrontendVersionsResponse {
+	browserName, ok := a.ResolveServiceAlias(service)
+	if !ok {
+		return FrontendVersionsResponse{
+			Versions: []VersionStat{},
+			Hint:     AliasMissingHint(service),
+		}
+	}
+	if ch == nil {
+		return FrontendVersionsResponse{Versions: []VersionStat{}, Unavailable: true}
+	}
+	logger := log.DefaultLogger.With("handler", "frontend-versions-clickhouse")
+	opts := queries.ClickHouseQueryOptions{From: from, To: to, Limit: 20, SkipLimitEnforcement: true}
+
+	probeRes, probeErr := ch.Query(ctx, chquery.BrowserVersionsProbeSQL(browserName, environment, from, to), opts)
+	if probeErr != nil {
+		logger.Warn("browser versions probe failed", "error", probeErr)
+		return FrontendVersionsResponse{Versions: []VersionStat{}, Unavailable: true}
+	}
+	if probeRes.RowCount() == 0 || chquery.ParseFloat(probeRes.Maps()[0]["c"]) < 1 {
+		return FrontendVersionsResponse{
+			Versions: []VersionStat{},
+			Hint:     versionsEnablementHint,
+		}
+	}
+
+	res, err := ch.Query(ctx, chquery.BrowserVersionsSQL(browserName, from, to, environment, maxVersions), opts)
+	if err != nil {
+		logger.Warn("browser versions CH query failed", "error", err)
+		return FrontendVersionsResponse{Versions: []VersionStat{}, Unavailable: true}
+	}
+
+	groups := chquery.ParseVersionGroupsMaps(res.Maps())
+	var totalSessions float64
+	for _, g := range groups {
+		totalSessions += g.Sessions
+	}
+
+	deploys, latestVersion := a.fetchDeployAnnotations(ctx, service, environment, from, to)
+
+	out := make([]VersionStat, 0, len(groups))
+	for _, g := range groups {
+		stat := VersionStat{
+			Version:    g.Version,
+			Sessions:   g.Sessions,
+			Exceptions: g.Exceptions,
+		}
+		if totalSessions > 0 {
+			stat.Adoption = roundTo(g.Sessions/totalSessions, 4)
+		}
+		if g.Sessions > 0 {
+			stat.ErrorFreeRate = roundTo(1-min(g.ErrSessions/g.Sessions, 1), 4)
+		}
+		if t, ok := deploys[g.Version]; ok {
+			stat.DeployedAtMs = t
+		}
+		out = append(out, stat)
+	}
+	return FrontendVersionsResponse{Versions: out, LatestVersion: latestVersion}
+}
+
+func (a *App) fetchFeedbackClickHouse(
+	ctx context.Context,
+	ch *queries.ClickHouseClient,
+	service, environment string,
+	from, to time.Time,
+	sessionID, fingerprint string,
+) FeedbackResponse {
+	browserName, ok := a.ResolveServiceAlias(service)
+	if !ok {
+		return FeedbackResponse{
+			Feedback: []FeedbackEntry{},
+			Hint:     AliasMissingHint(service),
+		}
+	}
+	if ch == nil {
+		return FeedbackResponse{Feedback: []FeedbackEntry{}, Unavailable: true}
+	}
+	logger := log.DefaultLogger.With("handler", "feedback-clickhouse")
+	opts := queries.ClickHouseQueryOptions{From: from, To: to, Limit: maxFeedback, SkipLimitEnforcement: true}
+
+	// Probe without session/fingerprint filters so enablement copy is about
+	// signal presence, not an over-narrow filter.
+	probeRes, probeErr := ch.Query(ctx, chquery.BrowserFeedbackProbeSQL(browserName, environment, from, to), opts)
+	if probeErr != nil {
+		logger.Warn("browser feedback probe failed", "error", probeErr)
+		return FeedbackResponse{Feedback: []FeedbackEntry{}, Unavailable: true}
+	}
+	if probeRes.RowCount() == 0 || chquery.ParseFloat(probeRes.Maps()[0]["c"]) < 1 {
+		return FeedbackResponse{
+			Feedback: []FeedbackEntry{},
+			Hint:     feedbackEnablementHint,
+		}
+	}
+
+	sid := sanitizeSessionID(sessionID)
+	fp := sanitizeFingerprintFilter(fingerprint)
+	res, err := ch.Query(ctx, chquery.BrowserFeedbackSQL(browserName, from, to, environment, sid, fp, maxFeedback), opts)
+	if err != nil {
+		logger.Warn("browser feedback CH query failed", "error", err)
+		return FeedbackResponse{Feedback: []FeedbackEntry{}, Unavailable: true}
+	}
+
+	rows := chquery.ParseFeedbackRowsMaps(res.Maps())
+	out := make([]FeedbackEntry, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, FeedbackEntry{
+			TimeMs:      r.TimeMs,
+			Message:     r.Message,
+			Category:    r.Category,
+			Email:       r.Email,
+			SessionID:   r.SessionID,
+			Fingerprint: r.Fingerprint,
+			PageURL:     r.PageURL,
+			AppVersion:  r.AppVersion,
+		})
+	}
+	return FeedbackResponse{Feedback: out}
+}
+
 func patternSeen(patterns map[string]struct{}, pattern string) bool {
 	_, ok := patterns[pattern]
 	return ok
