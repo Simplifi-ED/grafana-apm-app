@@ -59,7 +59,12 @@ func jobsNamespaceFilter(namespace string) string {
 	if namespace == "" {
 		return "1"
 	}
-	return fmt.Sprintf("Attributes['namespace'] = %s", q(namespace))
+	// honor_labels scrape keeps KSM namespace; misconfigured scrapes may only
+	// expose the CronJob ns as exported_namespace (Prometheus conflict rename).
+	return fmt.Sprintf(
+		"(Attributes['namespace'] = %s OR Attributes['exported_namespace'] = %s)",
+		q(namespace), q(namespace),
+	)
 }
 
 // JobsGaugeLatestSQL returns the latest Value per KSM label set for one metric.
@@ -75,7 +80,7 @@ func JobsGaugeLatestSQL(metricName, namespace string, from, to time.Time) string
 SELECT
   Attributes['cronjob'] AS cronjob,
   Attributes['job_name'] AS job_name,
-  Attributes['namespace'] AS namespace,
+  coalesce(nullIf(Attributes['namespace'], ''), Attributes['exported_namespace']) AS namespace,
   %s AS k8s_cluster_name,
   Attributes['schedule'] AS schedule,
   Attributes['timezone'] AS timezone,
