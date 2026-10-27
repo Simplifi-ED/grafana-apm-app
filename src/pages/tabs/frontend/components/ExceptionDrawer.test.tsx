@@ -339,7 +339,8 @@ describe('server issues (#84)', () => {
       undefined,
       // Narrowing hints: this drawer is rendered without title/type props, so
       // both are undefined — the backend then runs the unanchored scan.
-      { title: undefined, type: undefined }
+      // source is forwarded so ClickStack can pick HyperDX vs Events.exception.
+      { title: undefined, type: undefined, source: 'server' }
     );
     // Server path must not touch the browser hash→Loki query.
     const hashCalls = mockFetch.mock.calls.filter(([opts]: [any]) => (opts?.params?.query ?? '').includes('hash='));
@@ -358,7 +359,7 @@ describe('server issues (#84)', () => {
       expect.any(Number),
       expect.any(Number),
       undefined,
-      { title: 'ConnectException: connection refused', type: 'ConnectException' }
+      { title: 'ConnectException: connection refused', type: 'ConnectException', source: 'server' }
     );
   });
 

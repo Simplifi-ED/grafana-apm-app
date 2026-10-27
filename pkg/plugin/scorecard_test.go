@@ -212,6 +212,11 @@ func TestScorecardReadinessScore(t *testing.T) {
 					t.Errorf("check %q missing label/hint", c.Key)
 				}
 			}
+			for _, gated := range []string{"graphql", "jobs", "profiling"} {
+				if !byKey[gated].NotApplicable {
+					t.Errorf("check %q should be NotApplicable until enablement", gated)
+				}
+			}
 			for key, want := range tc.wantOK {
 				if byKey[key].OK != want {
 					t.Errorf("check %q ok = %v, want %v", key, byKey[key].OK, want)

@@ -140,6 +140,22 @@ describe('SessionsPanel', () => {
     await waitFor(() => expect(screen.getByText('Loki is not available')).toBeInTheDocument());
   });
 
+  it('surfaces ClickStack alias-miss hint instead of Loki copy', async () => {
+    getFrontendSessions.mockResolvedValue({
+      sessions: [],
+      truncated: false,
+      unavailable: false,
+      hint: 'No serviceAliases entry for "nova-frontend". Add jsonData.serviceAliases…',
+    });
+    render(
+      <MemoryRouter>
+        <SessionsPanel namespace="ns" service="svc" clickStack />
+      </MemoryRouter>
+    );
+    await waitFor(() => expect(screen.getByText(/serviceAliases/)).toBeInTheDocument());
+    expect(screen.queryByText('Loki is not available')).not.toBeInTheDocument();
+  });
+
   it('names the table and labels the search input (WCAG 1.3.1 / 4.1.2)', async () => {
     getFrontendSessions.mockResolvedValue({ sessions: [SESSION], truncated: false, unavailable: false });
     renderPanel();

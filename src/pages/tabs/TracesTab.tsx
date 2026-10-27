@@ -39,8 +39,8 @@ interface TracesTabProps {
   namespace: string;
   tracesUid: string;
   clickHouseUid?: string;
-  from: string;
-  to: string;
+  from?: string;
+  to?: string;
   initialSpan?: string;
   initialStatus?: string;
   initialSpanKind?: string;
@@ -51,6 +51,8 @@ export function TracesTab({
   namespace,
   tracesUid,
   clickHouseUid = '',
+  from = 'now-1h',
+  to = 'now',
   initialSpan,
   initialStatus,
   initialSpanKind,
@@ -182,7 +184,7 @@ export function TracesTab({
         toMs={toMs}
         onSelectSpan={setSpanSearch}
       />
-      {clickHouseUid && !tracesUid ? (
+      {clickHouseUid ? (
         <ClickStackTracesPanel
           namespace={namespace}
           service={service}
@@ -192,6 +194,9 @@ export function TracesTab({
           spanSearch={debouncedSearch}
           durationMin={durationMin}
           durationMax={durationMax}
+          from={from}
+          to={to}
+          exploreTracesUid={tracesUid}
         />
       ) : scene != null ? (
         <div className={styles.sceneWrapper}>

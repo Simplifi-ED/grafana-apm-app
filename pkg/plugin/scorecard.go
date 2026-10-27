@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/grafana/grafana-plugin-sdk-go/backend/log"
+	"github.com/nais/grafana-otel-plugin/pkg/plugin/chquery"
 	"github.com/nais/grafana-otel-plugin/pkg/plugin/queries"
 )
 
@@ -107,6 +108,9 @@ func (a *App) handleScorecard(w http.ResponseWriter, req *http.Request) {
 }
 
 func (a *App) computeScorecard(ctx context.Context, headers http.Header, namespace, service, env string) ScorecardResponse {
+	if a.clickStackMode() {
+		return ScorecardResponse{Readiness: a.computeReadinessClickHouse(ctx, headers, namespace, service, env)}
+	}
 	return ScorecardResponse{Readiness: a.computeReadiness(ctx, headers, namespace, service, env)}
 }
 
@@ -114,12 +118,8 @@ func (a *App) computeScorecard(ctx context.Context, headers http.Header, namespa
 // Observability readiness
 // ---------------------------------------------------------------------------
 
-func (a *App) computeReadiness(ctx context.Context, headers http.Header, namespace, service, env string) ScorecardReadiness {
-	now := time.Now()
-	token := a.resolveServiceToken(ctx)
-
-	// Fixed order and fixed slots: each goroutine writes only its own index.
-	checks := []ScorecardCheck{
+func scorecardBaseChecks() []ScorecardCheck {
+	return []ScorecardCheck{
 		{Key: "spanMetrics", Label: "Span metrics (RED)",
 			Hint: "Export span metrics (or enable a metrics-generator / spanmetrics connector) so RED panels have data."},
 		{Key: "traces", Label: "Traces",
@@ -132,7 +132,36 @@ func (a *App) computeReadiness(ctx context.Context, headers http.Header, namespa
 			Hint: "Instrument your frontend with @hyperdx/browser, Grafana Faro, or the OpenTelemetry Browser SDK."},
 		{Key: "alertRules", Label: "Alert rules",
 			Hint: "No alert rule mentions this service — start with 'Alert on error rate' in the service actions menu."},
+		// Visible but unscored until enablement tickets 16–18 (ticket 22).
+		{Key: "graphql", Label: "GraphQL",
+			Hint: "Waiting on GraphQL signal enablement (ticket 16).", NotApplicable: true},
+		{Key: "jobs", Label: "Jobs",
+			Hint: "Waiting on Jobs / KSM signal enablement (ticket 17).", NotApplicable: true},
+		{Key: "profiling", Label: "Profiling",
+			Hint: "Waiting on Pyroscope datasource enablement (ticket 18).", NotApplicable: true},
 	}
+}
+
+func tallyScorecard(checks []ScorecardCheck) ScorecardReadiness {
+	score, total := 0, 0
+	for _, c := range checks {
+		if c.NotApplicable {
+			continue
+		}
+		total++
+		if c.OK {
+			score++
+		}
+	}
+	return ScorecardReadiness{Score: score, Total: total, Checks: checks}
+}
+
+func (a *App) computeReadiness(ctx context.Context, headers http.Header, namespace, service, env string) ScorecardReadiness {
+	now := time.Now()
+	token := a.resolveServiceToken(ctx)
+
+	// Fixed order and fixed slots: each goroutine writes only its own index.
+	checks := scorecardBaseChecks()
 
 	var wg sync.WaitGroup
 	wg.Add(6)
@@ -164,17 +193,128 @@ func (a *App) computeReadiness(ctx context.Context, headers http.Header, namespa
 	go func() { defer wg.Done(); checks[5].OK = a.checkAlertRules(ctx, headers, token, service) }()
 	wg.Wait()
 
-	score, total := 0, 0
-	for _, c := range checks {
-		if c.NotApplicable {
-			continue
+	return tallyScorecard(checks)
+}
+
+// computeReadinessClickHouse runs ticket-22 CH probes for the Nais 6 keys and
+// keeps graphql/jobs/profiling as unscored N/A placeholders until 16–18.
+func (a *App) computeReadinessClickHouse(ctx context.Context, headers http.Header, namespace, service, env string) ScorecardReadiness {
+	now := time.Now()
+	from := now.Add(-scorecardTraceLookback)
+	token := a.resolveServiceToken(ctx)
+	ch := a.chClient
+	if ch != nil {
+		ch = ch.WithServiceToken(token).WithAuthHeaders(headers)
+	}
+	checks := scorecardBaseChecks()
+
+	var wg sync.WaitGroup
+	wg.Add(6)
+	go func() {
+		defer wg.Done()
+		checks[0].OK = a.chProbeNonEmpty(ctx, ch, chquery.SpanMetricsProbeSQL(service, env, from, now))
+	}()
+	go func() {
+		defer wg.Done()
+		checks[1].OK = a.chProbeNonEmpty(ctx, ch, chquery.TracesProbeSQL(service, env, from, now))
+	}()
+	go func() {
+		defer wg.Done()
+		checks[2].OK = a.chProbeNonEmpty(ctx, ch, chquery.LogsProbeSQL(service, env, from, now))
+	}()
+	go func() {
+		defer wg.Done()
+		scrape, ok := a.ResolveServiceAlias(service)
+		if !ok {
+			// Ticket 22: no alias → fail + hint (do not probe under inventory name).
+			checks[3].OK = false
+			checks[3].Hint = AliasMissingHint(service)
+			return
 		}
-		total++
-		if c.OK {
-			score++
+		checks[3].OK = a.chProbeNonEmpty(ctx, ch, chquery.RuntimeMetricsProbeSQL(scrape, namespace, from, now))
+		if !checks[3].OK {
+			checks[3].Hint = "No go_*/process_* runtime metrics for aliased scrape name — enable OTel runtime instrumentation."
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		browser, ok := a.ResolveServiceAlias(service)
+		if !ok {
+			checks[4].OK = false
+			// Backend-only without alias: still may be N/A via SDK languages from spanmetrics.
+			if langs := a.serviceSDKLanguagesClickHouse(ctx, ch, service, env, from, now); len(langs) > 0 && allBackendOnlyLanguages(langs) {
+				checks[4].NotApplicable = true
+				checks[4].Hint = fmt.Sprintf(
+					"Not applicable — %s backend with no browser frontend. If this service gets a frontend, add serviceAliases and instrument with @hyperdx/browser.",
+					strings.Join(langs, "/"))
+				return
+			}
+			checks[4].Hint = AliasMissingHint(service)
+			return
+		}
+		checks[4].OK = a.chProbeNonEmpty(ctx, ch, chquery.BrowserScorecardProbeSQL(browser, env, from, now))
+		if !checks[4].OK {
+			if langs := a.serviceSDKLanguagesClickHouse(ctx, ch, service, env, from, now); len(langs) > 0 && allBackendOnlyLanguages(langs) {
+				checks[4].NotApplicable = true
+				checks[4].Hint = fmt.Sprintf(
+					"Not applicable — %s backend with no browser frontend. If this service gets a frontend, instrument it with @hyperdx/browser.",
+					strings.Join(langs, "/"))
+			} else {
+				checks[4].Hint = "No HyperDX sessions, webvitals, or browser Issues spans for the aliased browser service."
+			}
+		}
+	}()
+	go func() { defer wg.Done(); checks[5].OK = a.checkAlertRules(ctx, headers, token, service) }()
+	wg.Wait()
+
+	return tallyScorecard(checks)
+}
+
+func (a *App) chProbeNonEmpty(ctx context.Context, ch *queries.ClickHouseClient, sql string) bool {
+	if ch == nil || sql == "" {
+		return false
+	}
+	ctx, cancel := context.WithTimeout(ctx, scorecardProbeTimeout)
+	defer cancel()
+	res, err := ch.Query(ctx, sql, queries.ClickHouseQueryOptions{
+		From: time.Now().Add(-scorecardTraceLookback), To: time.Now(),
+		Limit: 1, SkipLimitEnforcement: true,
+	})
+	if err != nil {
+		log.DefaultLogger.Debug("Scorecard CH probe failed", "error", err)
+		return false
+	}
+	if res.RowCount() == 0 {
+		return false
+	}
+	return chquery.ParseFloat(res.Maps()[0]["c"]) > 0
+}
+
+func (a *App) serviceSDKLanguagesClickHouse(
+	ctx context.Context,
+	ch *queries.ClickHouseClient,
+	service, env string,
+	from, to time.Time,
+) []string {
+	if ch == nil {
+		return nil
+	}
+	ctx, cancel := context.WithTimeout(ctx, scorecardProbeTimeout)
+	defer cancel()
+	res, err := ch.Query(ctx, chquery.SDKLanguageProbeSQL(service, env, from, to), queries.ClickHouseQueryOptions{
+		From: from, To: to, Limit: 20, SkipLimitEnforcement: true,
+	})
+	if err != nil {
+		log.DefaultLogger.Debug("Scorecard CH SDK-language probe failed", "error", err)
+		return nil
+	}
+	langs := make([]string, 0, res.RowCount())
+	for _, r := range res.Maps() {
+		if lang := chquery.ParseString(r["lang"]); lang != "" {
+			langs = append(langs, lang)
 		}
 	}
-	return ScorecardReadiness{Score: score, Total: total, Checks: checks}
+	return langs
 }
 
 // backendOnlySDKLanguages are telemetry.sdk.language values that cannot serve

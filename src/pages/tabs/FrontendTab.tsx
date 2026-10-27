@@ -135,7 +135,10 @@ export function FrontendTab({ service, namespace, environment }: FrontendTabProp
           to={to}
         />
       )}
-      {(drawerLoading || (drawerHashes && drawerHashes.length > 0) || drawerSource === 'server') && (
+      {(drawerLoading ||
+        (drawerHashes && drawerHashes.length > 0) ||
+        drawerSource === 'server' ||
+        (drawerSource === 'browser' && !!selectedIssueId)) && (
         <ExceptionDrawer
           key={selectedIssueId || selectedHash}
           hashes={drawerHashes ?? []}

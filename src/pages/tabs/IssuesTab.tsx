@@ -71,12 +71,21 @@ export function IssuesTab({ service, namespace, clickHouseUid, environment }: Is
           )}
           {hasSessions && (
             <div className={styles.panel}>
-              <SessionsPanel namespace={namespace} service={service} environment={environment} />
+              <SessionsPanel
+                namespace={namespace}
+                service={service}
+                environment={environment}
+                clickStack={!!clickHouseUid}
+              />
             </div>
           )}
         </>
       )}
-      {(drawerLoading || (drawerHashes && drawerHashes.length > 0) || drawerSource === 'server') && (
+      {(drawerLoading ||
+        (drawerHashes && drawerHashes.length > 0) ||
+        drawerSource === 'server' ||
+        // ClickStack browser issues have no Alloy hashes — open on issueId + source.
+        (drawerSource === 'browser' && !!selectedIssueId)) && (
         <ExceptionDrawer
           key={selectedIssueId || selectedHash}
           hashes={drawerHashes ?? []}

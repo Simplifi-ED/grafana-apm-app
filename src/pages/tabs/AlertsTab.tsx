@@ -12,6 +12,7 @@ import {
   getNewExceptionsPrometheusRule,
   getServiceAlerts,
 } from '../../api/client';
+import { usePluginDatasources } from '../../utils/datasources';
 import { useFetch } from '../../utils/useFetch';
 import { useUrlParams } from '../../utils/useUrlState';
 import { FiringAlertDrawer } from './alerts/FiringAlertDrawer';
@@ -87,21 +88,21 @@ export function AlertsTab({ service, namespace, environment }: AlertsTabProps) {
   const styles = useStyles2(getStyles);
   const [searchParams, setSearchParams] = useSearchParams();
   const updateParams = useUrlParams();
+  const ds = usePluginDatasources(environment);
+  const clickStackOnly = Boolean(ds.clickHouseUid) && !ds.metricsUid;
 
   const { data, loading, error } = useFetch(() => getServiceAlerts(namespace, service), [namespace, service]);
   const rules = data?.rules ?? [];
 
-  // #123 Phase 1: the one alert path that does NOT need per-team Grafana
-  // folders/contact points to be sorted out first — a PrometheusRule the team
-  // commits, delivered by the alerting they already run. Rendering it is pure
-  // string formatting on the backend, so it fetches with the tab.
+  // #123 Phase 1: PrometheusRule manifest needs a Mimir recording rule — skip in
+  // ClickStack-only (templates evaluate as CH SQL against the ClickHouse DS).
   const {
     data: prometheusRule,
     loading: prometheusRuleLoading,
     error: prometheusRuleError,
   } = useFetch(
-    () => getNewExceptionsPrometheusRule({ namespace, service, environment }),
-    [namespace, service, environment]
+    () => (clickStackOnly ? Promise.resolve('') : getNewExceptionsPrometheusRule({ namespace, service, environment })),
+    [namespace, service, environment, clickStackOnly]
   );
 
   // The #32 firing-alert detail drawer is opened purely from the URL
@@ -157,7 +158,9 @@ export function AlertsTab({ service, namespace, environment }: AlertsTabProps) {
             />
           </h3>
           <span className={styles.sectionSubtitle}>
-            Rules watching this service, merged from Mimir and Grafana alerting.
+            {clickStackOnly
+              ? 'Grafana-managed alert rules that mention this service (unified alerting).'
+              : 'Rules watching this service, merged from Mimir and Grafana alerting.'}
           </span>
         </div>
 
@@ -181,7 +184,9 @@ export function AlertsTab({ service, namespace, environment }: AlertsTabProps) {
         <div className={styles.sectionHeader}>
           <h3 className={styles.sectionTitle}>Create alert</h3>
           <span className={styles.sectionSubtitle}>
-            Pre-filled rules for this service — opens Grafana&apos;s alert editor and returns here on save.
+            {clickStackOnly
+              ? "Pre-filled ClickHouse SQL rules — opens Grafana's alert editor (evaluates against your ClickHouse datasource)."
+              : "Pre-filled rules for this service — opens Grafana's alert editor and returns here on save."}
           </span>
         </div>
 
@@ -220,39 +225,37 @@ export function AlertsTab({ service, namespace, environment }: AlertsTabProps) {
         </div>
       </section>
 
-      <section className={styles.panel}>
-        <div className={styles.sectionHeader}>
-          <h3 className={styles.sectionTitle}>New issues in your Slack channel</h3>
-          <span className={styles.sectionSubtitle}>
-            Commit this PrometheusRule next to your app and the alerting you already run delivers every new exception
-            type to your team&apos;s channel. Apply it in the cluster you want watched — the environment comes from
-            where it lands. Requires frontend (Faro) telemetry.
-          </span>
-        </div>
+      {!clickStackOnly && (
+        <section className={styles.panel}>
+          <div className={styles.sectionHeader}>
+            <h3 className={styles.sectionTitle}>New issues in your Slack channel</h3>
+            <span className={styles.sectionSubtitle}>
+              Commit this PrometheusRule next to your app and the alerting you already run delivers every new exception
+              type to your team&apos;s channel. Apply it in the cluster you want watched — the environment comes from
+              where it lands. Requires frontend (Faro) telemetry.
+            </span>
+          </div>
 
-        {prometheusRuleLoading ? (
-          <LoadingPlaceholder text="Preparing the PrometheusRule…" />
-        ) : prometheusRuleError || !prometheusRule ? (
-          <div className={styles.message}>Could not render the PrometheusRule for this service.</div>
-        ) : (
-          <>
-            <div className={styles.yamlActions}>
-              <ClipboardButton size="sm" variant="secondary" icon="copy" getText={() => prometheusRule}>
-                Copy manifest
-              </ClipboardButton>
-            </div>
-            <pre className={styles.yaml}>{prometheusRule}</pre>
-            {/* The rule only sees exceptions carrying a session_id, so a
-                backend-only app gets one that never fires — and a rule that
-                never fires looks identical to a healthy service. Give the
-                one-shot check rather than building a probe for it. */}
-            <div className={styles.yamlHint}>
-              Before relying on it, confirm the series exists in your tenant:{' '}
-              <code>{`count(loki:apm:exception_sessions:count1m{service_name="${service}"})`}</code>
-            </div>
-          </>
-        )}
-      </section>
+          {prometheusRuleLoading ? (
+            <LoadingPlaceholder text="Preparing the PrometheusRule…" />
+          ) : prometheusRuleError || !prometheusRule ? (
+            <div className={styles.message}>Could not render the PrometheusRule for this service.</div>
+          ) : (
+            <>
+              <div className={styles.yamlActions}>
+                <ClipboardButton size="sm" variant="secondary" icon="copy" getText={() => prometheusRule}>
+                  Copy manifest
+                </ClipboardButton>
+              </div>
+              <pre className={styles.yaml}>{prometheusRule}</pre>
+              <div className={styles.yamlHint}>
+                Before relying on it, confirm the series exists in your tenant:{' '}
+                <code>{`count(loki:apm:exception_sessions:count1m{service_name="${service}"})`}</code>
+              </div>
+            </>
+          )}
+        </section>
+      )}
 
       {firingAlert && (
         <FiringAlertDrawer

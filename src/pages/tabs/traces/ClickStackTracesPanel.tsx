@@ -1,11 +1,19 @@
 import React, { useMemo, useState } from 'react';
-import { Alert, Button, useStyles2 } from '@grafana/ui';
+import { Alert, Button, LinkButton, useStyles2 } from '@grafana/ui';
 import { GrafanaTheme2 } from '@grafana/data';
 import { css } from '@emotion/css';
-import { ClickStackTraceSpan, ClickStackTraceSummary, getTraceDetail, getTraceSearch } from '../../../api/analytics';
+import {
+  ClickStackTraceSpan,
+  ClickStackTraceSummary,
+  ExploreFieldFilter,
+  getTraceDetail,
+  getTraceSearch,
+} from '../../../api/analytics';
 import { useFetch } from '../../../utils/useFetch';
 import { DataState } from '../../../components/DataState';
 import { formatDuration } from '../../../utils/format';
+import { buildTempoExploreUrl } from '../../../utils/explore';
+import { ClickStackExploreFilters, TRACE_FIELD_KEYS } from '../explore/ClickStackExploreFilters';
 
 interface ClickStackTracesPanelProps {
   namespace: string;
@@ -16,6 +24,10 @@ interface ClickStackTracesPanelProps {
   spanSearch: string;
   durationMin: string;
   durationMax: string;
+  from?: string;
+  to?: string;
+  /** When set, show secondary “Open in Explore” (Tempo). Hidden in CH-only mode. */
+  exploreTracesUid?: string;
 }
 
 export function ClickStackTracesPanel({
@@ -27,12 +39,18 @@ export function ClickStackTracesPanel({
   spanSearch,
   durationMin,
   durationMax,
+  from = 'now-1h',
+  to = 'now',
+  exploreTracesUid = '',
 }: ClickStackTracesPanelProps) {
   const styles = useStyles2(getStyles);
   const [selectedTraceId, setSelectedTraceId] = useState('');
+  const [fields, setFields] = useState<ExploreFieldFilter[]>([]);
+  const [sqlWhere, setSqlWhere] = useState('');
   const { data, loading, error } = useFetch(
-    () => getTraceSearch(namespace, service, fromMs, toMs, status, spanSearch, durationMin, durationMax),
-    [namespace, service, fromMs, toMs, status, spanSearch, durationMin, durationMax]
+    () =>
+      getTraceSearch(namespace, service, fromMs, toMs, status, spanSearch, durationMin, durationMax, fields, sqlWhere),
+    [namespace, service, fromMs, toMs, status, spanSearch, durationMin, durationMax, fields, sqlWhere]
   );
   const detail = useFetch(
     () => getTraceDetail(namespace, service, selectedTraceId, fromMs, toMs),
@@ -45,6 +63,34 @@ export function ClickStackTracesPanel({
 
   return (
     <div className={styles.container}>
+      <div className={styles.toolbar}>
+        <ClickStackExploreFilters
+          fieldKeys={TRACE_FIELD_KEYS}
+          fields={fields}
+          onFieldsChange={setFields}
+          sqlWhere={sqlWhere}
+          onSqlWhereChange={setSqlWhere}
+          sqlHint="Optional AND predicate on otel_traces spans (service + time already scoped). Not TraceQL."
+        />
+        {exploreTracesUid ? (
+          <LinkButton
+            variant="secondary"
+            size="sm"
+            icon="compass"
+            className={styles.exploreLink}
+            href={buildTempoExploreUrl(exploreTracesUid, service, {
+              namespace,
+              from,
+              to,
+              statusCode: status || undefined,
+            })}
+            tooltip="Open this service in Grafana Explore (Tempo)"
+          >
+            Open in Explore
+          </LinkButton>
+        ) : null}
+      </div>
+
       <DataState
         loading={loading}
         error={error ? 'Failed to load ClickStack traces' : data?.mode === 'unavailable' ? data.note : null}
@@ -197,6 +243,15 @@ const getStyles = (theme: GrafanaTheme2) => ({
     display: flex;
     flex-direction: column;
     gap: ${theme.spacing(2)};
+  `,
+  toolbar: css`
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: ${theme.spacing(1)};
+  `,
+  exploreLink: css`
+    margin-left: auto;
   `,
   tableScroll: css`
     overflow-x: auto;

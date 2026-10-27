@@ -10,11 +10,18 @@ import (
 
 // LogSearchSQL returns recent log rows for a service (bounded).
 func LogSearchSQL(service string, from, to time.Time, environment, severity string, limit int) string {
-	return LogSearchSQLFiltered(service, from, to, environment, severity, "", limit)
+	return LogSearchSQLFiltered(service, from, to, environment, severity, "", nil, "", limit)
 }
 
-// LogSearchSQLFiltered returns recent log rows with an optional body search.
-func LogSearchSQLFiltered(service string, from, to time.Time, environment, severity, search string, limit int) string {
+// LogSearchSQLFiltered returns recent log rows with body search, field chips, and optional SQL WHERE.
+func LogSearchSQLFiltered(
+	service string,
+	from, to time.Time,
+	environment, severity, search string,
+	fields []FieldFilter,
+	sqlWhere string,
+	limit int,
+) string {
 	if limit <= 0 || limit > 500 {
 		limit = 200
 	}
@@ -39,6 +46,12 @@ func LogSearchSQLFiltered(service string, from, to time.Time, environment, sever
 	}
 	if search != "" {
 		where += fmt.Sprintf(" AND positionCaseInsensitiveUTF8(Body, %s) > 0", q(search))
+	}
+	if chipSQL := FieldFiltersSQL(fields, "log"); chipSQL != "" {
+		where += " AND " + chipSQL
+	}
+	if sqlWhere != "" {
+		where += " AND (" + sqlWhere + ")"
 	}
 	return fmt.Sprintf(`
 SELECT

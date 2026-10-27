@@ -48,6 +48,7 @@ import (
 	"github.com/grafana/grafana-plugin-sdk-go/backend/useragent"
 	"github.com/grafana/grafana-plugin-sdk-go/config"
 
+	"github.com/nais/grafana-otel-plugin/pkg/plugin/chquery"
 	"github.com/nais/grafana-otel-plugin/pkg/plugin/queries"
 )
 
@@ -229,63 +230,93 @@ func (a *App) handleAlertTemplate(w http.ResponseWriter, req *http.Request) {
 	}
 
 	var defaults ruleFormDefaults
+	kind := req.PathValue("kind")
 
-	switch req.PathValue("kind") {
-	case "error-rate":
-		uid := a.settings.MetricsDataSource.Resolve(env).UID
-		if uid == "" {
-			http.Error(w, `{"error":"metrics datasource not configured"}`, http.StatusServiceUnavailable)
+	// ClickStack: evaluate Grafana-managed rules against ClickHouse SQL
+	// (ticket 27 decision). Dual-mode keeps PromQL/LogQL when Metrics/Logs UIDs
+	// are configured and ClickHouse is not the primary path.
+	if a.clickStackMode() {
+		chUID := a.settings.ClickHouseDataSource.UID
+		if chUID == "" {
+			http.Error(w, `{"error":"clickhouse datasource not configured"}`, http.StatusServiceUnavailable)
 			return
 		}
-		defaults = a.errorRateDefaults(a.requestContext(req), namespace, service, env, uid)
+		var ok bool
+		defaults, ok = a.clickStackAlertDefaults(kind, namespace, service, env, fingerprint, hashes, chUID, q.Get("window"), q.Get("slo"))
+		if !ok {
+			if !alertTemplateKinds[kind] {
+				http.Error(w, `{"error":"unknown alert template kind"}`, http.StatusNotFound)
+				return
+			}
+			if kind == "exception-spike" && len(hashes) == 0 {
+				http.Error(w, `{"error":"missing or invalid hash"}`, http.StatusBadRequest)
+				return
+			}
+			if kind == "slo-burn-rate" {
+				http.Error(w, `{"error":"window must be fast or slow"}`, http.StatusBadRequest)
+				return
+			}
+			http.Error(w, `{"error":"unknown alert template kind"}`, http.StatusNotFound)
+			return
+		}
+	} else {
+		switch kind {
+		case "error-rate":
+			uid := a.settings.MetricsDataSource.Resolve(env).UID
+			if uid == "" {
+				http.Error(w, `{"error":"metrics datasource not configured"}`, http.StatusServiceUnavailable)
+				return
+			}
+			defaults = a.errorRateDefaults(a.requestContext(req), namespace, service, env, uid)
 
-	case "exception-spike":
-		if len(hashes) == 0 {
-			http.Error(w, `{"error":"missing or invalid hash"}`, http.StatusBadRequest)
-			return
-		}
-		uid := a.settings.LogsDataSource.Resolve(env).UID
-		if uid == "" {
-			http.Error(w, `{"error":"logs datasource not configured"}`, http.StatusServiceUnavailable)
-			return
-		}
-		defaults = a.exceptionSpikeDefaults(namespace, service, env, fingerprint, hashes, uid)
+		case "exception-spike":
+			if len(hashes) == 0 {
+				http.Error(w, `{"error":"missing or invalid hash"}`, http.StatusBadRequest)
+				return
+			}
+			uid := a.settings.LogsDataSource.Resolve(env).UID
+			if uid == "" {
+				http.Error(w, `{"error":"logs datasource not configured"}`, http.StatusServiceUnavailable)
+				return
+			}
+			defaults = a.exceptionSpikeDefaults(namespace, service, env, fingerprint, hashes, uid)
 
-	case "web-vitals":
-		uid := a.settings.MetricsDataSource.Resolve(env).UID
-		if uid == "" {
-			http.Error(w, `{"error":"metrics datasource not configured"}`, http.StatusServiceUnavailable)
-			return
-		}
-		defaults = a.webVitalsDefaults(namespace, service, env, uid)
+		case "web-vitals":
+			uid := a.settings.MetricsDataSource.Resolve(env).UID
+			if uid == "" {
+				http.Error(w, `{"error":"metrics datasource not configured"}`, http.StatusServiceUnavailable)
+				return
+			}
+			defaults = a.webVitalsDefaults(namespace, service, env, uid)
 
-	case "new-exceptions":
-		uid := a.settings.LogsDataSource.Resolve(env).UID
-		if uid == "" {
-			http.Error(w, `{"error":"logs datasource not configured"}`, http.StatusServiceUnavailable)
-			return
-		}
-		defaults = a.newExceptionsDefaults(namespace, service, env, uid)
+		case "new-exceptions":
+			uid := a.settings.LogsDataSource.Resolve(env).UID
+			if uid == "" {
+				http.Error(w, `{"error":"logs datasource not configured"}`, http.StatusServiceUnavailable)
+				return
+			}
+			defaults = a.newExceptionsDefaults(namespace, service, env, uid)
 
-	case "slo-burn-rate":
-		window := q.Get("window")
-		if window == "" {
-			window = "fast"
-		}
-		if window != "fast" && window != "slow" {
-			http.Error(w, `{"error":"window must be fast or slow"}`, http.StatusBadRequest)
-			return
-		}
-		uid := a.settings.MetricsDataSource.Resolve(env).UID
-		if uid == "" {
-			http.Error(w, `{"error":"metrics datasource not configured"}`, http.StatusServiceUnavailable)
-			return
-		}
-		defaults = a.sloBurnRateDefaults(a.requestContext(req), namespace, service, env, uid, parseSloTarget(q.Get("slo")), window)
+		case "slo-burn-rate":
+			window := q.Get("window")
+			if window == "" {
+				window = "fast"
+			}
+			if window != "fast" && window != "slow" {
+				http.Error(w, `{"error":"window must be fast or slow"}`, http.StatusBadRequest)
+				return
+			}
+			uid := a.settings.MetricsDataSource.Resolve(env).UID
+			if uid == "" {
+				http.Error(w, `{"error":"metrics datasource not configured"}`, http.StatusServiceUnavailable)
+				return
+			}
+			defaults = a.sloBurnRateDefaults(a.requestContext(req), namespace, service, env, uid, parseSloTarget(q.Get("slo")), window)
 
-	default:
-		http.Error(w, `{"error":"unknown alert template kind"}`, http.StatusNotFound)
-		return
+		default:
+			http.Error(w, `{"error":"unknown alert template kind"}`, http.StatusNotFound)
+			return
+		}
 	}
 
 	// Version guard (#77): key the emitted RuleFormValues shape to the running
@@ -757,6 +788,156 @@ func dataQuery(dsUID, expr string) alertQuery {
 			"refId": "A",
 			"expr":  expr,
 		},
+	}
+}
+
+// clickHouseAlertFormatTable is grafana-clickhouse-datasource Format.TABLE (1).
+const clickHouseAlertFormatTable = 1
+
+// chDataQuery builds refId A against a ClickHouse datasource (rawSql + SQL editor).
+func chDataQuery(dsUID, rawSQL string, fromSec int) alertQuery {
+	if fromSec <= 0 {
+		fromSec = 600
+	}
+	return alertQuery{
+		RefID:             "A",
+		QueryType:         "",
+		RelativeTimeRange: &alertRelativeTimeRange{From: fromSec, To: 0},
+		DatasourceUID:     dsUID,
+		Model: map[string]any{
+			"refId":      "A",
+			"rawSql":     rawSQL,
+			"format":     clickHouseAlertFormatTable,
+			"editorType": "sql",
+		},
+	}
+}
+
+// clickStackAlertDefaults builds create-from-template RuleFormValues for CH SQL.
+// ok=false means the kind/params were invalid (caller maps to 4xx).
+func (a *App) clickStackAlertDefaults(
+	kind, namespace, service, env, fingerprint string,
+	hashes []string,
+	chUID, window, sloRaw string,
+) (ruleFormDefaults, bool) {
+	browser := service
+	if aliased, ok := a.ResolveServiceAlias(service); ok {
+		browser = aliased
+	}
+
+	switch kind {
+	case "error-rate":
+		return ruleFormDefaults{
+			Type:        "grafana",
+			Name:        fmt.Sprintf("Error rate above 5%% – %s%s", service, envSuffix(env)),
+			Condition:   "C",
+			EvaluateFor: "5m",
+			Queries: append([]alertQuery{
+				chDataQuery(chUID, chquery.ErrorRateAlertSQL(service, namespace, env), 600),
+			}, expressionQueries(errorRateThreshold)...),
+			Annotations: []alertKeyValue{
+				{Key: "summary", Value: fmt.Sprintf("More than 5%% of requests to %s are failing (5m window)", service)},
+				{Key: "clickhouse_apm_url", Value: serviceDeepLink(namespace, service, env, "", "", "")},
+			},
+			Labels: templateLabels(namespace, service),
+		}, true
+
+	case "slo-burn-rate":
+		if window == "" {
+			window = "fast"
+		}
+		if window != "fast" && window != "slow" {
+			return ruleFormDefaults{}, false
+		}
+		slo := parseSloTarget(sloRaw)
+		factor, longWin, shortWin, evalFor, tier := sloSlowBurnFactor, sloSlowLongWindow, sloSlowShortWin, sloSlowEvaluateFor, "Slow"
+		fromSec := 6 * 3600
+		if window == "fast" {
+			factor, longWin, shortWin, evalFor, tier = sloFastBurnFactor, sloFastLongWindow, sloFastShortWin, sloFastEvaluateFor, "Fast"
+			fromSec = 3600
+		}
+		budget, _ := strconv.ParseFloat(formatBudget(slo), 64)
+		factorStr := strconv.FormatFloat(factor, 'g', -1, 64)
+		sloPct := formatSloPct(slo)
+		sql := chquery.SLOBurnRateAlertSQL(service, namespace, env, budget, factor, longWin, shortWin)
+		return ruleFormDefaults{
+			Type:        "grafana",
+			Name:        fmt.Sprintf("%s burn (%sx) – SLO %s – %s%s", tier, factorStr, sloPct, service, envSuffix(env)),
+			Condition:   "C",
+			EvaluateFor: evalFor,
+			Queries: append([]alertQuery{
+				chDataQuery(chUID, sql, fromSec),
+			}, expressionQueries(factor)...),
+			Annotations: []alertKeyValue{
+				{Key: "summary", Value: fmt.Sprintf(
+					"%s error budget burn on %s: the %s error ratio is above %sx the %s SLO budget (confirmed over %s)",
+					strings.ToLower(tier), service, longWin, factorStr, sloPct, shortWin)},
+				{Key: "clickhouse_apm_url", Value: serviceDeepLink(namespace, service, env, "", "", "")},
+			},
+			Labels: append(templateLabels(namespace, service),
+				alertKeyValue{Key: "severity", Value: sloSeverity(window)},
+				alertKeyValue{Key: "slo", Value: sloPct},
+			),
+		}, true
+
+	case "web-vitals":
+		return ruleFormDefaults{
+			Type:        "grafana",
+			Name:        fmt.Sprintf("LCP p75 above 2.5s – %s%s", service, envSuffix(env)),
+			Condition:   "C",
+			EvaluateFor: "5m",
+			Queries: append([]alertQuery{
+				chDataQuery(chUID, chquery.WebVitalsLCPAlertSQL(browser, env), 900),
+			}, expressionQueries(lcpP75ThresholdMs)...),
+			Annotations: []alertKeyValue{
+				{Key: "summary", Value: fmt.Sprintf("Largest Contentful Paint p75 for %s is above %dms (Core Web Vitals \"poor\")", service, lcpP75ThresholdMs)},
+				{Key: "clickhouse_apm_url", Value: serviceDeepLink(namespace, service, env, "frontend", "", "")},
+			},
+			Labels: templateLabels(namespace, service),
+		}, true
+
+	case "exception-spike":
+		if len(hashes) == 0 {
+			return ruleFormDefaults{}, false
+		}
+		issueRef := fingerprint
+		if issueRef == "" {
+			issueRef = hashes[0]
+		}
+		return ruleFormDefaults{
+			Type:        "grafana",
+			Name:        fmt.Sprintf("Exception spike – %s (%s)", service, shortRef(issueRef)),
+			Condition:   "C",
+			EvaluateFor: "5m",
+			Queries: append([]alertQuery{
+				chDataQuery(chUID, chquery.ExceptionSpikeAlertSQL(browser, env, hashes), 600),
+			}, expressionQueries(exceptionSpikeThreshold)...),
+			Annotations: []alertKeyValue{
+				{Key: "summary", Value: fmt.Sprintf("Frontend exception %s in %s occurred more than %d times in 5m", shortRef(issueRef), service, int(exceptionSpikeThreshold))},
+				{Key: "clickhouse_apm_url", Value: serviceDeepLink(namespace, service, env, "issues", fingerprint, hashes[0])},
+			},
+			Labels: templateLabels(namespace, service),
+		}, true
+
+	case "new-exceptions":
+		return ruleFormDefaults{
+			Type:        "grafana",
+			Name:        fmt.Sprintf("New exception types – %s%s", service, envSuffix(env)),
+			Condition:   "C",
+			EvaluateFor: "5m",
+			Queries: append([]alertQuery{
+				chDataQuery(chUID, chquery.NewExceptionsAlertSQL(browser, env), 7*24*3600),
+			}, expressionQueries(0)...),
+			Annotations: []alertKeyValue{
+				{Key: "summary", Value: fmt.Sprintf(
+					"Exception types in %s appeared that were not seen in the previous 7 days (ClickHouse approximate detection)", service)},
+				{Key: "clickhouse_apm_url", Value: serviceDeepLink(namespace, service, env, "issues", "", "")},
+			},
+			Labels: templateLabels(namespace, service),
+		}, true
+
+	default:
+		return ruleFormDefaults{}, false
 	}
 }
 

@@ -78,6 +78,16 @@ func (a *App) handleTraceSearch(w http.ResponseWriter, req *http.Request) {
 	spanSearch := strings.TrimSpace(req.URL.Query().Get("span"))
 	minDurationMs := parseOptionalFloat(req.URL.Query().Get("minDurationMs"))
 	maxDurationMs := parseOptionalFloat(req.URL.Query().Get("maxDurationMs"))
+	fields := chquery.ParseFieldParams(req.URL.Query()["field"], "trace")
+	sqlWhere, sqlErr := chquery.ValidateSQLWhere(req.URL.Query().Get("sqlWhere"))
+	if sqlErr != nil {
+		writeJSON(w, ClickStackTraceSearchResponse{
+			Mode:   "unavailable",
+			Traces: []ClickStackTraceSummary{},
+			Note:   "Invalid Advanced SQL filter: " + sqlErr.Error(),
+		})
+		return
+	}
 
 	ch := a.chForRequest(req)
 	if ch == nil {
@@ -89,7 +99,7 @@ func (a *App) handleTraceSearch(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	res, err := ch.Query(req.Context(), chquery.TraceSearchSQLFiltered(
-		service, from, to, environment, status, spanSearch, minDurationMs, maxDurationMs, 50,
+		service, from, to, environment, status, spanSearch, minDurationMs, maxDurationMs, fields, sqlWhere, 50,
 	), queries.ClickHouseQueryOptions{From: from, To: to, Limit: 50})
 	if err != nil {
 		writeJSON(w, ClickStackTraceSearchResponse{

@@ -348,14 +348,15 @@ function ServiceOverviewInner({ namespace, service }: { namespace: string; servi
               <Dropdown
                 overlay={
                   <Menu>
-                    {caps?.tempo?.available !== false && (
+                    {/* Explore deep links only when Tempo/Loki UIDs exist (no broken CH-only links). */}
+                    {Boolean(ds.tracesUid) && caps?.tempo?.available !== false && (
                       <Menu.Item
                         label="Open traces in Explore"
                         icon="compass"
                         url={buildTempoExploreUrl(ds.tracesUid, service, { namespace })}
                       />
                     )}
-                    {caps?.loki?.available !== false && (
+                    {Boolean(ds.logsUid) && caps?.loki?.available !== false && (
                       <Menu.Item
                         label="Open logs in Explore"
                         icon="document-info"

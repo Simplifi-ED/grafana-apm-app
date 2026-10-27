@@ -85,7 +85,7 @@ func (a *App) handleFrontendSessions(w http.ResponseWriter, req *http.Request) {
 	q := strings.TrimSpace(req.URL.Query().Get("q"))
 
 	if a.clickStackMode() {
-		writeJSON(w, a.fetchFrontendSessionsClickHouse(ctx, a.chForRequest(req), service, env, from, to))
+		writeJSON(w, a.fetchFrontendSessionsClickHouse(ctx, a.chForRequest(req), service, env, from, to, q))
 		return
 	}
 

@@ -12,6 +12,9 @@ import (
 	"time"
 
 	"github.com/grafana/grafana-plugin-sdk-go/backend/log"
+
+	"github.com/nais/grafana-otel-plugin/pkg/plugin/chquery"
+	"github.com/nais/grafana-otel-plugin/pkg/plugin/queries"
 )
 
 // N+1 & query-pattern scan — Database tab Phase 3 (issue #119 §4.3).
@@ -76,7 +79,7 @@ type NPlusOneFinding struct {
 
 // NPlusOneResponse is the /database/nplusone payload.
 type NPlusOneResponse struct {
-	// Mode is "traceql" when Tempo answered, else "unavailable".
+	// Mode is "traceql" when Tempo answered, "clickhouse" when CH answered, else "unavailable".
 	Mode     string            `json:"mode"`
 	Findings []NPlusOneFinding `json:"findings"`
 	// ScannedTraces is the number of candidate traces the scan inspected.
@@ -105,6 +108,16 @@ func (a *App) handleDatabaseNPlusOne(w http.ResponseWriter, req *http.Request) {
 	from, to := parseTimeRange(req)
 	// Cost bound: clamp the window to the most-recent cap.
 	from = clampWindow(from, to, nplusoneWindowCap)
+	environment := parseEnvironment(req)
+
+	if a.clickStackMode() {
+		orgID := req.Header.Get("X-Grafana-Org-Id")
+		ck := cacheKey("dbnplusone-ch", orgID, roundedUnix(from), roundedUnix(to), namespace, service, environment)
+		a.writeCached(w, ck, "scanning for N+1 query patterns failed", func() (any, error) {
+			return a.scanNPlusOneClickHouse(ctx, a.chForRequest(req), service, environment, from, to), nil
+		})
+		return
+	}
 
 	tracesUID := sanitizeDatasourceUID(req.URL.Query().Get("tracesUid"))
 	// Confused-deputy hardening: only the configured traces datasource(s) may be
@@ -120,6 +133,62 @@ func (a *App) handleDatabaseNPlusOne(w http.ResponseWriter, req *http.Request) {
 	a.writeCached(w, ck, "scanning for N+1 query patterns failed", func() (any, error) {
 		return a.scanNPlusOne(ctx, headers, tracesUID, namespace, service, from, to), nil
 	})
+}
+
+// scanNPlusOneClickHouse groups CH DB spans per TraceId and reuses detectNPlusOne.
+func (a *App) scanNPlusOneClickHouse(
+	ctx context.Context,
+	ch *queries.ClickHouseClient,
+	service, environment string,
+	from, to time.Time,
+) NPlusOneResponse {
+	logger := log.DefaultLogger.With("handler", "database-nplusone-clickhouse")
+	windowSec := int(to.Sub(from).Seconds())
+	if ch == nil {
+		return NPlusOneResponse{
+			Mode: "unavailable", Findings: []NPlusOneFinding{}, WindowSeconds: windowSec,
+			Threshold: nplusoneRepeatThreshold, Note: "clickhouse datasource not configured",
+		}
+	}
+	spanLimit := nplusoneTraceLimit * nplusoneSpansPerSet
+	opts := queries.ClickHouseQueryOptions{From: from, To: to, Limit: spanLimit}
+	res, err := ch.Query(ctx, chquery.NPlusOneCandidateSQL(service, environment, from, to, nplusoneRepeatThreshold, spanLimit), opts)
+	if err != nil {
+		logger.Warn("ClickHouse N+1 candidate query failed", "service", sanitizeLogValue(service), "error", err)
+		return NPlusOneResponse{
+			Mode: "unavailable", Findings: []NPlusOneFinding{}, WindowSeconds: windowSec,
+			Threshold: nplusoneRepeatThreshold,
+			Note:      "clickhouse query failed — try a narrower range",
+		}
+	}
+	rows := chquery.ParseTopDBQueryRows(res.Maps())
+	byTrace := make(map[string]*nplusTrace)
+	for _, r := range rows {
+		tr := byTrace[r.TraceID]
+		if tr == nil {
+			tr = &nplusTrace{traceID: r.TraceID, endpoint: r.Endpoint}
+			if tr.endpoint == "" {
+				tr.endpoint = "unknown request"
+			}
+			byTrace[r.TraceID] = tr
+		}
+		tr.spans = append(tr.spans, dbSpan{
+			system: r.System, statement: r.Statement, table: r.Table,
+			durationMs: r.DurationMs, traceID: r.TraceID,
+		})
+	}
+	traces := make([]nplusTrace, 0, len(byTrace))
+	for _, tr := range byTrace {
+		traces = append(traces, *tr)
+	}
+	return NPlusOneResponse{
+		Mode:          "clickhouse",
+		Findings:      detectNPlusOne(traces, nplusoneRepeatThreshold, nplusoneMaxFindings),
+		ScannedTraces: len(traces),
+		Truncated:     len(traces) >= nplusoneTraceLimit,
+		WindowSeconds: windowSec,
+		Threshold:     nplusoneRepeatThreshold,
+	}
 }
 
 // scanNPlusOne runs the bounded candidate-trace search, groups each trace's DB

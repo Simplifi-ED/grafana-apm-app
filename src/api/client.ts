@@ -688,6 +688,11 @@ export interface IssuesResponse {
   facets?: IssueFacets;
   /** 'browser' when a facet is active: the list is scoped to browser telemetry. */
   facetedSource?: IssueSource;
+  /**
+   * Operator-facing hint (ClickStack): missing serviceAliases, or browser Issues
+   * probe found no HyperDX exception signal (ticket 13).
+   */
+  hint?: string;
 }
 
 export async function getIssues(
@@ -734,6 +739,11 @@ export interface IssueOccurrence {
   traceId?: string;
   /** Span ID within the correlated trace (best-effort). */
   spanId?: string;
+  /** HyperDX rum.sessionId — session replay deep-link (ClickStack browser). */
+  sessionId?: string;
+  userId?: string;
+  userEmail?: string;
+  pageUrl?: string;
   /**
    * Remaining structured-metadata / body fields the line carries (k8s attrs,
    * logger, http.route/status, app-added fields) minus the modeled ones above.
@@ -786,6 +796,8 @@ export async function getIssueOccurrences(
     title?: string;
     /** Exception type, when the issue carries one (shape (a) narrowing). */
     type?: string;
+    /** ClickStack: 'browser' (HyperDX) or 'server' (Events.exception). */
+    source?: IssueSource;
   }
 ): Promise<IssueOccurrencesResponse> {
   const params: Record<string, string> = { ...timeParams(from, to), fingerprint };
@@ -797,6 +809,9 @@ export async function getIssueOccurrences(
   }
   if (hints?.type) {
     params.type = hints.type;
+  }
+  if (hints?.source) {
+    params.source = hints.source;
   }
   return fetchResource<IssueOccurrencesResponse>(
     `/services/${nsParam(namespace)}/${encodeURIComponent(service)}/issues/occurrences`,
@@ -872,6 +887,8 @@ export interface FrontendSessionsResponse {
   unavailable: boolean;
   /** Set when counts cover a narrower recent window than the requested range. */
   windowSeconds?: number;
+  /** ClickStack: missing serviceAliases for browser ServiceName. */
+  hint?: string;
 }
 
 export async function getFrontendSessions(

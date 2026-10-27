@@ -13,15 +13,18 @@ interface SessionsPanelProps {
   namespace: string;
   service: string;
   environment?: string;
+  /** ClickStack / HyperDX path — empty-state + row deep-link differ from Faro/Loki. */
+  clickStack?: boolean;
 }
 
 /**
  * Session/user search (M5): the user-centric entry point. Recent Faro
  * sessions sorted by error count then recency, searchable by session id,
  * user id, or user email — a support ticket in, a session out. Row click
- * deep-links to the Logs tab pre-filtered on the session id.
+ * deep-links to the Logs tab pre-filtered on the session id (Faro), or
+ * stays on Issues for ClickStack (replay lives in the exception drawer).
  */
-export function SessionsPanel({ namespace, service, environment }: SessionsPanelProps) {
+export function SessionsPanel({ namespace, service, environment, clickStack = false }: SessionsPanelProps) {
   const styles = useStyles2(getStyles);
   const { fromMs, toMs } = useTimeRange();
   const updateParams = useUrlParams();
@@ -37,12 +40,25 @@ export function SessionsPanel({ namespace, service, environment }: SessionsPanel
   // Most apps don't call setUser yet — hide the column until it carries data.
   const hasUserData = sessions.some((s) => s.userId || s.userEmail);
 
+  const openSession = (sessionId: string) => {
+    if (clickStack) {
+      // Replay deep-link is via Issues drawer (rum.sessionId on occurrences).
+      // Keep the operator on Issues with the session id discoverable in search.
+      updateParams({ tab: 'issues', logSearch: null, includeFaro: null });
+      setSearch(sessionId);
+      return;
+    }
+    updateParams({ tab: 'logs', logSearch: sessionId, includeFaro: 'true' });
+  };
+
   return (
     <div className={styles.container}>
       <div className={styles.header}>
         <h6 className={styles.title}>Sessions</h6>
         <span className={styles.subtitle}>
-          Sessions with the most errors — click through to the session&apos;s logs
+          {clickStack
+            ? 'HyperDX sessions with the most errors — open an issue to play session replay'
+            : "Sessions with the most errors — click through to the session's logs"}
         </span>
         <div className={styles.search}>
           <Input
@@ -57,14 +73,24 @@ export function SessionsPanel({ namespace, service, environment }: SessionsPanel
       </div>
       <DataState
         loading={loading}
-        error={error ? 'Failed to load sessions' : data?.unavailable ? 'Loki is not available' : null}
+        error={
+          error
+            ? 'Failed to load sessions'
+            : data?.unavailable && !data?.hint
+              ? clickStack
+                ? 'Session telemetry is not available'
+                : 'Loki is not available'
+              : null
+        }
         empty={sessions.length === 0}
         loadingText="Loading sessions…"
-        emptyTitle="No sessions"
+        emptyTitle={data?.hint?.includes('serviceAliases') ? 'Configure service alias' : 'No sessions'}
         emptyMessage={
-          debouncedSearch
-            ? 'No sessions match the search in the selected time range.'
-            : 'No session data in the selected time range.'
+          data?.hint
+            ? data.hint
+            : debouncedSearch
+              ? 'No sessions match the search in the selected time range.'
+              : 'No session data for this service in the selected time range.'
         }
       >
         <table className={styles.table} aria-label="Sessions">
@@ -98,7 +124,7 @@ export function SessionsPanel({ namespace, service, environment }: SessionsPanel
                 key={s.sessionId}
                 session={s}
                 showUser={hasUserData}
-                onOpen={() => updateParams({ tab: 'logs', logSearch: s.sessionId, includeFaro: 'true' })}
+                onOpen={() => openSession(s.sessionId)}
               />
             ))}
           </tbody>

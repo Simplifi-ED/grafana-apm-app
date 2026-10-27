@@ -12,6 +12,9 @@ import (
 	"time"
 
 	"github.com/grafana/grafana-plugin-sdk-go/backend/log"
+
+	"github.com/nais/grafana-otel-plugin/pkg/plugin/chquery"
+	"github.com/nais/grafana-otel-plugin/pkg/plugin/queries"
 )
 
 // Top queries — Database tab Phase 2 (issue #119 §4.2).
@@ -57,7 +60,7 @@ type TopQuery struct {
 // TopQueriesResponse is the /database/queries payload. The UI re-sorts the one
 // list by the three PRD lenses (total time, count, p95).
 type TopQueriesResponse struct {
-	// Mode is "traceql" when Tempo answered, else "unavailable".
+	// Mode is "traceql" when Tempo answered, "clickhouse" when CH answered, else "unavailable".
 	Mode    string     `json:"mode"`
 	Queries []TopQuery `json:"queries"`
 	// Sampled is the number of DB spans the aggregation saw.
@@ -84,6 +87,16 @@ func (a *App) handleDatabaseQueries(w http.ResponseWriter, req *http.Request) {
 	from, to := parseTimeRange(req)
 	// Cost bound: clamp the window to the most-recent cap.
 	from = clampWindow(from, to, topQueriesWindowCap)
+	environment := parseEnvironment(req)
+
+	if a.clickStackMode() {
+		orgID := req.Header.Get("X-Grafana-Org-Id")
+		ck := cacheKey("dbqueries-ch", orgID, roundedUnix(from), roundedUnix(to), namespace, service, environment)
+		a.writeCached(w, ck, "querying top database queries failed", func() (any, error) {
+			return a.queryTopDatabaseQueriesClickHouse(ctx, a.chForRequest(req), service, environment, from, to), nil
+		})
+		return
+	}
 
 	tracesUID := sanitizeDatasourceUID(req.URL.Query().Get("tracesUid"))
 	// Confused-deputy hardening: only the configured traces datasource(s) may be
@@ -99,6 +112,48 @@ func (a *App) handleDatabaseQueries(w http.ResponseWriter, req *http.Request) {
 	a.writeCached(w, ck, "querying top database queries failed", func() (any, error) {
 		return a.queryTopDatabaseQueries(ctx, headers, tracesUID, namespace, service, from, to), nil
 	})
+}
+
+// queryTopDatabaseQueriesClickHouse aggregates normalized statements from otel_traces.
+func (a *App) queryTopDatabaseQueriesClickHouse(
+	ctx context.Context,
+	ch *queries.ClickHouseClient,
+	service, environment string,
+	from, to time.Time,
+) TopQueriesResponse {
+	logger := log.DefaultLogger.With("handler", "database-queries-clickhouse")
+	windowSec := int(to.Sub(from).Seconds())
+	if ch == nil {
+		return TopQueriesResponse{
+			Mode: "unavailable", Queries: []TopQuery{}, WindowSeconds: windowSec,
+			Note: "clickhouse datasource not configured",
+		}
+	}
+	limit := topQueriesTraceLimit * topQueriesSpansPerSet
+	opts := queries.ClickHouseQueryOptions{From: from, To: to, Limit: limit}
+	res, err := ch.Query(ctx, chquery.TopDBQueriesSQL(service, environment, from, to, limit), opts)
+	if err != nil {
+		logger.Warn("ClickHouse DB span query failed", "service", sanitizeLogValue(service), "error", err)
+		return TopQueriesResponse{
+			Mode: "unavailable", Queries: []TopQuery{}, WindowSeconds: windowSec,
+			Note: "clickhouse query failed — try a narrower range",
+		}
+	}
+	rows := chquery.ParseTopDBQueryRows(res.Maps())
+	spans := make([]dbSpan, 0, len(rows))
+	for _, r := range rows {
+		spans = append(spans, dbSpan{
+			system: r.System, statement: r.Statement, table: r.Table,
+			durationMs: r.DurationMs, traceID: r.TraceID,
+		})
+	}
+	return TopQueriesResponse{
+		Mode:          "clickhouse",
+		Queries:       aggregateTopQueries(spans, topQueriesMaxRows),
+		Sampled:       len(spans),
+		Truncated:     len(spans) >= limit,
+		WindowSeconds: windowSec,
+	}
 }
 
 // clampWindow returns a from no earlier than to-cap, so a wide selected range

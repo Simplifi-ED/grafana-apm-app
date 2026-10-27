@@ -284,6 +284,40 @@ func TestWebVitalsSQL_TargetsHyperDXSpans(t *testing.T) {
 	}
 }
 
+func TestBrowserExceptionGroupsSQL_HyperDXSelector(t *testing.T) {
+	from := time.Unix(1_700_000_000, 0)
+	to := from.Add(time.Hour)
+	sql := BrowserExceptionGroupsSQL("nova-frontend", from, to, "prod-k3s-omnivya", 50)
+	for _, want := range []string{
+		"nova-frontend", "unhandledrejection", "error.object", "error.message",
+		"rum.sessionId", "has(Events.Name", "prod-k3s-omnivya",
+	} {
+		if !strings.Contains(sql, want) {
+			t.Errorf("BrowserExceptionGroupsSQL missing %q\n%s", want, sql)
+		}
+	}
+}
+
+func TestServerExceptionGroupsSQL_ExcludesBrowserShapes(t *testing.T) {
+	from := time.Unix(1_700_000_000, 0)
+	to := from.Add(time.Hour)
+	sql := ServerExceptionGroupsSQL("nova-api", from, to, "", 50)
+	if !strings.Contains(sql, "has(Events.Name") || !strings.Contains(sql, "NOT (SpanName") {
+		t.Fatalf("expected Events.exception + browser exclusion: %s", sql)
+	}
+}
+
+func TestBrowserExceptionOccurrencesSQL_ReplayFields(t *testing.T) {
+	from := time.Unix(1_700_000_000, 0)
+	to := from.Add(time.Hour)
+	sql := BrowserExceptionOccurrencesSQL("nova-frontend", from, to, "", "Error", 50)
+	for _, want := range []string{"error.stack", "rum.sessionId", "userId", "location.href", "session_id"} {
+		if !strings.Contains(sql, want) {
+			t.Errorf("BrowserExceptionOccurrencesSQL missing %q\n%s", want, sql)
+		}
+	}
+}
+
 func TestParseWebVitalsMaps(t *testing.T) {
 	vitals, samples := ParseWebVitalsMaps([]map[string]any{
 		{"lcp": 1200.0, "fcp": 800.0, "cls": 0.0, "inp": 50.0, "ttfb": 100.0, "samples": 12.0},
@@ -411,5 +445,37 @@ func TestScrapeServiceFilter_EmitsAliasName(t *testing.T) {
 	got := ScrapeServiceFilter("nova-app", "prod-nova")
 	if !strings.Contains(got, "nova-app") || !strings.Contains(got, "prod-nova") {
 		t.Fatal(got)
+	}
+}
+
+func TestScorecardProbeSQL(t *testing.T) {
+	from, to := time.Now().Add(-time.Hour), time.Now()
+	span := SpanMetricsProbeSQL("nova-api", "prod", from, to)
+	if !strings.Contains(span, MetricSpanCalls) || !strings.Contains(span, "nova-api") {
+		t.Fatal(span)
+	}
+	browser := BrowserScorecardProbeSQL("nova-frontend", "prod", from, to)
+	for _, want := range []string{"hyperdx_sessions", "webvitals", "unhandledrejection", "rum.sessionId"} {
+		if !strings.Contains(browser, want) {
+			t.Errorf("browser probe missing %q\n%s", want, browser)
+		}
+	}
+}
+
+func TestTopDBQueriesSQL(t *testing.T) {
+	sql := TopDBQueriesSQL("nova-api", "prod", time.Now().Add(-time.Hour), time.Now(), 100)
+	for _, want := range []string{"db.statement", "db.system", "nova-api", "duration_ms"} {
+		if !strings.Contains(sql, want) {
+			t.Errorf("missing %q\n%s", want, sql)
+		}
+	}
+}
+
+func TestErrorRateAlertSQL_UsesTimeFilterMacro(t *testing.T) {
+	sql := ErrorRateAlertSQL("nova-api", "ns", "prod")
+	for _, want := range []string{"$__timeFilter(TimeUnix)", MetricSpanCalls, "STATUS_CODE_ERROR", "SPAN_KIND_SERVER"} {
+		if !strings.Contains(sql, want) {
+			t.Errorf("missing %q\n%s", want, sql)
+		}
 	}
 }

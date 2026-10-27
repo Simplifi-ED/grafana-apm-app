@@ -897,3 +897,71 @@ func TestPrometheusRuleFormatRejectsOtherKinds(t *testing.T) {
 		})
 	}
 }
+
+func TestClickStackAlertTemplates_UseClickHouseSQL(t *testing.T) {
+	app := newAlertTemplateApp(t)
+	app.chClient = &queries.ClickHouseClient{}
+	app.settings.ClickHouseDataSource = queries.DataSourceRef{UID: "clickhouse"}
+	app.settings.ServiceAliases = map[string]string{"my-svc": "my-browser"}
+
+	cases := []struct {
+		url       string
+		wantRaw   string
+		wantFrom  int
+		threshold float64
+	}{
+		{
+			url:       "/alert-templates/error-rate?namespace=team-a&service=my-svc",
+			wantRaw:   "$__timeFilter(TimeUnix)",
+			wantFrom:  600,
+			threshold: 0.05,
+		},
+		{
+			url:       "/alert-templates/web-vitals?namespace=team-a&service=my-svc",
+			wantRaw:   "my-browser",
+			wantFrom:  900,
+			threshold: 2500,
+		},
+		{
+			url:       "/alert-templates/slo-burn-rate?namespace=team-a&service=my-svc&window=fast",
+			wantRaw:   "INTERVAL 1 HOUR",
+			wantFrom:  3600,
+			threshold: 14.4,
+		},
+		{
+			url:       "/alert-templates/exception-spike?namespace=team-a&service=my-svc&hash=abc123",
+			wantRaw:   "unhandledrejection",
+			wantFrom:  600,
+			threshold: 10,
+		},
+		{
+			url:       "/alert-templates/new-exceptions?namespace=team-a&service=my-svc",
+			wantRaw:   "INTERVAL 7 DAY",
+			wantFrom:  7 * 24 * 3600,
+			threshold: 0,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.url, func(t *testing.T) {
+			w := serveAlertTemplate(t, app, tc.url)
+			resp := decodeAlertTemplate(t, w)
+			qa := resp.Defaults.Queries[0]
+			if qa.DatasourceUID != "clickhouse" {
+				t.Fatalf("uid=%q", qa.DatasourceUID)
+			}
+			raw, _ := qa.Model["rawSql"].(string)
+			if raw == "" || !strings.Contains(raw, tc.wantRaw) {
+				t.Fatalf("rawSql missing %q:\n%s", tc.wantRaw, raw)
+			}
+			if _, hasExpr := qa.Model["expr"]; hasExpr {
+				t.Fatal("ClickStack templates must not emit PromQL expr")
+			}
+			if qa.RelativeTimeRange == nil || qa.RelativeTimeRange.From != tc.wantFrom {
+				t.Fatalf("relativeTimeRange=%+v want from=%d", qa.RelativeTimeRange, tc.wantFrom)
+			}
+			if got := thresholdParam(t, resp.Defaults.Queries[2]); got != tc.threshold {
+				t.Fatalf("threshold=%v want %v", got, tc.threshold)
+			}
+		})
+	}
+}

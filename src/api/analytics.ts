@@ -143,6 +143,12 @@ export interface ClickStackTraceDetailResponse {
   note?: string;
 }
 
+/** One Nais-like attribute chip for ClickStack log/trace search. */
+export interface ExploreFieldFilter {
+  key: string;
+  value: string;
+}
+
 export async function getTraceSearch(
   namespace: string,
   service: string,
@@ -151,27 +157,39 @@ export async function getTraceSearch(
   status = '',
   span = '',
   minDurationMs = '',
-  maxDurationMs = ''
+  maxDurationMs = '',
+  fields: ExploreFieldFilter[] = [],
+  sqlWhere = ''
 ): Promise<ClickStackTraceSearchResponse> {
-  const params: Record<string, string> = {
-    ...timeParams(from, to),
-  };
+  const params = new URLSearchParams(timeParams(from, to));
   if (status) {
-    params.status = status;
+    params.set('status', status);
   }
   if (span) {
-    params.span = span;
+    params.set('span', span);
   }
   if (minDurationMs) {
-    params.minDurationMs = minDurationMs;
+    params.set('minDurationMs', minDurationMs);
   }
   if (maxDurationMs) {
-    params.maxDurationMs = maxDurationMs;
+    params.set('maxDurationMs', maxDurationMs);
   }
-  return fetchResource<ClickStackTraceSearchResponse>(
-    `/services/${nsParam(namespace)}/${encodeURIComponent(service)}/traces/search`,
-    params
+  for (const f of fields) {
+    if (f.key && f.value) {
+      params.append('field', `${f.key}=${f.value}`);
+    }
+  }
+  if (sqlWhere.trim()) {
+    params.set('sqlWhere', sqlWhere.trim());
+  }
+  const path = `/services/${nsParam(namespace)}/${encodeURIComponent(service)}/traces/search`;
+  const response = await lastValueFrom(
+    getBackendSrv().fetch<ClickStackTraceSearchResponse>({
+      url: `${BASE_URL}${path}?${params.toString()}`,
+      method: 'GET',
+    })
   );
+  return response.data;
 }
 
 export async function getTraceDetail(
@@ -209,21 +227,33 @@ export async function getLogSearch(
   from: number,
   to: number,
   severity: string[] = [],
-  search = ''
+  search = '',
+  fields: ExploreFieldFilter[] = [],
+  sqlWhere = ''
 ): Promise<ClickStackLogsResponse> {
-  const params: Record<string, string> = {
-    ...timeParams(from, to),
-  };
+  const params = new URLSearchParams(timeParams(from, to));
   if (severity.length > 0) {
-    params.severity = severity.join(',');
+    params.set('severity', severity.join(','));
   }
   if (search) {
-    params.search = search;
+    params.set('search', search);
   }
-  return fetchResource<ClickStackLogsResponse>(
-    `/services/${nsParam(namespace)}/${encodeURIComponent(service)}/logs/search`,
-    params
+  for (const f of fields) {
+    if (f.key && f.value) {
+      params.append('field', `${f.key}=${f.value}`);
+    }
+  }
+  if (sqlWhere.trim()) {
+    params.set('sqlWhere', sqlWhere.trim());
+  }
+  const path = `/services/${nsParam(namespace)}/${encodeURIComponent(service)}/logs/search`;
+  const response = await lastValueFrom(
+    getBackendSrv().fetch<ClickStackLogsResponse>({
+      url: `${BASE_URL}${path}?${params.toString()}`,
+      method: 'GET',
+    })
   );
+  return response.data;
 }
 
 // ---- Top database queries (issue #119 Phase 2) ----

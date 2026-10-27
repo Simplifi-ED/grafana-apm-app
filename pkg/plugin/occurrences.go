@@ -14,6 +14,7 @@ import (
 
 	"github.com/grafana/grafana-plugin-sdk-go/backend/log"
 
+	"github.com/nais/grafana-otel-plugin/pkg/plugin/chquery"
 	"github.com/nais/grafana-otel-plugin/pkg/plugin/fingerprint"
 	"github.com/nais/grafana-otel-plugin/pkg/plugin/queries"
 )
@@ -115,9 +116,9 @@ func messageTemplate(title, exType string) string {
 	return title
 }
 
-// IssueOccurrence is one matched server-log line for an issue, extracted per
-// log shape. It mirrors the fields the ExceptionDrawer renders for a browser
-// occurrence, translated to the server world (pod instead of session).
+// IssueOccurrence is one matched occurrence for an issue. Server Loki shapes
+// use pod/level; ClickStack HyperDX browser spans carry sessionId for replay
+// deep-links (letter F).
 type IssueOccurrence struct {
 	TimeMs     int64  `json:"timeMs"`
 	Pod        string `json:"pod,omitempty"`
@@ -131,6 +132,11 @@ type IssueOccurrence struct {
 	// drawer uses TraceID to deep-link the exact trace.
 	TraceID string `json:"traceId,omitempty"`
 	SpanID  string `json:"spanId,omitempty"`
+	// SessionID is the HyperDX rum.sessionId (browser ClickStack occurrences).
+	SessionID string `json:"sessionId,omitempty"`
+	UserID    string `json:"userId,omitempty"`
+	UserEmail string `json:"userEmail,omitempty"`
+	PageURL   string `json:"pageUrl,omitempty"`
 	// Attributes are the remaining structured-metadata / body fields the line
 	// carries (k8s container/node, logger, http.route/status, app-added fields)
 	// minus everything already modeled above. This is the extra context that
@@ -196,6 +202,16 @@ func (a *App) handleIssueOccurrences(w http.ResponseWriter, req *http.Request) {
 	// clients; the scan then runs unanchored as before.
 	title := req.URL.Query().Get("title")
 	exType := req.URL.Query().Get("type")
+	// ClickStack drawer: source selects HyperDX browser vs server Events.exception.
+	source := strings.TrimSpace(req.URL.Query().Get("source"))
+	if source != issueSourceBrowser && source != issueSourceServer {
+		source = issueSourceServer
+	}
+
+	if a.clickStackMode() {
+		writeJSON(w, a.fetchIssueOccurrencesClickHouse(ctx, a.chForRequest(req), service, env, fp, title, exType, source, from, to))
+		return
+	}
 
 	lokiUID := a.settings.LogsDataSource.Resolve(env).UID
 	if lokiUID == "" {
@@ -567,6 +583,108 @@ func jsonStr(body map[string]json.RawMessage, key string) string {
 		return s
 	}
 	return ""
+}
+
+// fetchIssueOccurrencesClickHouse returns CH span occurrences for one fingerprint
+// (letter F). Browser uses ResolveServiceAlias + HyperDX error spans; server uses
+// inventory ServiceName + Events.exception. Fingerprint is recomputed per row.
+func (a *App) fetchIssueOccurrencesClickHouse(
+	ctx context.Context,
+	ch *queries.ClickHouseClient,
+	service, environment, wantFP, title, exType, source string,
+	from, to time.Time,
+) IssueOccurrencesResponse {
+	resp := IssueOccurrencesResponse{
+		Fingerprint: wantFP,
+		Occurrences: []IssueOccurrence{},
+		Stats:       emptyOccurrenceStats(),
+	}
+	if ch == nil || wantFP == "" {
+		resp.Unavailable = ch == nil
+		return resp
+	}
+	logger := log.DefaultLogger.With("handler", "issue-occurrences-ch")
+	opts := queries.ClickHouseQueryOptions{From: from, To: to, Limit: 100, SkipLimitEnforcement: true}
+
+	var (
+		rows []chquery.TraceExceptionOccurrence
+		err  error
+	)
+	switch source {
+	case issueSourceBrowser:
+		browserName, ok := a.ResolveServiceAlias(service)
+		if !ok {
+			return resp
+		}
+		res, qErr := ch.Query(ctx, chquery.BrowserExceptionOccurrencesSQL(browserName, from, to, environment, exType, 100), opts)
+		err = qErr
+		if qErr == nil {
+			rows = chquery.ParseTraceExceptionOccurrencesMaps(res.Maps())
+		}
+	default:
+		res, qErr := ch.Query(ctx, chquery.ServerExceptionOccurrencesSQL(service, from, to, environment, exType, 100), opts)
+		err = qErr
+		if qErr == nil {
+			rows = chquery.ParseTraceExceptionOccurrencesMaps(res.Maps())
+			resp.Shape = "otlp"
+		}
+	}
+	if err != nil {
+		logger.Warn("issue occurrences CH query failed", "error", err, "source", source)
+		resp.Unavailable = true
+		return resp
+	}
+	match := func(in []chquery.TraceExceptionOccurrence) []IssueOccurrence {
+		out := make([]IssueOccurrence, 0, len(in))
+		for _, row := range in {
+			fp := fingerprint.Compute(fingerprint.Event{Type: row.ExceptionType, Value: row.Message})
+			if fp.Value != wantFP {
+				continue
+			}
+			out = append(out, IssueOccurrence{
+				TimeMs:     row.TimeMs,
+				Message:    row.Message,
+				Stacktrace: row.Stacktrace,
+				Type:       row.ExceptionType,
+				TraceID:    row.TraceID,
+				SpanID:     row.SpanID,
+				SessionID:  row.SessionID,
+				UserID:     row.UserID,
+				UserEmail:  row.UserEmail,
+				PageURL:    row.PageURL,
+				Pod:        row.Pod,
+			})
+		}
+		return out
+	}
+	resp.Occurrences = match(rows)
+	// Fallback: type-anchored scan can miss when the group type drifted; rescan untyped.
+	if len(resp.Occurrences) == 0 && exType != "" {
+		var fallback []chquery.TraceExceptionOccurrence
+		switch source {
+		case issueSourceBrowser:
+			if browserName, ok := a.ResolveServiceAlias(service); ok {
+				if res, qErr := ch.Query(ctx, chquery.BrowserExceptionOccurrencesSQL(browserName, from, to, environment, "", 100), opts); qErr == nil {
+					fallback = chquery.ParseTraceExceptionOccurrencesMaps(res.Maps())
+				}
+			}
+		default:
+			if res, qErr := ch.Query(ctx, chquery.ServerExceptionOccurrencesSQL(service, from, to, environment, "", 100), opts); qErr == nil {
+				fallback = chquery.ParseTraceExceptionOccurrencesMaps(res.Maps())
+			}
+		}
+		resp.Occurrences = match(fallback)
+		rows = fallback
+	}
+	_ = title
+	sort.SliceStable(resp.Occurrences, func(i, j int) bool {
+		return resp.Occurrences[i].TimeMs > resp.Occurrences[j].TimeMs
+	})
+	resp.Stats = foldOccurrenceStats(resp.Occurrences)
+	if len(rows) >= 100 {
+		resp.Truncated = true
+	}
+	return resp
 }
 
 // foldOccurrenceStats aggregates the blast radius: total, distinct pods,

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -302,13 +301,9 @@ func (a *App) fetchHealthClickHouse(
 ) HealthSummary {
 	ops := a.fetchOperationsClickHouse(ctx, ch, service, environment, from, to)
 	summary := HealthSummary{DurationUnit: "ms"}
-	if len(ops) == 0 {
-		return summary
-	}
+	window := chquery.WindowSeconds(from, to)
 	var calls, errors, maxP95 float64
 	for _, op := range ops {
-		// Reconstruct approximate call volume from rate × window.
-		window := chquery.WindowSeconds(from, to)
 		c := op.Rate * window
 		calls += c
 		errors += op.ErrorRate * c
@@ -317,10 +312,107 @@ func (a *App) fetchHealthClickHouse(
 		}
 	}
 	if calls > 0 {
-		summary.Rate = calls / chquery.WindowSeconds(from, to)
-		summary.ErrorRate = errors / calls
+		summary.Rate = roundTo(calls/window, 3)
+		summary.ErrorRate = roundTo(errors/calls*100, 1)
 	}
-	summary.P95Duration = maxP95
+	summary.P95Duration = roundTo(maxP95, 2)
+
+	// Previous-period baseline (same window length ending at `from`).
+	prevFrom := from.Add(-to.Sub(from))
+	prevOps := a.fetchOperationsClickHouse(ctx, ch, service, environment, prevFrom, from)
+	var prevCalls, prevErrors, prevMaxP95 float64
+	prevByName := make(map[string]queries.OperationSummary, len(prevOps))
+	for _, op := range prevOps {
+		prevByName[op.SpanName+"\x00"+op.SpanKind] = op
+		c := op.Rate * window
+		prevCalls += c
+		prevErrors += op.ErrorRate * c
+		if op.P95Duration > prevMaxP95 {
+			prevMaxP95 = op.P95Duration
+		}
+	}
+	if prevCalls > 0 {
+		v := roundTo(prevCalls/window, 3)
+		summary.PrevRate = &v
+		errPct := roundTo(prevErrors/prevCalls*100, 1)
+		summary.PrevErrorRate = &errPct
+	}
+	if prevMaxP95 > 0 {
+		v := roundTo(prevMaxP95, 2)
+		summary.PrevP95Duration = &v
+	}
+
+	// Degraded operations vs previous period (absolute error ≥5% or delta).
+	for _, op := range ops {
+		if op.Rate < anomalyMinRate {
+			continue
+		}
+		prev := prevByName[op.SpanName+"\x00"+op.SpanKind]
+		curErrPct := roundTo(op.ErrorRate*100, 1)
+		prevErrPct := roundTo(prev.ErrorRate*100, 1)
+		isErrorDelta := prev.Rate > 0 &&
+			curErrPct > 0 &&
+			(curErrPct-prevErrPct) >= anomalyMinErrorIncrease &&
+			(prevErrPct == 0 || curErrPct/prevErrPct >= anomalyRelativeFactor)
+		isErrorAbsolute := curErrPct >= absoluteErrorCritical
+		isLatency := prev.P95Duration > 0 && op.P95Duration > 0 &&
+			(op.P95Duration-prev.P95Duration) >= anomalyMinLatencyIncreaseMs &&
+			op.P95Duration/prev.P95Duration >= anomalyRelativeFactor
+		if isErrorDelta || isErrorAbsolute || isLatency {
+			summary.DegradedOps = append(summary.DegradedOps, DegradedOperation{
+				SpanName:        op.SpanName,
+				SpanKind:        op.SpanKind,
+				Rate:            roundTo(op.Rate, 3),
+				ErrorRate:       curErrPct,
+				P95Duration:     roundTo(op.P95Duration, 2),
+				DurationUnit:    "ms",
+				PrevErrorRate:   prevErrPct,
+				PrevP95Duration: roundTo(prev.P95Duration, 2),
+				ErrorAnomaly:    isErrorDelta || isErrorAbsolute,
+				LatencyAnomaly:  isLatency,
+			})
+		}
+	}
+
+	// Degraded dependencies from service-graph edges.
+	curDeps := a.fetchDependenciesClickHouse(ctx, ch, service, environment, from, to)
+	prevDeps := a.fetchDependenciesClickHouse(ctx, ch, service, environment, prevFrom, from)
+	prevDepByName := make(map[string]DependencySummary, len(prevDeps))
+	for _, d := range prevDeps {
+		prevDepByName[d.Name] = d
+	}
+	for _, d := range curDeps {
+		if d.Rate < anomalyMinRate {
+			continue
+		}
+		prev := prevDepByName[d.Name]
+		curErrPct := roundTo(d.ErrorRate*100, 1)
+		prevErrPct := roundTo(prev.ErrorRate*100, 1)
+		isErrorDelta := prev.Rate > 0 &&
+			curErrPct > 0 &&
+			(curErrPct-prevErrPct) >= anomalyMinErrorIncrease &&
+			(prevErrPct == 0 || curErrPct/prevErrPct >= anomalyRelativeFactor)
+		isErrorAbsolute := curErrPct >= absoluteErrorCritical
+		isLatency := prev.P95Duration > 0 && d.P95Duration > 0 &&
+			(d.P95Duration-prev.P95Duration) >= anomalyMinLatencyIncreaseMs &&
+			d.P95Duration/prev.P95Duration >= anomalyRelativeFactor
+		if isErrorDelta || isErrorAbsolute || isLatency {
+			summary.DegradedDeps = append(summary.DegradedDeps, DegradedDependency{
+				Name:            d.Name,
+				Type:            d.Type,
+				Rate:            roundTo(d.Rate, 3),
+				ErrorRate:       curErrPct,
+				P95Duration:     roundTo(d.P95Duration, 2),
+				DurationUnit:    "ms",
+				PrevErrorRate:   prevErrPct,
+				PrevP95Duration: roundTo(prev.P95Duration, 2),
+				ErrorAnomaly:    isErrorDelta || isErrorAbsolute,
+				LatencyAnomaly:  isLatency,
+			})
+		}
+	}
+
+	summary.CauseCategory = classifyCause(summary)
 	return summary
 }
 
@@ -361,14 +453,19 @@ func (a *App) fetchDependenciesClickHouse(
 	from, to time.Time,
 ) []DependencySummary {
 	edges := a.serviceGraphEdgesClickHouse(ctx, ch, environment, from, to)
+	clientSet := make(map[string]struct{})
+	for _, e := range edges {
+		clientSet[e.Client] = struct{}{}
+	}
 	out := make([]DependencySummary, 0)
 	for _, e := range edges {
 		if e.Client != service {
 			continue
 		}
+		depType, _ := inferClickStackNodeType(e.Server, clientSet)
 		out = append(out, DependencySummary{
 			Name:         e.Server,
-			Type:         "service",
+			Type:         depType,
 			Rate:         e.Rate,
 			ErrorRate:    e.ErrorRate,
 			DurationUnit: "ms",
@@ -376,6 +473,178 @@ func (a *App) fetchDependenciesClickHouse(
 		})
 	}
 	return out
+}
+
+// fetchGlobalDependenciesClickHouse aggregates all service-graph servers as
+// fleet-wide external dependencies (infra peers preferred over pure services).
+func (a *App) fetchGlobalDependenciesClickHouse(
+	ctx context.Context,
+	ch *queries.ClickHouseClient,
+	environment string,
+	from, to time.Time,
+) []DependencySummary {
+	edges := a.serviceGraphEdgesClickHouse(ctx, ch, environment, from, to)
+	clientSet := make(map[string]struct{})
+	for _, e := range edges {
+		clientSet[e.Client] = struct{}{}
+	}
+	type agg struct {
+		rate, errW float64
+		depType    string
+	}
+	byServer := make(map[string]*agg)
+	for _, e := range edges {
+		depType, _ := inferClickStackNodeType(e.Server, clientSet)
+		if depType == "service" {
+			continue
+		}
+		d := byServer[e.Server]
+		if d == nil {
+			d = &agg{depType: depType}
+			byServer[e.Server] = d
+		}
+		d.rate += e.Rate
+		d.errW += e.Rate * e.ErrorRate
+	}
+	out := make([]DependencySummary, 0, len(byServer))
+	for name, d := range byServer {
+		errRate := 0.0
+		if d.rate > 0 {
+			errRate = d.errW / d.rate
+		}
+		out = append(out, DependencySummary{
+			Name: name, Type: d.depType, Rate: d.rate, ErrorRate: errRate,
+			DurationUnit: "ms", Impact: d.rate * errRate,
+		})
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Impact != out[j].Impact {
+			return out[i].Impact > out[j].Impact
+		}
+		return out[i].Name < out[j].Name
+	})
+	return out
+}
+
+// fetchNamespaceDependenciesClickHouse keeps outbound edges whose client has
+// ResourceAttributes service.namespace matching namespace. When CH service-graph
+// rows lack namespace, falls back to clients whose inventory name prefix or
+// exact ResourceAttributes probe isn't available — use Attribute-less heuristic:
+// include all non-service targets called by any client (namespace filter soft).
+func (a *App) fetchNamespaceDependenciesClickHouse(
+	ctx context.Context,
+	ch *queries.ClickHouseClient,
+	namespace, environment string,
+	from, to time.Time,
+) []NamespaceDependency {
+	// Prefer inventory discover filtered by namespace to know which clients belong.
+	nsClients := map[string]struct{}{}
+	if ch != nil && namespace != "" {
+		opts := queries.ClickHouseQueryOptions{From: from, To: to, Limit: 500}
+		if res, err := ch.Query(ctx, chquery.DiscoverInventorySQL(from, to, namespace, environment), opts); err == nil {
+			for _, m := range res.Maps() {
+				if s := chquery.ParseString(m["service"]); s != "" {
+					nsClients[s] = struct{}{}
+				}
+			}
+		}
+	}
+	edges := a.serviceGraphEdgesClickHouse(ctx, ch, environment, from, to)
+	clientSet := make(map[string]struct{})
+	for _, e := range edges {
+		clientSet[e.Client] = struct{}{}
+	}
+	type agg struct {
+		callers    map[string]struct{}
+		rate, errW float64
+		depType    string
+	}
+	byServer := make(map[string]*agg)
+	for _, e := range edges {
+		if len(nsClients) > 0 {
+			if _, ok := nsClients[e.Client]; !ok {
+				continue
+			}
+			if _, ok := nsClients[e.Server]; ok {
+				continue // in-namespace peer
+			}
+		}
+		depType, _ := inferClickStackNodeType(e.Server, clientSet)
+		if depType == "service" && len(nsClients) == 0 {
+			continue
+		}
+		d := byServer[e.Server]
+		if d == nil {
+			d = &agg{callers: make(map[string]struct{}), depType: depType}
+			byServer[e.Server] = d
+		}
+		d.callers[e.Client] = struct{}{}
+		d.rate += e.Rate
+		d.errW += e.Rate * e.ErrorRate
+	}
+	out := make([]NamespaceDependency, 0, len(byServer))
+	for name, d := range byServer {
+		errRate := 0.0
+		if d.rate > 0 {
+			errRate = d.errW / d.rate
+		}
+		out = append(out, NamespaceDependency{
+			Name: name, Type: d.depType, CallerCount: len(d.callers),
+			Rate: d.rate, ErrorRate: errRate, DurationUnit: "ms",
+		})
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].CallerCount != out[j].CallerCount {
+			return out[i].CallerCount > out[j].CallerCount
+		}
+		return out[i].Name < out[j].Name
+	})
+	return out
+}
+
+func (a *App) fetchDependencyDetailClickHouse(
+	ctx context.Context,
+	ch *queries.ClickHouseClient,
+	depName, environment string,
+	from, to time.Time,
+) DependencyDetailResponse {
+	edges := a.serviceGraphEdgesClickHouse(ctx, ch, environment, from, to)
+	clientSet := make(map[string]struct{})
+	for _, e := range edges {
+		clientSet[e.Client] = struct{}{}
+	}
+	depType, _ := inferClickStackNodeType(depName, clientSet)
+	var rate, errW float64
+	upstreams := make([]DependencySummary, 0)
+	for _, e := range edges {
+		if e.Server != depName {
+			continue
+		}
+		rate += e.Rate
+		errW += e.Rate * e.ErrorRate
+		upstreams = append(upstreams, DependencySummary{
+			Name: e.Client, Type: "service", Rate: e.Rate, ErrorRate: e.ErrorRate,
+			DurationUnit: "ms", Impact: e.Rate * e.ErrorRate,
+		})
+	}
+	errRate := 0.0
+	if rate > 0 {
+		errRate = errW / rate
+	}
+	sort.Slice(upstreams, func(i, j int) bool {
+		if upstreams[i].Impact != upstreams[j].Impact {
+			return upstreams[i].Impact > upstreams[j].Impact
+		}
+		return upstreams[i].Name < upstreams[j].Name
+	})
+	return DependencyDetailResponse{
+		Dependency: DependencySummary{
+			Name: depName, Type: depType, Rate: rate, ErrorRate: errRate,
+			DurationUnit: "ms", Impact: rate * errRate,
+		},
+		Upstreams:  upstreams,
+		Operations: []queries.DependencyOperation{},
+	}
 }
 
 func (a *App) serviceGraphEdgesClickHouse(
@@ -607,89 +876,99 @@ func (a *App) fetchIssuesClickHouse(
 			Unavailable:        true,
 		}
 	}
-	// Server exception spans/logs use inventory ServiceName (spanmetrics identity).
-	// Browser Issues (letter F) must ResolveServiceAlias before querying HyperDX.
-	opts := queries.ClickHouseQueryOptions{From: from, To: to, Limit: 50}
-	logRes, logErr := ch.Query(ctx, chquery.ExceptionGroupsSQL(service, from, to, environment, 50), opts)
-	if logErr != nil {
-		log.DefaultLogger.Warn("issues CH log query failed", "error", logErr)
-	}
-	spanRes, spanErr := ch.Query(ctx, chquery.ErrorSpansSQL(service, from, to, environment), opts)
-	if spanErr != nil {
-		log.DefaultLogger.Warn("issues CH span query failed", "error", spanErr)
+	logger := log.DefaultLogger.With("handler", "issues-clickhouse")
+	opts := queries.ClickHouseQueryOptions{From: from, To: to, Limit: 50, SkipLimitEnforcement: true}
+
+	resp := IssuesResponse{
+		FingerprintVersion: fingerprint.Version,
+		Issues:             []Issue{},
 	}
 
-	byFingerprint := make(map[string]*Issue)
-	add := func(event fingerprint.Event, count float64, issueType, member string, sourceTitle string) {
-		result := fingerprint.Compute(event)
-		issue, ok := byFingerprint[result.Value]
-		if !ok {
-			issue = &Issue{
-				Fingerprint:  result.Value,
-				Tier:         int(result.Tier),
-				Title:        result.Title,
-				Types:        []string{},
+	// Browser Issues: ResolveServiceAlias → HyperDX error spans (ticket 19/20).
+	browserName, aliasOK := a.ResolveServiceAlias(service)
+	if !aliasOK {
+		resp.Hint = AliasMissingHint(service)
+	} else {
+		probeRes, probeErr := ch.Query(ctx, chquery.BrowserIssuesProbeSQL(browserName, environment, from, to), opts)
+		if probeErr != nil {
+			logger.Warn("browser issues probe failed", "error", probeErr)
+		} else if probeRes.RowCount() > 0 && chquery.ParseFloat(probeRes.Maps()[0]["c"]) >= 1 {
+			resp.Sources.Browser = true
+		}
+		if resp.Sources.Browser {
+			bRes, bErr := ch.Query(ctx, chquery.BrowserExceptionGroupsSQL(browserName, from, to, environment, 50), opts)
+			if bErr != nil {
+				logger.Warn("browser issues CH query failed", "error", bErr)
+				resp.Sources.Browser = false
+			} else {
+				for _, row := range chquery.ParseTraceExceptionGroupsMaps(bRes.Maps()) {
+					fp := fingerprint.Compute(fingerprint.Event{Type: row.ExceptionType, Value: row.Message})
+					issue := Issue{
+						Fingerprint:  fp.Value,
+						Tier:         int(fp.Tier),
+						Title:        fp.Title,
+						Types:        nil,
+						Count:        float64(row.Occurrences),
+						Sessions:     float64(row.Sessions),
+						MemberHashes: []string{}, // CH path: drawer uses /issues/occurrences
+						Source:       issueSourceBrowser,
+					}
+					if row.ExceptionType != "" {
+						issue.Types = []string{row.ExceptionType}
+					}
+					resp.Issues = append(resp.Issues, issue)
+				}
+			}
+		} else if aliasOK {
+			// Alias OK but no HyperDX exception signal in range — operator/product copy (ticket 13).
+			resp.Hint = "No HyperDX browser exception signals for this service in range. Ensure @hyperdx/browser (or Faro-shaped) exceptions are exported to ClickHouse."
+		}
+	}
+
+	// Server secondary feed: inventory ServiceName + Events.Name=exception, badged server.
+	sRes, sErr := ch.Query(ctx, chquery.ServerExceptionGroupsSQL(service, from, to, environment, 50), opts)
+	if sErr != nil {
+		logger.Warn("server issues CH query failed", "error", sErr)
+	} else {
+		resp.Sources.ServerLogs = true
+		for _, row := range chquery.ParseTraceExceptionGroupsMaps(sRes.Maps()) {
+			fp := fingerprint.Compute(fingerprint.Event{Type: row.ExceptionType, Value: row.Message})
+			issue := Issue{
+				Fingerprint:  fp.Value,
+				Tier:         int(fp.Tier),
+				Title:        fp.Title,
+				Types:        nil,
+				Count:        float64(row.Occurrences),
 				MemberHashes: []string{},
 				Source:       issueSourceServer,
+				Impact:       &IssueImpact{Pods: 0, Versions: []string{}},
 			}
-			byFingerprint[result.Value] = issue
-		}
-		issue.Count += count
-		if issueType != "" && !containsString(issue.Types, issueType) {
-			issue.Types = append(issue.Types, issueType)
-		}
-		if member != "" && !containsString(issue.MemberHashes, member) {
-			issue.MemberHashes = append(issue.MemberHashes, member)
-		}
-		if issue.Title == "" && sourceTitle != "" {
-			issue.Title = sourceTitle
+			if row.ExceptionType != "" {
+				issue.Types = []string{row.ExceptionType}
+			}
+			resp.Issues = append(resp.Issues, issue)
 		}
 	}
 
-	if logErr == nil {
-		for _, row := range chquery.ParseExceptionGroupsMaps(logRes.Maps()) {
-			add(
-				fingerprint.Event{Type: row.ExceptionType, Value: row.Message},
-				float64(row.Occurrences),
-				row.ExceptionType,
-				"ch:log:"+row.Fingerprint,
-				row.Message,
-			)
+	sort.Slice(resp.Issues, func(i, j int) bool {
+		if resp.Issues[i].Count != resp.Issues[j].Count {
+			return resp.Issues[i].Count > resp.Issues[j].Count
 		}
-	}
-	if spanErr == nil {
-		for _, row := range spanRes.Maps() {
-			name := chquery.ParseString(row["span_name"])
-			message := chquery.ParseString(row["status_message"])
-			add(
-				fingerprint.Event{Type: name, Value: message},
-				chquery.ParseFloat(row["errors"]),
-				name,
-				"ch:span:"+name,
-				name,
-			)
+		if resp.Issues[i].Fingerprint != resp.Issues[j].Fingerprint {
+			return resp.Issues[i].Fingerprint < resp.Issues[j].Fingerprint
 		}
-	}
-
-	issues := make([]Issue, 0, len(byFingerprint))
-	for _, issue := range byFingerprint {
-		issues = append(issues, *issue)
-	}
-	sort.Slice(issues, func(i, j int) bool {
-		if issues[i].Count != issues[j].Count {
-			return issues[i].Count > issues[j].Count
-		}
-		return issues[i].Fingerprint < issues[j].Fingerprint
+		return resp.Issues[i].Source < resp.Issues[j].Source
 	})
-	if len(issues) > maxGroups {
-		issues = issues[:maxGroups]
+	if len(resp.Issues) > maxGroups {
+		resp.Issues = resp.Issues[:maxGroups]
 	}
-	return IssuesResponse{
-		FingerprintVersion: fingerprint.Version,
-		Sources:            IssueSources{ServerLogs: logErr == nil || spanErr == nil},
-		Issues:             issues,
-		Unavailable:        logErr != nil && spanErr != nil,
+	resp.Unavailable = !resp.Sources.Browser && !resp.Sources.ServerLogs && sErr != nil
+	// Clear enablement hint when we already have server issues to show — empty-state
+	// variants only apply when the list is empty (frontend).
+	if len(resp.Issues) > 0 && strings.Contains(resp.Hint, "HyperDX browser exception") {
+		resp.Hint = ""
 	}
+	return resp
 }
 
 func (a *App) fetchFrontendSessionsClickHouse(
@@ -697,6 +976,7 @@ func (a *App) fetchFrontendSessionsClickHouse(
 	ch *queries.ClickHouseClient,
 	service, environment string,
 	from, to time.Time,
+	q string,
 ) FrontendSessionsResponse {
 	browserName, ok := a.ResolveServiceAlias(service)
 	if !ok {
@@ -705,7 +985,10 @@ func (a *App) fetchFrontendSessionsClickHouse(
 			Hint:     AliasMissingHint(service),
 		}
 	}
-	// Reuse recordings list: HyperDX sessions with rum.sessionId.
+	if ch == nil {
+		return FrontendSessionsResponse{Sessions: []SessionSummary{}, Unavailable: true}
+	}
+	// HyperDX sessions with rum.sessionId + error/user enrichment from otel_traces.
 	table, err := queries.QualifiedTable(queries.CHDatabaseDefault, queries.CHTableSessions)
 	if err != nil {
 		return FrontendSessionsResponse{Sessions: []SessionSummary{}, Unavailable: true}
@@ -727,25 +1010,67 @@ GROUP BY session_id
 ORDER BY last_ms DESC
 LIMIT 50`, table, where, chquery.TimestampFilter(from, to))
 
-	res, err := ch.Query(ctx, sql, queries.ClickHouseQueryOptions{From: from, To: to, Limit: 50})
+	opts := queries.ClickHouseQueryOptions{From: from, To: to, Limit: 50}
+	res, err := ch.Query(ctx, sql, opts)
 	if err != nil {
 		log.DefaultLogger.Warn("frontend sessions CH query failed", "error", err)
 		return FrontendSessionsResponse{Sessions: []SessionSummary{}, Unavailable: true}
 	}
+
+	type enrich struct {
+		errors    float64
+		userID    string
+		userEmail string
+	}
+	bySession := map[string]enrich{}
+	enrichRes, enrichErr := ch.Query(ctx, chquery.SessionErrorEnrichmentSQL(browserName, from, to, environment), opts)
+	if enrichErr != nil {
+		log.DefaultLogger.Warn("frontend sessions error enrichment failed", "error", enrichErr)
+	} else {
+		for _, m := range enrichRes.Maps() {
+			sid := chquery.ParseString(m["session_id"])
+			if sid == "" {
+				continue
+			}
+			bySession[sid] = enrich{
+				errors:    chquery.ParseFloat(m["errors"]),
+				userID:    chquery.ParseString(m["user_id"]),
+				userEmail: chquery.ParseString(m["user_email"]),
+			}
+		}
+	}
+
 	out := make([]SessionSummary, 0, res.RowCount())
 	for _, m := range res.Maps() {
+		sid := chquery.ParseString(m["session_id"])
+		e := bySession[sid]
 		out = append(out, SessionSummary{
-			SessionID:   chquery.ParseString(m["session_id"]),
+			SessionID:   sid,
 			FirstSeenMs: chquery.ParseInt64(m["first_ms"]),
 			LastSeenMs:  chquery.ParseInt64(m["last_ms"]),
 			Events:      chquery.ParseFloat(m["events"]),
+			Errors:      e.errors,
+			UserID:      e.userID,
+			UserEmail:   e.userEmail,
 		})
 	}
+	// Prefer sessions with errors, then recency (M5 / HyperDX polish).
+	sort.SliceStable(out, func(i, j int) bool {
+		if out[i].Errors != out[j].Errors {
+			return out[i].Errors > out[j].Errors
+		}
+		return out[i].LastSeenMs > out[j].LastSeenMs
+	})
+	if q = strings.TrimSpace(q); q != "" {
+		filtered := out[:0]
+		for i := range out {
+			if matchesSessionQuery(&out[i], q) {
+				filtered = append(filtered, out[i])
+			}
+		}
+		out = filtered
+	}
 	return FrontendSessionsResponse{Sessions: out}
-}
-
-func containsString(values []string, want string) bool {
-	return slices.Contains(values, want)
 }
 
 func patternSeen(patterns map[string]struct{}, pattern string) bool {

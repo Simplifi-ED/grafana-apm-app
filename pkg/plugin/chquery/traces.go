@@ -47,7 +47,7 @@ func TraceSearchSQL(service string, from, to time.Time, environment string, only
 	if onlyErrors {
 		status = "error"
 	}
-	return TraceSearchSQLFiltered(service, from, to, environment, status, "", 0, 0, limit)
+	return TraceSearchSQLFiltered(service, from, to, environment, status, "", 0, 0, nil, "", limit)
 }
 
 // TraceSearchSQLFiltered finds recent traces with UI filter support.
@@ -56,6 +56,8 @@ func TraceSearchSQLFiltered(
 	from, to time.Time,
 	environment, status, spanSearch string,
 	minDurationMs, maxDurationMs float64,
+	fields []FieldFilter,
+	sqlWhere string,
 	limit int,
 ) string {
 	if limit <= 0 || limit > 100 {
@@ -81,6 +83,12 @@ func TraceSearchSQLFiltered(
 	}
 	if maxDurationMs > 0 {
 		where += fmt.Sprintf(" AND Duration <= %g * 1000000", maxDurationMs)
+	}
+	if chipSQL := FieldFiltersSQL(fields, "trace"); chipSQL != "" {
+		where += " AND " + chipSQL
+	}
+	if sqlWhere != "" {
+		where += " AND (" + sqlWhere + ")"
 	}
 	return fmt.Sprintf(`
 SELECT

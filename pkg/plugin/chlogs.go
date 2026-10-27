@@ -47,6 +47,16 @@ func (a *App) handleLogSearch(w http.ResponseWriter, req *http.Request) {
 	environment := parseEnvironment(req)
 	severity := strings.TrimSpace(req.URL.Query().Get("severity"))
 	search := strings.TrimSpace(req.URL.Query().Get("search"))
+	fields := chquery.ParseFieldParams(req.URL.Query()["field"], "log")
+	sqlWhere, sqlErr := chquery.ValidateSQLWhere(req.URL.Query().Get("sqlWhere"))
+	if sqlErr != nil {
+		writeJSON(w, ClickStackLogsResponse{
+			Mode: "unavailable",
+			Logs: []ClickStackLogEntry{},
+			Note: "Invalid Advanced SQL filter: " + sqlErr.Error(),
+		})
+		return
+	}
 	ch := a.chForRequest(req)
 	if ch == nil {
 		writeJSON(w, ClickStackLogsResponse{
@@ -57,7 +67,7 @@ func (a *App) handleLogSearch(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	res, err := ch.Query(req.Context(), chquery.LogSearchSQLFiltered(
-		service, from, to, environment, severity, search, 200,
+		service, from, to, environment, severity, search, fields, sqlWhere, 200,
 	), queries.ClickHouseQueryOptions{From: from, To: to, Limit: 200})
 	if err != nil {
 		writeJSON(w, ClickStackLogsResponse{

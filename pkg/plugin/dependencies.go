@@ -65,6 +65,11 @@ func (a *App) handleGlobalDependencies(w http.ResponseWriter, req *http.Request)
 	orgID := req.Header.Get("X-Grafana-Org-Id")
 	ck := cacheKey("globaldeps", orgID, roundedUnix(from), roundedUnix(to), filterEnv)
 	a.writeCached(w, ck, "querying dependencies failed", func() (any, error) {
+		if a.clickStackMode() {
+			return DependenciesResponse{
+				Dependencies: a.fetchGlobalDependenciesClickHouse(ctx, a.chForRequest(req), filterEnv, from, to),
+			}, nil
+		}
 		caps := a.cachedOrDetectCapabilities(ctx)
 		if !caps.ServiceGraph.Detected {
 			return DependenciesResponse{Dependencies: []DependencySummary{}}, nil
@@ -96,6 +101,11 @@ func (a *App) handleNamespaceDependencies(w http.ResponseWriter, req *http.Reque
 	orgID := req.Header.Get("X-Grafana-Org-Id")
 	ck := cacheKey("nsdeps", orgID, roundedUnix(from), roundedUnix(to), namespace, filterEnv)
 	a.writeCached(w, ck, "querying dependencies failed", func() (any, error) {
+		if a.clickStackMode() {
+			return NamespaceDependenciesResponse{
+				Dependencies: a.fetchNamespaceDependenciesClickHouse(ctx, a.chForRequest(req), namespace, filterEnv, from, to),
+			}, nil
+		}
 		caps := a.cachedOrDetectCapabilities(ctx)
 		if !caps.ServiceGraph.Detected {
 			return NamespaceDependenciesResponse{Dependencies: []NamespaceDependency{}}, nil
@@ -234,6 +244,15 @@ func (a *App) handleDependencyDetail(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	now := time.Now()
+	from := parseUnixParam(req, "from", now.Add(-1*time.Hour))
+	to := parseUnixParam(req, "to", now)
+
+	if a.clickStackMode() {
+		writeJSON(w, a.fetchDependencyDetailClickHouse(ctx, a.chForRequest(req), depName, filterEnv, from, to))
+		return
+	}
+
 	caps := a.cachedOrDetectCapabilities(ctx)
 	if !caps.ServiceGraph.Detected {
 		writeJSON(w, DependencyDetailResponse{
@@ -243,9 +262,6 @@ func (a *App) handleDependencyDetail(w http.ResponseWriter, req *http.Request) {
 		})
 		return
 	}
-
-	now := time.Now()
-	to := parseUnixParam(req, "to", now)
 
 	detail := a.queryDependencyDetail(ctx, caps, to, depName, filterEnv)
 	writeJSON(w, detail)

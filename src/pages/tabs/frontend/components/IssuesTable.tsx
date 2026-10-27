@@ -283,11 +283,25 @@ export function IssuesTable({ namespace, service, environment, compact = false }
       )}
       <DataState
         loading={loading}
-        error={error ? 'Failed to load issues' : data?.unavailable ? 'Loki is not available' : null}
+        error={
+          error ? 'Failed to load issues' : data?.unavailable && !data?.hint ? 'Issue telemetry is not available' : null
+        }
         empty={groups.length === 0}
         loadingText="Loading issues…"
-        emptyTitle="No issues"
-        emptyMessage={`No errors in ${describeTimeRange(from, to)}.`}
+        emptyTitle={
+          data?.hint?.includes('serviceAliases')
+            ? 'Configure service alias'
+            : data?.hint?.includes('browser exception')
+              ? 'Browser exceptions not detected'
+              : 'No issues'
+        }
+        emptyMessage={
+          data?.hint
+            ? data.hint
+            : data?.sources?.browser === false && data?.sources?.serverLogs === false
+              ? 'No browser exception or server exception signals detected for this service. Export HyperDX / OTel exceptions to ClickHouse, or check the selected time range.'
+              : `No errors in ${describeTimeRange(from, to)}.`
+        }
       >
         <table className={styles.table}>
           <thead>

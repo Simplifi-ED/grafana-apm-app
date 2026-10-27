@@ -135,9 +135,14 @@ export function useIssueOccurrences(opts: UseIssueOccurrencesOptions): UseIssueO
   // Stable key so the browser effect doesn't refire on array identity.
   const hashesKey = hashes.map(sanitizeLabelValue).join('|');
 
-  // ---- Server path: backend occurrences endpoint (#84) ----
+  // ClickStack browser issues have no Alloy hashes — use the occurrences API
+  // (same as server) so the drawer gets CH spans + rum.sessionId for replay.
+  const useOccurrencesAPI =
+    source === 'server' || (source === 'browser' && !resolving && hashesKey === '' && !!issueId);
+
+  // ---- Occurrences API path: server Loki (#84) + ClickStack browser/server ----
   useEffect(() => {
-    if (source !== 'server') {
+    if (!useOccurrencesAPI) {
       return;
     }
     if (!issueId) {
@@ -150,35 +155,55 @@ export function useIssueOccurrences(opts: UseIssueOccurrencesOptions): UseIssueO
     getIssueOccurrences(namespace, service, issueId, fromMs, toMs, environment || undefined, {
       title,
       type: issueType,
+      source,
     })
       .then((res) => {
         if (cancelled) {
           return;
         }
         if (res.unavailable) {
-          setError('Loki is not available for this environment.');
+          setError(
+            source === 'browser'
+              ? 'ClickHouse is not available for this environment.'
+              : 'Loki is not available for this environment.'
+          );
           setOccurrences([]);
           setStats(null);
           setLoading(false);
           return;
         }
-        const occ: ParsedException[] = res.occurrences.map((o) => ({
-          timestamp: o.timeMs ? new Date(o.timeMs).toISOString() : undefined,
-          type: o.type,
-          value: o.message,
-          stacktrace: o.stacktrace,
-          appVersion: o.version,
-          pod: o.pod,
-          level: o.level,
-          traceId: o.traceId,
-          spanId: o.spanId,
-          attributes: o.attributes,
-        }));
+        const sessions = new Set<string>();
+        const users = new Set<string>();
+        const occ: ParsedException[] = res.occurrences.map((o) => {
+          if (o.sessionId) {
+            sessions.add(o.sessionId);
+          }
+          const user = o.userEmail || o.userId;
+          if (user) {
+            users.add(user);
+          }
+          return {
+            timestamp: o.timeMs ? new Date(o.timeMs).toISOString() : undefined,
+            type: o.type,
+            value: o.message,
+            stacktrace: o.stacktrace,
+            appVersion: o.version,
+            pod: o.pod,
+            level: o.level,
+            traceId: o.traceId,
+            spanId: o.spanId,
+            attributes: o.attributes,
+            sessionId: o.sessionId,
+            userId: o.userId,
+            userEmail: o.userEmail,
+            pageUrl: o.pageUrl,
+          };
+        });
         setOccurrences(occ);
         setShape(res.shape);
         setStats({
-          uniqueUsers: 0,
-          uniqueSessions: res.stats.pods,
+          uniqueUsers: users.size,
+          uniqueSessions: source === 'browser' ? sessions.size : res.stats.pods,
           appVersions: res.stats.versions ?? [],
           browsers: [],
           total: res.stats.total,
@@ -188,7 +213,11 @@ export function useIssueOccurrences(opts: UseIssueOccurrencesOptions): UseIssueO
         });
         setTruncated(res.truncated);
         if (occ.length === 0) {
-          setError('No matching server-log occurrences found for this issue in range.');
+          setError(
+            source === 'browser'
+              ? 'No matching browser exception spans found for this issue in range.'
+              : 'No matching server-log occurrences found for this issue in range.'
+          );
         }
         setLoading(false);
       })
@@ -201,11 +230,11 @@ export function useIssueOccurrences(opts: UseIssueOccurrencesOptions): UseIssueO
     return () => {
       cancelled = true;
     };
-  }, [source, issueId, title, issueType, namespace, service, environment, fromMs, toMs]);
+  }, [useOccurrencesAPI, source, issueId, title, issueType, namespace, service, environment, fromMs, toMs]);
 
   // ---- Browser path: direct Loki query by Alloy hash ----
   useEffect(() => {
-    if (source !== 'browser') {
+    if (source !== 'browser' || useOccurrencesAPI) {
       return;
     }
     let cancelled = false;
@@ -337,6 +366,7 @@ export function useIssueOccurrences(opts: UseIssueOccurrencesOptions): UseIssueO
     // refetch loop (regression covered in ExceptionDrawer.test.tsx).
   }, [
     source,
+    useOccurrencesAPI,
     resolving,
     hashesKey,
     service,

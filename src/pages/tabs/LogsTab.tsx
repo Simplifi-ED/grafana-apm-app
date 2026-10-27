@@ -239,7 +239,8 @@ export function LogsTab({
           width={30}
           placeholder="All severities"
         />
-        {logsUid && podOptions.length > 1 && (
+        {/* Loki-only controls — not used when ClickHouse is the primary Explore path. */}
+        {logsUid && !clickHouseUid && podOptions.length > 1 && (
           <>
             <label className={styles.label}>Pod:</label>
             <Combobox
@@ -251,13 +252,13 @@ export function LogsTab({
             />
           </>
         )}
-        {logsUid && (
+        {logsUid && !clickHouseUid && (
           <label className={styles.toggle}>
             <Switch value={includeFaro} onChange={() => setIncludeFaro(!includeFaro)} />
             <span>Include browser telemetry</span>
           </label>
         )}
-        {logsUid && includeFaro && (
+        {logsUid && !clickHouseUid && includeFaro && (
           <>
             <label className={styles.label}>Kind:</label>
             <MultiCombobox
@@ -269,7 +270,7 @@ export function LogsTab({
             />
           </>
         )}
-        {logsUid && (
+        {logsUid && !clickHouseUid && (
           <LinkButton
             variant="secondary"
             size="sm"
@@ -297,7 +298,7 @@ export function LogsTab({
         clusterFilter={clusterFilter}
         onSelectFilter={setLogSearch}
       />
-      {clickHouseUid && !logsUid ? (
+      {clickHouseUid ? (
         <ClickStackLogsPanel
           namespace={namespace}
           service={service}
@@ -305,6 +306,10 @@ export function LogsTab({
           toMs={toMs}
           severity={severityFilter}
           search={debouncedSearch}
+          from={from}
+          to={to}
+          exploreLogsUid={logsUid}
+          serviceNameLabel={serviceNameLabel}
         />
       ) : scene ? (
         <div className={styles.sceneWrapper}>
