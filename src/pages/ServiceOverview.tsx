@@ -112,10 +112,13 @@ function ServiceOverviewInner({ namespace, service }: { namespace: string; servi
   const tabParam = rawTabParam === 'server' || rawTabParam === 'runtime' ? 'backend' : rawTabParam;
   // A capability-gated tab whose datasource is known-unavailable would render
   // content while its TabsBar button is hidden — fall back to Overview then.
+  const clickHouseAvailable = caps?.clickHouse?.available === true;
+  const tracesAvailable = clickHouseAvailable || caps?.tempo?.available !== false;
+  const logsAvailable = clickHouseAvailable || caps?.loki?.available !== false;
   const tabUnavailable =
     caps != null &&
-    ((['issues', 'logs'].includes(tabParam) && caps.loki?.available === false) ||
-      (tabParam === 'traces' && caps.tempo?.available === false) ||
+    ((['issues', 'logs'].includes(tabParam) && !logsAvailable) ||
+      (tabParam === 'traces' && !tracesAvailable) ||
       (tabParam === 'dependencies' && caps.serviceGraph?.detected === false) ||
       (tabParam === 'profiling' && !pyroscopeAvailable));
   const activeTab: TabId = VALID_TABS.includes(tabParam as TabId) && !tabUnavailable ? (tabParam as TabId) : 'overview';
@@ -228,6 +231,7 @@ function ServiceOverviewInner({ namespace, service }: { namespace: string; servi
         to,
         clickHouseUid,
         hasServerSpans,
+        durationUnit,
       });
     }
     return null;
@@ -380,7 +384,7 @@ function ServiceOverviewInner({ namespace, service }: { namespace: string; servi
         {/* Tabs — hide when required datasource is unavailable */}
         <TabsBar>
           <Tab label="Overview" active={activeTab === 'overview'} onChangeTab={() => setActiveTab('overview')} />
-          {caps?.loki?.available !== false && (
+          {logsAvailable && (
             <Tab label="Issues" active={activeTab === 'issues'} onChangeTab={() => setActiveTab('issues')} />
           )}
           <Tab label="Alerts" active={activeTab === 'alerts'} onChangeTab={() => setActiveTab('alerts')} />
@@ -394,12 +398,10 @@ function ServiceOverviewInner({ namespace, service }: { namespace: string; servi
               onChangeTab={() => setActiveTab('dependencies')}
             />
           )}
-          {caps?.tempo?.available !== false && (
+          {tracesAvailable && (
             <Tab label="Traces" active={activeTab === 'traces'} onChangeTab={() => setActiveTab('traces')} />
           )}
-          {caps?.loki?.available !== false && (
-            <Tab label="Logs" active={activeTab === 'logs'} onChangeTab={() => setActiveTab('logs')} />
-          )}
+          {logsAvailable && <Tab label="Logs" active={activeTab === 'logs'} onChangeTab={() => setActiveTab('logs')} />}
           {pyroscopeAvailable && (
             <Tab label="Profiling" active={activeTab === 'profiling'} onChangeTab={() => setActiveTab('profiling')} />
           )}
@@ -447,7 +449,12 @@ function ServiceOverviewInner({ namespace, service }: { namespace: string; servi
           {visitedTabs.has('issues') && (
             <div style={{ display: activeTab === 'issues' ? undefined : 'none' }}>
               <ErrorBoundary label="Issues tab" resetKeys={[namespace, service, activeTab]}>
-                <IssuesTab service={service} namespace={namespace} environment={envFilter} />
+                <IssuesTab
+                  service={service}
+                  namespace={namespace}
+                  clickHouseUid={clickHouseUid}
+                  environment={envFilter}
+                />
               </ErrorBoundary>
             </div>
           )}
@@ -475,6 +482,7 @@ function ServiceOverviewInner({ namespace, service }: { namespace: string; servi
                   service={service}
                   namespace={namespace}
                   tracesUid={ds.tracesUid}
+                  clickHouseUid={clickHouseUid}
                   from={from}
                   to={to}
                   initialSpan={traceSpan}
@@ -519,7 +527,7 @@ function ServiceOverviewInner({ namespace, service }: { namespace: string; servi
                   toMs={toMs}
                   from={from}
                   to={to}
-                  onViewTraces={caps?.tempo?.available !== false ? onViewTraces : undefined}
+                  onViewTraces={tracesAvailable ? onViewTraces : undefined}
                 />
               </ErrorBoundary>
             </div>
@@ -558,6 +566,7 @@ function ServiceOverviewInner({ namespace, service }: { namespace: string; servi
                   service={service}
                   namespace={namespace}
                   logsUid={ds.logsUid}
+                  clickHouseUid={clickHouseUid}
                   from={from}
                   to={to}
                   serviceNameLabel={labelOverrides.serviceNameLabel}
@@ -605,7 +614,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   controlLabel: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
   `,
 });
 

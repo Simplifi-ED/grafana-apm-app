@@ -21,16 +21,16 @@
 | Service inventory | `GET /services` → ServiceInventory | `otel_metrics_sum` (`traces.spanmetrics.calls`) + `otel_traces` p95 | 🟨 | Live inventory SQL verified; Grafana DS path unit-tested via mock |
 | Capabilities | `GET /capabilities` | sum metrics probes | 🟨 | Detects spanmetrics + service graph + lists services/envs |
 | Operations RED | `GET .../operations` | spanmetrics + traces quantiles | 🟨 | |
-| Overview RED timeseries | Scenes panels | `otel_metrics_sum` + `otel_traces` | 🟨 | ClickHouse SQL scenes when no Prom UID |
+| Overview RED timeseries | Scenes panels | `otel_metrics_sum` + `otel_traces` | 🟨 | ClickHouse SQL scenes when no Prom UID; includes duration distribution heatmap |
 | Endpoints | `GET .../endpoints` | spanmetrics → protocol groups | 🟨 | Maps CH operations into HTTP/DB/client/messaging groups |
 | Service health | `GET .../health` | — | 🟧 | Still Prom when configured |
 | Trace breakdown | `GET .../traces/breakdown` | `otel_traces` | 🟨 | Replaces Tempo TraceQL |
-| Trace waterfall / Explore | Traces tab Tempo links | `otel_traces` available | 🟧 | Plugin breakdown CH; Explore Tempo URLs disabled without Tempo UID |
+| Trace waterfall / Explore | Traces tab | `otel_traces` | 🟨 | ClickStack provides in-app trace search and parent/child waterfall; Tempo Explore remains available when configured |
 | Log patterns | `GET .../logs/patterns` | `otel_logs` Body clustering | 🟨 | Replaces Loki pattern API |
-| Log Explore | Logs tab | — | 🟧 | Needs CH Explore or in-app search (patterns only today) |
-| Issues / exceptions | `GET .../issues` | `otel_traces` StatusCode=Error | 🟧 | Server error spans only; **no Faro browser exceptions** in CH |
+| Log Explore | Logs tab | `otel_logs` | 🟨 | ClickStack provides in-app search/table plus body-clustered patterns; Loki scene remains available when configured |
+| Issues / exceptions | `GET .../issues` | `otel_logs` + `otel_traces` | 🟧 | CH log exception groups are merged with error spans; **no Faro browser exceptions** in CH |
 | Issue occurrences / drawer breadcrumbs | Loki Faro | — | ❌ | Faro streams not in this CH; replay still works via hyperdx_sessions |
-| Frontend Web Vitals | `GET .../frontend` | `otel_traces` `webvitals` spans | 🟨 | HyperDX/@hyperdx/otel-web attributes (lcp/fcp/…); bullet charts in ClickStack UI |
+| Frontend Web Vitals | `GET .../frontend` + Frontend tab | `otel_traces` `webvitals` spans | 🟨 | HyperDX/@hyperdx/otel-web attributes (lcp/fcp/…); bullets and time-series panels in ClickStack UI |
 | Frontend versions | `GET .../frontend/versions` | — | ❌ | Faro `app_version` not verified |
 | Frontend sessions list | `GET .../frontend/sessions` | `hyperdx_sessions` | 🟨 | rum.sessionId list |
 | Session replay | `.../replay`, probe, recordings | `hyperdx_sessions` | ✅ | Step 2; live chunk reassembly verified |
@@ -74,8 +74,7 @@ Docs: [schema.md](schema.md), [session-replay.md](session-replay.md), [configura
 
 ## Remaining work (honest)
 
-- Wire endpoints/health/dependencies/database handlers fully onto `chquery`.
-- In-app log/trace search UI without Tempo/Loki Explore.
-- Browser issues/vitals need HyperDX browser signal mapping (not Faro) — data shape TBD.
+- Wire health/dependencies/database analytics fully onto `chquery` where the current handlers still depend on Prometheus/Tempo.
+- Browser issues, Faro facets, and issue-occurrence drawers need HyperDX browser signal mapping (not Faro) — data shape TBD.
 - End-to-end Grafana→`/api/ds/query` verification once CH DS is provisioned in the local Grafana stack.
 - Player/recorder rrweb version skew for HyperDX 0.20 vs `@grafana/rrweb-player` 2.x.

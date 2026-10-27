@@ -107,6 +107,12 @@ export interface OperationSummary {
   spanName: string;
   spanKind: string;
   spanKindRaw: string;
+  httpMethod?: string;
+  httpRoute?: string;
+  rpcService?: string;
+  rpcMethod?: string;
+  dbSystem?: string;
+  messagingSystem?: string;
   rate: number;
   errorRate: number;
   p50Duration: number;

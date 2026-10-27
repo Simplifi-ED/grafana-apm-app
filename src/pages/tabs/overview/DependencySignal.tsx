@@ -64,7 +64,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     border: 1px solid ${theme.colors.border.weak};
     border-radius: ${theme.shape.radius.default};
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     cursor: pointer;
     &:hover {
       background: ${theme.colors.action.hover};
@@ -82,7 +82,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     border: 1px solid ${theme.colors.warning.border};
     border-radius: ${theme.shape.radius.default};
     color: ${theme.colors.warning.text};
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     font-weight: ${theme.typography.fontWeightMedium};
     cursor: pointer;
     &:hover {

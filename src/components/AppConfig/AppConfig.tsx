@@ -815,7 +815,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   description: css`
     color: ${theme.colors.text.secondary};
     margin-bottom: ${theme.spacing(2)};
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
   `,
   envRow: css`
     display: flex;

@@ -204,7 +204,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     flex-shrink: 0;
   `,
   envBadge: css`
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     color: ${theme.colors.text.secondary};
     background: ${theme.colors.background.canvas};
     padding: 1px ${theme.spacing(0.75)};
@@ -231,7 +231,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   serviceNameSm: css`
     font-weight: ${theme.typography.fontWeightBold};
-    font-size: ${theme.typography.body.fontSize};
+    font-size: ${theme.typography.base.fontSize};
     color: ${theme.colors.text.primary};
     overflow: hidden;
     text-overflow: ellipsis;
@@ -256,7 +256,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     color: ${theme.colors.text.primary};
   `,
   metricValueSm: css`
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     font-variant-numeric: tabular-nums;
     color: ${theme.colors.text.secondary};
   `,
@@ -282,12 +282,12 @@ const getStyles = (theme: GrafanaTheme2) => ({
     letter-spacing: 1px;
   `,
   noDataLabelSm: css`
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     color: ${theme.colors.text.secondary};
     letter-spacing: 0.5px;
   `,
   lastSeen: css`
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     color: ${theme.colors.text.disabled};
   `,
 });

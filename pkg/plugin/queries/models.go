@@ -175,15 +175,21 @@ type DataPoint struct {
 
 // OperationSummary is a single operation entry for the operations table.
 type OperationSummary struct {
-	SpanName     string  `json:"spanName"`
-	SpanKind     string  `json:"spanKind"`
-	SpanKindRaw  string  `json:"spanKindRaw"`
-	Rate         float64 `json:"rate"`
-	ErrorRate    float64 `json:"errorRate"`
-	P50Duration  float64 `json:"p50Duration"`
-	P95Duration  float64 `json:"p95Duration"`
-	P99Duration  float64 `json:"p99Duration"`
-	DurationUnit string  `json:"durationUnit"`
+	SpanName        string  `json:"spanName"`
+	SpanKind        string  `json:"spanKind"`
+	SpanKindRaw     string  `json:"spanKindRaw"`
+	HTTPMethod      string  `json:"httpMethod,omitempty"`
+	HTTPRoute       string  `json:"httpRoute,omitempty"`
+	RPCService      string  `json:"rpcService,omitempty"`
+	RPCMethod       string  `json:"rpcMethod,omitempty"`
+	DBSystem        string  `json:"dbSystem,omitempty"`
+	MessagingSystem string  `json:"messagingSystem,omitempty"`
+	Rate            float64 `json:"rate"`
+	ErrorRate       float64 `json:"errorRate"`
+	P50Duration     float64 `json:"p50Duration"`
+	P95Duration     float64 `json:"p95Duration"`
+	P99Duration     float64 `json:"p99Duration"`
+	DurationUnit    string  `json:"durationUnit"`
 }
 
 // DependencyOperation represents an operation calling a specific dependency,

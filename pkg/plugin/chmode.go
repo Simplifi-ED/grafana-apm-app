@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"slices"
+	"sort"
 	"strings"
 	"time"
 
@@ -440,32 +442,54 @@ func (a *App) fetchLogPatternsClickHouse(
 	service, environment string,
 	from, to time.Time,
 ) LogPatternsResponse {
+	if ch == nil {
+		return LogPatternsResponse{Mode: "unavailable", Patterns: []LogPattern{}, Note: "ClickHouse datasource not configured"}
+	}
 	opts := queries.ClickHouseQueryOptions{From: from, To: to, Limit: 50}
-	res, err := ch.Query(ctx, chquery.LogPatternSQL(service, from, to, environment, 50), opts)
+	severity := "error,fatal,critical"
+	res, err := ch.Query(ctx, chquery.LogPatternSQLFiltered(service, from, to, environment, severity, 50), opts)
 	if err != nil {
 		log.DefaultLogger.Warn("log patterns CH query failed", "error", err)
 		return LogPatternsResponse{Mode: "unavailable", Patterns: []LogPattern{}, Note: "clickhouse query failed"}
 	}
 	parsed := chquery.ParseLogPatternMaps(res.Maps())
+	span := to.Sub(from)
+	previous := make(map[string]struct{})
+	if span > 0 {
+		prevRes, prevErr := ch.Query(
+			ctx,
+			chquery.LogPatternSQLFiltered(service, from.Add(-span), from, environment, severity, 50),
+			queries.ClickHouseQueryOptions{From: from.Add(-span), To: from, Limit: 50},
+		)
+		if prevErr == nil {
+			for _, pattern := range chquery.ParseLogPatternMaps(prevRes.Maps()) {
+				previous[pattern.Pattern] = struct{}{}
+			}
+		}
+	}
 	out := make([]LogPattern, 0, len(parsed))
 	for _, p := range parsed {
 		out = append(out, LogPattern{
-			Pattern: p.Pattern,
-			Count:   p.Count,
-			Level:   p.Severity,
+			Pattern:       p.Pattern,
+			Count:         p.Count,
+			Level:         p.Severity,
+			FirstSeenMs:   p.FirstSeenMs,
+			LastSeenMs:    p.LastSeenMs,
+			IsNew:         len(previous) > 0 && !patternSeen(previous, p.Pattern),
+			FilterLiteral: longestLiteral(p.Pattern),
 		})
 	}
-	return LogPatternsResponse{Mode: "sampled", Patterns: out, Note: "ClickHouse Body clustering"}
+	return LogPatternsResponse{Mode: "sampled", Patterns: out, Note: "ClickHouse error-log clustering"}
 }
 
 func (a *App) fetchTraceBreakdownClickHouse(
 	ctx context.Context,
 	ch *queries.ClickHouseClient,
-	service, environment string,
+	service, environment, dimension string,
 	from, to time.Time,
 ) TraceBreakdownResponse {
 	opts := queries.ClickHouseQueryOptions{From: from, To: to, Limit: 100}
-	res, err := ch.Query(ctx, chquery.TraceBreakdownSQL(service, from, to, environment, 100), opts)
+	res, err := ch.Query(ctx, chquery.TraceBreakdownSQLForDimension(service, from, to, environment, dimension, 100), opts)
 	if err != nil {
 		log.DefaultLogger.Warn("trace breakdown CH query failed", "error", err)
 		return TraceBreakdownResponse{Mode: "unavailable", Note: "clickhouse query failed"}
@@ -479,17 +503,17 @@ func (a *App) fetchTraceBreakdownClickHouse(
 			errRate = float64(r.Errors) / float64(r.Spans)
 		}
 		out = append(out, TraceBreakdownRow{
-			Value:     r.SpanName,
+			Value:     r.Value,
 			Rate:      float64(r.Spans) / window,
 			ErrorRate: errRate,
 			P95Ms:     r.P95Ms,
-			P99Ms:     r.P95Ms, // p99 not queried separately; reuse p95 until dedicated query
+			P99Ms:     r.P99Ms,
 		})
 	}
 	return TraceBreakdownResponse{
 		Mode:       "spanmetrics",
-		Dimension:  "span_name",
-		Dimensions: []string{"span_name"},
+		Dimension:  dimension,
+		Dimensions: []string{"name", "http.route", "http.status_code", "db.system", "db.operation", "messaging.system", "rpc.method"},
 		Rows:       out,
 		Note:       "ClickHouse otel_traces aggregates",
 	}
@@ -501,43 +525,94 @@ func (a *App) fetchIssuesClickHouse(
 	service, environment string,
 	from, to time.Time,
 ) IssuesResponse {
-	opts := queries.ClickHouseQueryOptions{From: from, To: to, Limit: 50}
-	res, err := ch.Query(ctx, chquery.ErrorSpansSQL(service, from, to, environment), opts)
-	if err != nil {
-		log.DefaultLogger.Warn("issues CH query failed", "error", err)
+	if ch == nil {
 		return IssuesResponse{
 			FingerprintVersion: fingerprint.Version,
+			Sources:            IssueSources{},
 			Issues:             []Issue{},
 			Unavailable:        true,
-			Sources:            IssueSources{},
 		}
 	}
-	issues := make([]Issue, 0, res.RowCount())
-	for _, m := range res.Maps() {
-		name := chquery.ParseString(m["span_name"])
-		msg := chquery.ParseString(m["status_message"])
-		title := name
-		if msg != "" {
-			title = name + ": " + msg
+	opts := queries.ClickHouseQueryOptions{From: from, To: to, Limit: 50}
+	logRes, logErr := ch.Query(ctx, chquery.ExceptionGroupsSQL(service, from, to, environment, 50), opts)
+	if logErr != nil {
+		log.DefaultLogger.Warn("issues CH log query failed", "error", logErr)
+	}
+	spanRes, spanErr := ch.Query(ctx, chquery.ErrorSpansSQL(service, from, to, environment), opts)
+	if spanErr != nil {
+		log.DefaultLogger.Warn("issues CH span query failed", "error", spanErr)
+	}
+
+	byFingerprint := make(map[string]*Issue)
+	add := func(event fingerprint.Event, count float64, issueType, member string, sourceTitle string) {
+		result := fingerprint.Compute(event)
+		issue, ok := byFingerprint[result.Value]
+		if !ok {
+			issue = &Issue{
+				Fingerprint:  result.Value,
+				Tier:         int(result.Tier),
+				Title:        result.Title,
+				Types:        []string{},
+				MemberHashes: []string{},
+				Source:       issueSourceServer,
+			}
+			byFingerprint[result.Value] = issue
 		}
-		count := chquery.ParseFloat(m["errors"])
-		fp := "ch:span:" + name
-		issues = append(issues, Issue{
-			ExceptionGroup: ExceptionGroup{
-				Fingerprint:  fp,
-				Tier:         1,
-				Title:        title,
-				Types:        []string{name},
-				Count:        count,
-				MemberHashes: []string{fp},
-			},
-			Source: "server",
-		})
+		issue.Count += count
+		if issueType != "" && !containsString(issue.Types, issueType) {
+			issue.Types = append(issue.Types, issueType)
+		}
+		if member != "" && !containsString(issue.MemberHashes, member) {
+			issue.MemberHashes = append(issue.MemberHashes, member)
+		}
+		if issue.Title == "" && sourceTitle != "" {
+			issue.Title = sourceTitle
+		}
+	}
+
+	if logErr == nil {
+		for _, row := range chquery.ParseExceptionGroupsMaps(logRes.Maps()) {
+			add(
+				fingerprint.Event{Type: row.ExceptionType, Value: row.Message},
+				float64(row.Occurrences),
+				row.ExceptionType,
+				"ch:log:"+row.Fingerprint,
+				row.Message,
+			)
+		}
+	}
+	if spanErr == nil {
+		for _, row := range spanRes.Maps() {
+			name := chquery.ParseString(row["span_name"])
+			message := chquery.ParseString(row["status_message"])
+			add(
+				fingerprint.Event{Type: name, Value: message},
+				chquery.ParseFloat(row["errors"]),
+				name,
+				"ch:span:"+name,
+				name,
+			)
+		}
+	}
+
+	issues := make([]Issue, 0, len(byFingerprint))
+	for _, issue := range byFingerprint {
+		issues = append(issues, *issue)
+	}
+	sort.Slice(issues, func(i, j int) bool {
+		if issues[i].Count != issues[j].Count {
+			return issues[i].Count > issues[j].Count
+		}
+		return issues[i].Fingerprint < issues[j].Fingerprint
+	})
+	if len(issues) > maxGroups {
+		issues = issues[:maxGroups]
 	}
 	return IssuesResponse{
 		FingerprintVersion: fingerprint.Version,
-		Sources:            IssueSources{ServerLogs: true},
+		Sources:            IssueSources{ServerLogs: logErr == nil || spanErr == nil},
 		Issues:             issues,
+		Unavailable:        logErr != nil && spanErr != nil,
 	}
 }
 
@@ -586,4 +661,13 @@ LIMIT 50`, table, where, fromMs, toMs)
 		})
 	}
 	return FrontendSessionsResponse{Sessions: out}
+}
+
+func containsString(values []string, want string) bool {
+	return slices.Contains(values, want)
+}
+
+func patternSeen(patterns map[string]struct{}, pattern string) bool {
+	_, ok := patterns[pattern]
+	return ok
 }

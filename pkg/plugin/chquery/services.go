@@ -299,7 +299,9 @@ func AttachInventorySeries(summaries []queries.ServiceSummary, callRows, duratio
 	}
 }
 
-// OperationsSQL returns per-span-name rate/error for one service.
+// OperationsSQL returns per-span-name rate/error for one service, preserving
+// the semantic attributes needed to classify HTTP, RPC, database, and
+// messaging operations without relying on span-name heuristics.
 func OperationsSQL(service string, from, to time.Time, environment string) string {
 	fromMs, toMs := TimeBounds(from, to)
 	filt := FilterClause("", environment, service, "ResourceAttributes")
@@ -307,6 +309,12 @@ func OperationsSQL(service string, from, to time.Time, environment string) strin
 SELECT
   Attributes['%s'] AS span_name,
   Attributes['%s'] AS span_kind,
+  Attributes['%s'] AS http_method,
+  Attributes['%s'] AS http_route,
+  Attributes['%s'] AS rpc_service,
+  Attributes['%s'] AS rpc_method,
+  Attributes['%s'] AS db_system,
+  Attributes['%s'] AS messaging_system,
   sum(Value) AS calls,
   sumIf(Value, Attributes['%s'] = %s) AS errors
 FROM %s
@@ -314,11 +322,12 @@ WHERE MetricName = %s
   AND TimeUnix >= fromUnixTimestamp64Milli(%d)
   AND TimeUnix <= fromUnixTimestamp64Milli(%d)
   AND (%s)
-GROUP BY span_name, span_kind
+GROUP BY span_name, span_kind, http_method, http_route, rpc_service, rpc_method, db_system, messaging_system
 HAVING calls > 0 AND span_name != ''
 ORDER BY calls DESC
 LIMIT 200`,
 		AttrSpanName, AttrSpanKind,
+		AttrHTTPMethod, AttrHTTPRoute, AttrRPCService, AttrRPCMethod, AttrDBSystem, AttrMessagingSystem,
 		AttrStatusCode, q(StatusError),
 		table(queries.CHTableMetricsSum),
 		q(MetricSpanCalls),
@@ -340,21 +349,28 @@ func OperationLatencySQL(service string, from, to time.Time, environment string)
 SELECT
   SpanName AS span_name,
   SpanKind AS span_kind,
+  SpanAttributes['%s'] AS http_method,
+  SpanAttributes['%s'] AS http_route,
+  SpanAttributes['%s'] AS rpc_service,
+  SpanAttributes['%s'] AS rpc_method,
+  SpanAttributes['%s'] AS db_system,
+  SpanAttributes['%s'] AS messaging_system,
   quantile(0.50)(Duration) / 1e6 AS p50_ms,
   quantile(0.95)(Duration) / 1e6 AS p95_ms,
   quantile(0.99)(Duration) / 1e6 AS p99_ms
 FROM %s
 WHERE %s
-GROUP BY span_name, span_kind
-LIMIT 200`, table(queries.CHTableTraces), where)
+GROUP BY span_name, span_kind, http_method, http_route, rpc_service, rpc_method, db_system, messaging_system
+LIMIT 200`,
+		AttrHTTPMethod, AttrHTTPRoute, AttrRPCService, AttrRPCMethod, AttrDBSystem, AttrMessagingSystem,
+		table(queries.CHTableTraces), where)
 }
 
 // ParseOperations merges call and latency maps into OperationSummary.
 func ParseOperations(callRows, latencyRows []map[string]any, windowSec float64) []queries.OperationSummary {
-	type key struct{ name, kind string }
-	lat := make(map[key][3]float64, len(latencyRows))
+	lat := make(map[operationKey][3]float64, len(latencyRows))
 	for _, r := range latencyRows {
-		k := key{ParseString(r["span_name"]), ParseString(r["span_kind"])}
+		k := operationKeyFromMap(r)
 		lat[k] = [3]float64{ParseFloat(r["p50_ms"]), ParseFloat(r["p95_ms"]), ParseFloat(r["p99_ms"])}
 	}
 	out := make([]queries.OperationSummary, 0, len(callRows))
@@ -367,20 +383,44 @@ func ParseOperations(callRows, latencyRows []map[string]any, windowSec float64) 
 		if calls > 0 {
 			errRate = errors / calls
 		}
-		l := lat[key{name, kind}]
+		k := operationKeyFromMap(r)
+		l := lat[k]
 		out = append(out, queries.OperationSummary{
-			SpanName:     name,
-			SpanKind:     friendlySpanKind(kind),
-			SpanKindRaw:  kind,
-			Rate:         calls / windowSec,
-			ErrorRate:    errRate,
-			P50Duration:  l[0],
-			P95Duration:  l[1],
-			P99Duration:  l[2],
-			DurationUnit: "ms",
+			SpanName:        name,
+			SpanKind:        friendlySpanKind(kind),
+			SpanKindRaw:     kind,
+			HTTPMethod:      k.httpMethod,
+			HTTPRoute:       k.httpRoute,
+			RPCService:      k.rpcService,
+			RPCMethod:       k.rpcMethod,
+			DBSystem:        k.dbSystem,
+			MessagingSystem: k.messagingSystem,
+			Rate:            calls / windowSec,
+			ErrorRate:       errRate,
+			P50Duration:     l[0],
+			P95Duration:     l[1],
+			P99Duration:     l[2],
+			DurationUnit:    "ms",
 		})
 	}
 	return out
+}
+
+type operationKey struct {
+	name, kind, httpMethod, httpRoute, rpcService, rpcMethod, dbSystem, messagingSystem string
+}
+
+func operationKeyFromMap(r map[string]any) operationKey {
+	return operationKey{
+		name:            ParseString(r["span_name"]),
+		kind:            ParseString(r["span_kind"]),
+		httpMethod:      ParseString(r["http_method"]),
+		httpRoute:       ParseString(r["http_route"]),
+		rpcService:      ParseString(r["rpc_service"]),
+		rpcMethod:       ParseString(r["rpc_method"]),
+		dbSystem:        ParseString(r["db_system"]),
+		messagingSystem: ParseString(r["messaging_system"]),
+	}
 }
 
 func friendlySpanKind(raw string) string {

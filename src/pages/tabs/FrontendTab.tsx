@@ -36,6 +36,7 @@ import {
   type FrontendSceneContext,
 } from './frontend';
 import { buildAttributionSection } from './frontend/attribution';
+import { buildClickStackFrontendScene } from '../buildClickStackFrontendScene';
 
 interface FrontendTabProps {
   service: string;
@@ -115,7 +116,14 @@ export function FrontendTab({ service, namespace, environment }: FrontendTabProp
         </Alert>
       )}
       {clickStackOnly ? (
-        <ClickStackFrontendSummary vitals={vitals} />
+        <ClickStackFrontendSummary
+          service={service}
+          environment={environment}
+          clickHouseUid={ds.clickHouseUid}
+          from={from}
+          to={to}
+          vitals={vitals}
+        />
       ) : (
         <FrontendPanels
           service={service}
@@ -148,8 +156,33 @@ export function FrontendTab({ service, namespace, environment }: FrontendTabProp
   );
 }
 
-function ClickStackFrontendSummary({ vitals }: { vitals?: Record<string, number> }) {
+function ClickStackFrontendSummary({
+  service,
+  environment,
+  clickHouseUid,
+  from,
+  to,
+  vitals,
+}: {
+  service: string;
+  environment?: string;
+  clickHouseUid: string;
+  from: string;
+  to: string;
+  vitals?: Record<string, number>;
+}) {
   const styles = useStyles2(getStyles);
+  const scene = useMemo(
+    () =>
+      buildClickStackFrontendScene({
+        service,
+        environment,
+        clickHouseUid,
+        from,
+        to,
+      }),
+    [service, environment, clickHouseUid, from, to]
+  );
   return (
     <div className={styles.container}>
       {vitals && Object.keys(vitals).length > 0 ? (
@@ -160,9 +193,10 @@ function ClickStackFrontendSummary({ vitals }: { vitals?: Record<string, number>
           hours.
         </Alert>
       )}
+      {scene && <scene.Component model={scene} />}
       <Alert severity="info" title="ClickStack mode">
-        Core Web Vitals are aggregated from <code>webvitals</code> spans in ClickHouse. Full trend / per-page panels
-        need a Prometheus metrics datasource with Faro histograms.
+        Core Web Vitals and trends are aggregated from <code>webvitals</code> spans in ClickHouse. Faro-only browser
+        exception facets and per-page attribution require the Prometheus/Loki frontend pipeline.
       </Alert>
     </div>
   );
@@ -396,7 +430,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     display: flex;
     align-items: center;
     gap: ${theme.spacing(1)};
-    font-size: ${theme.typography.h5.fontSize};
+    font-size: ${theme.typography.base.fontSize};
     font-weight: ${theme.typography.fontWeightMedium};
     color: ${theme.colors.text.primary};
     margin: 0;
@@ -427,7 +461,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     margin-bottom: 4px;
   `,
   cardDescription: css`
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     color: ${theme.colors.text.secondary};
   `,
 });

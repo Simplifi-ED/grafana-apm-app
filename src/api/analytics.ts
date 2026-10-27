@@ -106,6 +106,126 @@ export async function getTraceBreakdown(
   );
 }
 
+// ---- ClickStack trace search / waterfall ----
+
+export interface ClickStackTraceSummary {
+  traceId: string;
+  startMs: number;
+  endMs: number;
+  spanCount: number;
+  errors: number;
+  totalMs: number;
+}
+
+export interface ClickStackTraceSearchResponse {
+  mode: 'clickhouse' | 'unavailable';
+  traces: ClickStackTraceSummary[];
+  note?: string;
+}
+
+export interface ClickStackTraceSpan {
+  timestampMs: number;
+  traceId: string;
+  spanId: string;
+  parentSpanId: string;
+  spanName: string;
+  spanKind: string;
+  service: string;
+  status: string;
+  durationMs: number;
+  statusMessage?: string;
+}
+
+export interface ClickStackTraceDetailResponse {
+  mode: 'clickhouse' | 'unavailable';
+  traceId: string;
+  spans: ClickStackTraceSpan[];
+  note?: string;
+}
+
+export async function getTraceSearch(
+  namespace: string,
+  service: string,
+  from: number,
+  to: number,
+  status = '',
+  span = '',
+  minDurationMs = '',
+  maxDurationMs = ''
+): Promise<ClickStackTraceSearchResponse> {
+  const params: Record<string, string> = {
+    ...timeParams(from, to),
+  };
+  if (status) {
+    params.status = status;
+  }
+  if (span) {
+    params.span = span;
+  }
+  if (minDurationMs) {
+    params.minDurationMs = minDurationMs;
+  }
+  if (maxDurationMs) {
+    params.maxDurationMs = maxDurationMs;
+  }
+  return fetchResource<ClickStackTraceSearchResponse>(
+    `/services/${nsParam(namespace)}/${encodeURIComponent(service)}/traces/search`,
+    params
+  );
+}
+
+export async function getTraceDetail(
+  namespace: string,
+  service: string,
+  traceId: string,
+  from: number,
+  to: number
+): Promise<ClickStackTraceDetailResponse> {
+  return fetchResource<ClickStackTraceDetailResponse>(
+    `/services/${nsParam(namespace)}/${encodeURIComponent(service)}/traces/${encodeURIComponent(traceId)}`,
+    timeParams(from, to)
+  );
+}
+
+// ---- ClickStack log search ----
+
+export interface ClickStackLogEntry {
+  timestampMs: number;
+  severity: string;
+  body: string;
+  traceId?: string;
+  spanId?: string;
+}
+
+export interface ClickStackLogsResponse {
+  mode: 'clickhouse' | 'unavailable';
+  logs: ClickStackLogEntry[];
+  note?: string;
+}
+
+export async function getLogSearch(
+  namespace: string,
+  service: string,
+  from: number,
+  to: number,
+  severity: string[] = [],
+  search = ''
+): Promise<ClickStackLogsResponse> {
+  const params: Record<string, string> = {
+    ...timeParams(from, to),
+  };
+  if (severity.length > 0) {
+    params.severity = severity.join(',');
+  }
+  if (search) {
+    params.search = search;
+  }
+  return fetchResource<ClickStackLogsResponse>(
+    `/services/${nsParam(namespace)}/${encodeURIComponent(service)}/logs/search`,
+    params
+  );
+}
+
 // ---- Top database queries (issue #119 Phase 2) ----
 
 export type TopQueriesMode = 'traceql' | 'unavailable';

@@ -244,11 +244,11 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   title: css`
     margin: 0;
-    font-size: ${theme.typography.h5.fontSize};
+    font-size: ${theme.typography.base.fontSize};
   `,
   subtitle: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
   `,
   targetGroup: css`
     display: flex;
@@ -256,7 +256,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     gap: ${theme.spacing(1)};
   `,
   targetLabel: css`
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     color: ${theme.colors.text.secondary};
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -275,23 +275,23 @@ const getStyles = (theme: GrafanaTheme2) => ({
     gap: ${theme.spacing(0.5)};
   `,
   tileLabel: css`
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     color: ${theme.colors.text.secondary};
     text-transform: uppercase;
     letter-spacing: 0.5px;
   `,
   tileValue: css`
-    font-size: ${theme.typography.h2.fontSize};
+    font-size: ${theme.typography.xl.fontSize};
     font-weight: ${theme.typography.fontWeightMedium};
     font-variant-numeric: tabular-nums;
   `,
   burnHint: css`
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     color: ${theme.colors.text.secondary};
     font-weight: ${theme.typography.fontWeightRegular};
   `,
   notEnough: css`
-    font-size: ${theme.typography.body.fontSize};
+    font-size: ${theme.typography.base.fontSize};
     color: ${theme.colors.text.secondary};
   `,
   barTrack: css`
@@ -326,7 +326,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     flex-wrap: wrap;
   `,
   actionsLabel: css`
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     color: ${theme.colors.text.secondary};
   `,
   infoIcon: css`
@@ -338,6 +338,6 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   message: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
   `,
 });

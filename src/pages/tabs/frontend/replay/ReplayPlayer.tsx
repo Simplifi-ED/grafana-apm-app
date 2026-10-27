@@ -106,7 +106,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   privacyNotice: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     display: inline-flex;
     align-items: center;
     gap: 4px;

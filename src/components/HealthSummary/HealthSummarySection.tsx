@@ -224,7 +224,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     margin-bottom: ${theme.spacing(0.5)};
   `,
   attentionSubtitle: css`
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     color: ${theme.colors.text.secondary};
     margin-bottom: ${theme.spacing(1.5)};
   `,
@@ -237,7 +237,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   attentionLabel: css`
     display: block;
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     color: ${theme.colors.text.secondary};
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -277,16 +277,16 @@ const getStyles = (theme: GrafanaTheme2) => ({
   attentionKind: css`
     font-weight: ${theme.typography.fontWeightRegular};
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
   `,
   attentionReason: css`
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     color: ${theme.colors.error.text};
     white-space: nowrap;
     flex-shrink: 0;
   `,
   attentionNote: css`
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     color: ${theme.colors.text.secondary};
     font-style: italic;
     margin-top: ${theme.spacing(1)};

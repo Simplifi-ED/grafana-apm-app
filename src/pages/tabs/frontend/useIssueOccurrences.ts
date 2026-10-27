@@ -335,7 +335,6 @@ export function useIssueOccurrences(opts: UseIssueOccurrencesOptions): UseIssueO
     // Depending on the object refired the effect on every unrelated re-render,
     // and since each fetch sets new-identity state, that self-sustained a
     // refetch loop (regression covered in ExceptionDrawer.test.tsx).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     source,
     resolving,

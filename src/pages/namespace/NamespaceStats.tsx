@@ -164,36 +164,36 @@ const getStyles = (theme: GrafanaTheme2) => ({
     gap: ${theme.spacing(0.25)};
   `,
   cardTitle: css`
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     color: ${theme.colors.text.secondary};
     text-transform: uppercase;
     letter-spacing: 0.5px;
   `,
   value: css`
-    font-size: ${theme.typography.h4.fontSize};
+    font-size: ${theme.typography.md.fontSize};
     font-weight: ${theme.typography.fontWeightMedium};
     font-variant-numeric: tabular-nums;
   `,
   valueWarning: css`
-    font-size: ${theme.typography.h4.fontSize};
+    font-size: ${theme.typography.md.fontSize};
     font-weight: ${theme.typography.fontWeightMedium};
     font-variant-numeric: tabular-nums;
     color: ${theme.colors.warning.text};
   `,
   valueCritical: css`
-    font-size: ${theme.typography.h4.fontSize};
+    font-size: ${theme.typography.md.fontSize};
     font-weight: ${theme.typography.fontWeightMedium};
     font-variant-numeric: tabular-nums;
     color: ${theme.colors.error.text};
   `,
   valueSuccess: css`
-    font-size: ${theme.typography.h4.fontSize};
+    font-size: ${theme.typography.md.fontSize};
     font-weight: ${theme.typography.fontWeightMedium};
     font-variant-numeric: tabular-nums;
     color: ${theme.colors.success.text};
   `,
   delta: css`
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     color: ${theme.colors.text.secondary};
     font-variant-numeric: tabular-nums;
   `,

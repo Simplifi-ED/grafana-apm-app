@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { useStyles2, Combobox, Input, Icon } from '@grafana/ui';
+import { useStyles2, Combobox, Input, Icon, Alert } from '@grafana/ui';
 import { GrafanaTheme2 } from '@grafana/data';
 import { css } from '@emotion/css';
 import {
@@ -14,6 +14,7 @@ import { useDebouncedValue, escapeRegex } from '../../utils/debounce';
 import { escapeQueryString } from '../../utils/sanitize';
 import { useTimeRange } from '../../utils/timeRange';
 import { TraceBreakdowns } from './traces/TraceBreakdowns';
+import { ClickStackTracesPanel } from './traces/ClickStackTracesPanel';
 
 /** Map OTel span kind values to TraceQL kind literals. */
 function mapSpanKindToTraceQL(raw: string): string {
@@ -37,6 +38,7 @@ interface TracesTabProps {
   service: string;
   namespace: string;
   tracesUid: string;
+  clickHouseUid?: string;
   from: string;
   to: string;
   initialSpan?: string;
@@ -48,6 +50,7 @@ export function TracesTab({
   service,
   namespace,
   tracesUid,
+  clickHouseUid = '',
   initialSpan,
   initialStatus,
   initialSpanKind,
@@ -64,6 +67,9 @@ export function TracesTab({
   const { fromMs, toMs } = useTimeRange();
 
   const scene = useMemo(() => {
+    if (!tracesUid) {
+      return null;
+    }
     // Resolve against the shared URL range (fromMs/toMs) rather than the raw
     // relative strings: the global header time picker replaced this scene's own
     // picker, and a refresh re-resolves fromMs/toMs while from/to stay relative.
@@ -171,13 +177,31 @@ export function TracesTab({
         namespace={namespace}
         service={service}
         tracesUid={tracesUid}
+        clickHouseUid={clickHouseUid}
         fromMs={fromMs}
         toMs={toMs}
         onSelectSpan={setSpanSearch}
       />
-      <div className={styles.sceneWrapper}>
-        <scene.Component model={scene} />
-      </div>
+      {clickHouseUid && !tracesUid ? (
+        <ClickStackTracesPanel
+          namespace={namespace}
+          service={service}
+          fromMs={fromMs}
+          toMs={toMs}
+          status={statusFilter}
+          spanSearch={debouncedSearch}
+          durationMin={durationMin}
+          durationMax={durationMax}
+        />
+      ) : scene != null ? (
+        <div className={styles.sceneWrapper}>
+          <scene.Component model={scene} />
+        </div>
+      ) : (
+        <Alert severity="info" title="Traces unavailable">
+          Configure Tempo or ClickHouse to search traces for this service.
+        </Alert>
+      )}
     </div>
   );
 }
@@ -203,7 +227,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   label: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
   `,
   durationInput: css`
     width: 70px;
@@ -212,6 +236,6 @@ const getStyles = (theme: GrafanaTheme2) => ({
     border-radius: ${theme.shape.radius.default};
     background: ${theme.colors.background.primary};
     color: ${theme.colors.text.primary};
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
   `,
 });

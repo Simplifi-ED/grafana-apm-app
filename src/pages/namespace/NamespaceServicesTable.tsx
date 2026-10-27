@@ -172,7 +172,7 @@ const getLocalStyles = (theme: GrafanaTheme2) => ({
   `,
   arrow: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
   `,
   sparkContainer: css`
     display: flex;
@@ -187,7 +187,7 @@ const getLocalStyles = (theme: GrafanaTheme2) => ({
   `,
   count: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
   `,
   pagination: css`
     margin-top: ${theme.spacing(1.5)};

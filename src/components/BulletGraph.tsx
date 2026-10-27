@@ -174,7 +174,7 @@ function getStyles(theme: GrafanaTheme2) {
     }),
     abbreviation: css({
       fontWeight: theme.typography.fontWeightBold,
-      fontSize: theme.typography.h4.fontSize,
+      fontSize: theme.typography.md.fontSize,
       color: theme.colors.text.primary,
       lineHeight: 1.2,
     }),
@@ -184,7 +184,7 @@ function getStyles(theme: GrafanaTheme2) {
       display: 'flex',
     }),
     metricName: css({
-      fontSize: theme.typography.bodySmall.fontSize,
+      fontSize: theme.typography.sm.fontSize,
       color: theme.colors.text.secondary,
       lineHeight: 1.3,
     }),
@@ -193,17 +193,17 @@ function getStyles(theme: GrafanaTheme2) {
     }),
     bigValue: css({
       fontWeight: theme.typography.fontWeightBold,
-      fontSize: theme.typography.h3.fontSize,
+      fontSize: theme.typography.lg.fontSize,
       fontVariantNumeric: 'tabular-nums',
       lineHeight: 1.2,
     }),
     ratingText: css({
-      fontSize: theme.typography.bodySmall.fontSize,
+      fontSize: theme.typography.sm.fontSize,
       fontWeight: theme.typography.fontWeightMedium,
       whiteSpace: 'nowrap' as const,
     }),
     noData: css({
-      fontSize: theme.typography.h3.fontSize,
+      fontSize: theme.typography.lg.fontSize,
       color: theme.colors.text.disabled,
     }),
     barOuter: css({
@@ -232,7 +232,7 @@ function getStyles(theme: GrafanaTheme2) {
     ticks: css({
       position: 'relative' as const,
       height: theme.spacing(2.5),
-      fontSize: theme.typography.bodySmall.fontSize,
+      fontSize: theme.typography.sm.fontSize,
       color: theme.colors.text.secondary,
       marginTop: theme.spacing(0.25),
     }),

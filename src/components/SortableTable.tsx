@@ -128,7 +128,7 @@ export const getTableStyles = (theme: GrafanaTheme2) => ({
       text-align: left;
       padding: ${theme.spacing(1)} ${theme.spacing(1.5)};
       color: ${theme.colors.text.secondary};
-      font-size: ${theme.typography.bodySmall.fontSize};
+      font-size: ${theme.typography.sm.fontSize};
       font-weight: ${theme.typography.fontWeightMedium};
       border-bottom: 1px solid ${theme.colors.border.medium};
       white-space: nowrap;
@@ -223,7 +223,7 @@ export const getTableStyles = (theme: GrafanaTheme2) => ({
     transition: width 0.3s ease;
   `,
   impactBarLabel: css`
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     color: ${theme.colors.text.secondary};
     min-width: 32px;
     text-align: right;

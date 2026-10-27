@@ -80,12 +80,12 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   sectionTitle: css`
     margin: 0;
-    font-size: ${theme.typography.h4.fontSize};
+    font-size: ${theme.typography.md.fontSize};
     font-weight: ${theme.typography.fontWeightMedium};
     color: ${theme.colors.text.primary};
   `,
   sectionSubtitle: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
   `,
 });

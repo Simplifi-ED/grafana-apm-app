@@ -143,14 +143,14 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   serviceName: css`
     font-weight: ${theme.typography.fontWeightMedium};
-    font-size: ${theme.typography.body.fontSize};
+    font-size: ${theme.typography.base.fontSize};
     color: ${theme.colors.text.primary};
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   `,
   envBadge: css`
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     color: ${theme.colors.text.secondary};
     background: ${theme.colors.background.canvas};
     padding: 1px ${theme.spacing(0.75)};
@@ -164,12 +164,12 @@ const getStyles = (theme: GrafanaTheme2) => ({
     flex-wrap: wrap;
   `,
   metric: css`
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     color: ${theme.colors.text.primary};
     font-variant-numeric: tabular-nums;
   `,
   metricSecondary: css`
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     color: ${theme.colors.text.secondary};
     font-variant-numeric: tabular-nums;
   `,

@@ -160,7 +160,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     display: flex;
     align-items: center;
     gap: ${theme.spacing(1)};
-    font-size: ${theme.typography.h5.fontSize};
+    font-size: ${theme.typography.base.fontSize};
     font-weight: ${theme.typography.fontWeightMedium};
     margin-bottom: ${theme.spacing(1)};
     color: ${theme.colors.text.primary};
@@ -182,7 +182,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     background: ${theme.colors.warning.transparent};
     border: 1px solid ${theme.colors.warning.borderTransparent};
     color: ${theme.colors.text.primary};
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     svg {
       color: ${theme.colors.warning.text};
       flex-shrink: 0;
@@ -223,7 +223,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     transition: width 0.3s ease;
   `,
   utilLabel: css`
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     color: ${theme.colors.text.secondary};
     min-width: 36px;
     text-align: right;

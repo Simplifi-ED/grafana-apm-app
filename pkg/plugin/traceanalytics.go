@@ -84,8 +84,13 @@ func (a *App) handleTraceBreakdown(w http.ResponseWriter, req *http.Request) {
 	}
 	from, to := parseTimeRange(req)
 	environment := parseEnvironment(req)
+	// Restrict the dimension to the curated set for both Tempo and ClickStack.
+	dimension := req.URL.Query().Get("dimension")
+	if _, ok := dimensionByKey(dimension); !ok {
+		dimension = "name"
+	}
 	if a.clickStackMode() {
-		writeJSON(w, a.fetchTraceBreakdownClickHouse(ctx, a.chForRequest(req), service, environment, from, to))
+		writeJSON(w, a.fetchTraceBreakdownClickHouse(ctx, a.chForRequest(req), service, environment, dimension, from, to))
 		return
 	}
 	tracesUID := sanitizeDatasourceUID(req.URL.Query().Get("tracesUid"))
@@ -95,12 +100,6 @@ func (a *App) handleTraceBreakdown(w http.ResponseWriter, req *http.Request) {
 		writeJSON(w, TraceBreakdownResponse{Mode: "unavailable", Rows: []TraceBreakdownRow{}, Note: "traces datasource not configured"})
 		return
 	}
-	// Restrict the dimension to the curated set; default to span name.
-	dimension := req.URL.Query().Get("dimension")
-	if _, ok := dimensionByKey(dimension); !ok {
-		dimension = "name"
-	}
-
 	orgID := req.Header.Get("X-Grafana-Org-Id")
 	ck := cacheKey("tracebreakdown", orgID, roundedUnix(from), roundedUnix(to), namespace, service, tracesUID, dimension)
 	headers := req.Header

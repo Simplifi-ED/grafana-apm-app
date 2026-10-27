@@ -155,16 +155,16 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   title: css`
     margin: 0;
-    font-size: ${theme.typography.body.fontSize};
+    font-size: ${theme.typography.base.fontSize};
   `,
   subtitle: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
   `,
   table: css`
     width: 100%;
     border-collapse: collapse;
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     th {
       text-align: left;
       color: ${theme.colors.text.secondary};
@@ -226,6 +226,6 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   shareLabel: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
   `,
 });
