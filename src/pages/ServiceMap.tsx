@@ -117,7 +117,6 @@ function ServiceMap() {
   ];
 
   const loading = view === 'namespaces' ? clusteredLoading : clusteredLoading || fullLoading;
-  const panelHeight = Math.min(900, Math.max(500, graphNodes.length * 22));
 
   return (
     <PluginPage layout={PageLayoutType.Canvas}>
@@ -180,7 +179,9 @@ function ServiceMap() {
           emptyMessage="No service-to-service traffic found for the selected time range and environment."
           loadingText="Loading service map..."
         >
-          <div className={styles.graphPanel} style={{ height: panelHeight }}>
+          {/* Fills remaining viewport like Explore's node graph — not a fixed
+              node-count height that leaves empty chrome under a small map. */}
+          <div className={styles.graphPanel} data-testid="service-map-canvas">
             <ServiceGraph
               nodes={graphNodes}
               edges={graphEdges}
@@ -201,21 +202,27 @@ const getStyles = (theme: GrafanaTheme2) => ({
     display: flex;
     flex-direction: column;
     flex: 1;
-    min-height: 0;
+    /* Fill PluginPage canvas; viewport floor matches Explore node-graph sizing
+       when the parent height chain does not stretch (common in Grafana shells). */
+    height: 100%;
+    min-height: calc(100vh - 160px);
     padding: 0;
+    overflow: hidden;
   `,
   description: css`
     color: ${theme.colors.text.secondary};
     margin: 0;
     max-width: 720px;
+    font-size: ${theme.typography.bodySmall.fontSize};
   `,
   headerRow: css`
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: ${theme.spacing(2)};
+    margin-bottom: ${theme.spacing(1)};
     gap: ${theme.spacing(1)};
     flex-wrap: wrap;
+    flex-shrink: 0;
   `,
   headerControls: css`
     display: flex;
@@ -226,8 +233,9 @@ const getStyles = (theme: GrafanaTheme2) => ({
     display: flex;
     align-items: center;
     gap: ${theme.spacing(1.5)};
-    margin-bottom: ${theme.spacing(1.5)};
+    margin-bottom: ${theme.spacing(1)};
     flex-wrap: wrap;
+    flex-shrink: 0;
   `,
   counts: css`
     font-size: ${theme.typography.bodySmall.fontSize};
@@ -245,10 +253,11 @@ const getStyles = (theme: GrafanaTheme2) => ({
     margin-left: auto;
   `,
   graphPanel: css`
+    flex: 1 1 auto;
+    min-height: 0;
     background: ${theme.colors.background.secondary};
     border: 1px solid ${theme.colors.border.weak};
     border-radius: ${theme.shape.radius.default};
-    padding: ${theme.spacing(1)};
     overflow: hidden;
     display: flex;
   `,

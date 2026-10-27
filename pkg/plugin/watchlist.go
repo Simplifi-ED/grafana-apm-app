@@ -110,18 +110,36 @@ type pluginSettings struct {
 	SecureJSONFields map[string]bool `json:"secureJsonFields"`
 }
 
+// pluginID is the Grafana app id from plugin.json / app.Manage. Kept in one
+// place so settings API paths cannot drift from the installed plugin.
+const pluginID = "clickhouse-apm-app"
+
+// applySettingsAPIAuth authenticates Grafana /api/plugins/.../settings calls.
+//
+// Do not use PluginAppClientSecret / forwarded Authorization: after a plugin-id
+// rename (nais-apm-app → clickhouse-apm-app) that auto SA can 404 this endpoint
+// while an org session cookie (or anonymous Admin) still succeeds. Only forward
+// session cookies + org headers; fall back to the manual secureJsonData token.
+func (a *App) applySettingsAPIAuth(apiReq, userReq *http.Request) {
+	for _, key := range []string{"Cookie", "X-Grafana-Org-Id", "X-Grafana-Id"} {
+		for _, v := range userReq.Header.Values(key) {
+			apiReq.Header.Add(key, v)
+		}
+	}
+	if a.serviceToken != "" {
+		apiReq.Header.Set("Authorization", "Bearer "+a.serviceToken)
+	}
+}
+
 // fetchPluginSettings retrieves the plugin's current settings from the Grafana API.
 func (a *App) fetchPluginSettings(req *http.Request) (*pluginSettings, error) {
-	token := a.resolveServiceToken(req.Context())
-	url := fmt.Sprintf("%s/api/plugins/clickhouse-apm-app/settings", a.grafanaURL)
+	url := fmt.Sprintf("%s/api/plugins/%s/settings", a.grafanaURL, pluginID)
 
 	apiReq, err := http.NewRequestWithContext(req.Context(), http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}
-	if token != "" {
-		apiReq.Header.Set("Authorization", "Bearer "+token)
-	}
+	a.applySettingsAPIAuth(apiReq, req)
 
 	resp, err := a.healthClient.Do(apiReq)
 	if err != nil {
@@ -147,8 +165,7 @@ func (a *App) fetchPluginSettings(req *http.Request) (*pluginSettings, error) {
 // savePluginSettings updates the plugin's settings via the Grafana API.
 // It preserves secureJsonFields to avoid wiping existing secrets.
 func (a *App) savePluginSettings(req *http.Request, settings *pluginSettings) error {
-	token := a.resolveServiceToken(req.Context())
-	url := fmt.Sprintf("%s/api/plugins/clickhouse-apm-app/settings", a.grafanaURL)
+	url := fmt.Sprintf("%s/api/plugins/%s/settings", a.grafanaURL, pluginID)
 
 	// Build the save payload preserving secure fields.
 	// When secureJsonFields are included with true values, Grafana keeps
@@ -172,9 +189,7 @@ func (a *App) savePluginSettings(req *http.Request, settings *pluginSettings) er
 		return err
 	}
 	apiReq.Header.Set("Content-Type", "application/json")
-	if token != "" {
-		apiReq.Header.Set("Authorization", "Bearer "+token)
-	}
+	a.applySettingsAPIAuth(apiReq, req)
 
 	resp, err := a.healthClient.Do(apiReq)
 	if err != nil {

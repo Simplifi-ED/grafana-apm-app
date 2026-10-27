@@ -281,7 +281,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   wrapper: css`
     width: 100%;
     height: 100%;
-    min-height: 500px;
+    min-height: 0;
     flex: 1;
     .react-flow__node {
       font-family: ${theme.typography.fontFamily};
