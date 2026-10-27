@@ -102,6 +102,10 @@ func (a *App) handleLogPatterns(w http.ResponseWriter, req *http.Request) {
 	}
 	from, to := parseTimeRange(req)
 	environment := parseEnvironment(req)
+	if a.clickStackMode() {
+		writeJSON(w, a.fetchLogPatternsClickHouse(ctx, a.chForRequest(req), service, environment, from, to))
+		return
+	}
 	lokiUID := sanitizeDatasourceUID(req.URL.Query().Get("lokiUid"))
 	// The UID arrives from the client and is proxied with the service-account
 	// token — only allow the configured logs datasource(s), never an arbitrary

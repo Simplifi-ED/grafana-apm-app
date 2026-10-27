@@ -26,8 +26,15 @@ func (a *App) handleOperations(w http.ResponseWriter, req *http.Request) {
 	from, to := parseTimeRange(req)
 
 	orgID := req.Header.Get("X-Grafana-Org-Id")
-	ck := cacheKey("operations", orgID, roundedUnix(from), roundedUnix(to), namespace, service, environment)
+	mode := "prom"
+	if a.clickStackMode() {
+		mode = "ch"
+	}
+	ck := cacheKey("operations", mode, orgID, roundedUnix(from), roundedUnix(to), namespace, service, environment)
 	a.writeCached(w, ck, "querying operations failed", func() (any, error) {
+		if a.clickStackMode() {
+			return a.fetchOperationsClickHouse(ctx, a.chForRequest(req), service, environment, from, to), nil
+		}
 		caps := a.cachedOrDetectCapabilities(ctx)
 		if !caps.SpanMetrics.Detected {
 			return []queries.OperationSummary{}, nil

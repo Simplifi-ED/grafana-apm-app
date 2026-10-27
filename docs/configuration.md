@@ -8,7 +8,21 @@ the Nais APM app. For the full list of expected metrics and labels, see
 
 ## Datasources
 
-The plugin historically needs three Grafana datasources (LGTM path):
+### ClickStack / ClickHouse (recommended for this fork)
+
+When `clickHouseDataSource` is set, the plugin runs in **ClickStack mode**:
+inventory, RED, service map, log patterns, trace breakdown, issues (error spans),
+sessions, and session replay query ClickHouse. **Mimir, Tempo, and Loki are not
+required.** Existing OTel collectors and `@hyperdx/browser` keep writing to the
+same ClickHouse.
+
+| Signal     | Type                            | Example UID  | Purpose |
+| ---------- | ------------------------------- | ------------ | ------- |
+| ClickHouse | `grafana-clickhouse-datasource` | `clickhouse` | All ClickStack-backed APM queries |
+
+Feature status: [clickstack-migration/feature-matrix.md](clickstack-migration/feature-matrix.md).
+
+### LGTM path (optional dual-mode)
 
 | Signal  | Type       | Default UID | Purpose                                                       |
 | ------- | ---------- | ----------- | ------------------------------------------------------------- |
@@ -16,14 +30,7 @@ The plugin historically needs three Grafana datasources (LGTM path):
 | Traces  | Tempo      | `tempo`     | Trace detail, exemplar links                                  |
 | Logs    | Loki       | `loki`      | Faro browser telemetry, application logs                      |
 
-### ClickStack / ClickHouse (optional foundation)
-
-For deployments that store OTel telemetry in ClickHouse (ClickStack), configure
-the official Grafana ClickHouse datasource and point the plugin at its UID:
-
-| Signal     | Type                              | Example UID   | Purpose                                      |
-| ---------- | --------------------------------- | ------------- | -------------------------------------------- |
-| ClickHouse | `grafana-clickhouse-datasource`   | `clickhouse`  | SQL access to `otel_*` / `hyperdx_sessions`  |
+### ClickHouse setup
 
 1. Install **grafana-clickhouse-datasource** in Grafana (if not already present).
 2. Create a datasource that reaches your existing ClickHouse (host, port, database
@@ -67,10 +74,10 @@ Schema notes for this fork's ClickStack instance:
 Architecture audit:
 [docs/clickstack-migration/audit.md](clickstack-migration/audit.md).
 
-APM page queries are still on the LGTM path until later migration steps; the
-ClickHouse client is the reusable foundation (`pkg/plugin/queries/clickhouse.go`).
+Query builders live in `pkg/plugin/chquery/`; the HTTP client is
+`pkg/plugin/queries/clickhouse.go`.
 
-### Setup (LGTM)
+### Setup (LGTM dual-mode)
 
 1. Go to the plugin's **Configuration** page
 2. Enter datasource UIDs for Mimir, Tempo, and Loki

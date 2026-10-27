@@ -83,6 +83,11 @@ func (a *App) handleTraceBreakdown(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	from, to := parseTimeRange(req)
+	environment := parseEnvironment(req)
+	if a.clickStackMode() {
+		writeJSON(w, a.fetchTraceBreakdownClickHouse(ctx, a.chForRequest(req), service, environment, from, to))
+		return
+	}
 	tracesUID := sanitizeDatasourceUID(req.URL.Query().Get("tracesUid"))
 	// Client-supplied UID proxied with the SA token — allow only the
 	// configured traces datasource(s) (confused-deputy hardening).

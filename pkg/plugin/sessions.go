@@ -81,6 +81,11 @@ func (a *App) handleFrontendSessions(w http.ResponseWriter, req *http.Request) {
 	from, to := parseTimeRange(req)
 	q := strings.TrimSpace(req.URL.Query().Get("q"))
 
+	if a.clickStackMode() {
+		writeJSON(w, a.fetchFrontendSessionsClickHouse(ctx, a.chForRequest(req), service, env, from, to))
+		return
+	}
+
 	lokiUID := a.settings.LogsDataSource.Resolve(env).UID
 	if lokiUID == "" {
 		writeJSON(w, FrontendSessionsResponse{Sessions: []SessionSummary{}, Unavailable: true})

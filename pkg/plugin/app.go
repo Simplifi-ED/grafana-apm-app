@@ -380,7 +380,7 @@ func (a *App) CheckHealth(ctx context.Context, req *backend.CheckHealthRequest) 
 		details.Legacy = &caps
 
 		if !caps.SpanMetrics.Detected {
-			// ClickHouse-only mode is healthy without Mimir span metrics.
+			// ClickHouse / ClickStack mode is healthy without Mimir span metrics.
 			if a.chClient == nil {
 				raw, _ := json.Marshal(details)
 				return &backend.CheckHealthResult{
@@ -391,7 +391,8 @@ func (a *App) CheckHealth(ctx context.Context, req *backend.CheckHealthRequest) 
 			}
 			parts = append(parts, "LGTM span metrics not detected")
 		} else {
-			if !caps.Tempo.Available && len(caps.TempoByEnv) == 0 {
+			// Tempo is only required on the LGTM path. ClickStack serves traces from CH.
+			if a.chClient == nil && !caps.Tempo.Available && len(caps.TempoByEnv) == 0 {
 				raw, _ := json.Marshal(details)
 				return &backend.CheckHealthResult{
 					Status:      backend.HealthStatusError,

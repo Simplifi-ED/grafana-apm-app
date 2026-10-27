@@ -157,6 +157,11 @@ func (a *App) handleIssues(w http.ResponseWriter, req *http.Request) {
 		Page:    parseFacetParam(req, "page"),
 	}
 
+	if a.clickStackMode() {
+		writeJSON(w, a.fetchIssuesClickHouse(ctx, a.chForRequest(req), service, env, from, to))
+		return
+	}
+
 	lokiUID := a.settings.LogsDataSource.Resolve(env).UID
 	if lokiUID == "" {
 		writeJSON(w, IssuesResponse{FingerprintVersion: fingerprint.Version, Issues: []Issue{}, Unavailable: true})

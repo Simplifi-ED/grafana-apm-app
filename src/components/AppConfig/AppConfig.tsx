@@ -390,39 +390,42 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
         onSubmit();
       }}
     >
-      <Alert severity="info" title="Prerequisites">
-        Requires an{' '}
-        <a href="https://opentelemetry.io/docs/collector/" target="_blank" rel="noreferrer">
-          OpenTelemetry Collector
-        </a>{' '}
-        running the{' '}
-        <a
-          href="https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/connector/spanmetricsconnector"
-          target="_blank"
-          rel="noreferrer"
-        >
-          spanmetrics
-        </a>{' '}
-        and{' '}
-        <a
-          href="https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/connector/servicegraphconnector"
-          target="_blank"
-          rel="noreferrer"
-        >
-          servicegraph
-        </a>{' '}
-        connectors writing to Mimir, Tempo, and Loki. Without span metrics the plugin cannot show rates, errors, or
-        latency.
+      <Alert severity="info" title="Telemetry backends">
+        <strong>ClickStack mode:</strong> set ClickHouse below — existing OTel collectors writing to ClickHouse are
+        enough (Mimir/Tempo/Loki not required). <strong>LGTM mode:</strong> configure Metrics (+ optional Traces/Logs).
+        Feature status: docs/clickstack-migration/feature-matrix.md.
       </Alert>
 
       <FieldSet label="Data Sources" className={s.marginTop}>
         <p className={s.description}>
-          <strong>Metrics</strong> is required (span metrics and service graph). <strong>Traces</strong> and{' '}
-          <strong>Logs</strong> enable drill-down to individual traces and correlated logs.
+          Prefer <strong>ClickHouse (ClickStack)</strong> for this fork. LGTM datasources remain optional for dual-mode
+          installs.
         </p>
         <Field
+          label="ClickHouse (ClickStack)"
+          description="Primary for ClickStack. grafana-clickhouse-datasource UID. Credentials stay on the Grafana datasource."
+        >
+          {dsLoaded && clickHouseOptions.length > 0 ? (
+            <Combobox
+              options={clickHouseOptions}
+              value={state.clickHouseUid || null}
+              onChange={(v) => setState((prev) => ({ ...prev, clickHouseUid: v?.value ?? '' }))}
+              width={40}
+              placeholder="Select ClickHouse datasource..."
+              isClearable
+            />
+          ) : (
+            <Input
+              width={40}
+              value={state.clickHouseUid}
+              placeholder="e.g., clickhouse"
+              onChange={onChange('clickHouseUid')}
+            />
+          )}
+        </Field>
+        <Field
           label="Metrics (Prometheus/Mimir)"
-          description="Primary datasource — span metrics and service graph. All dashboards depend on it."
+          description="LGTM path only — span metrics and service graph when ClickHouse is not used."
         >
           {dsLoaded && promOptions.length > 0 ? (
             <Combobox
@@ -473,28 +476,6 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
             />
           ) : (
             <Input width={40} value={state.logsUid} placeholder="e.g., loki" onChange={onChange('logsUid')} />
-          )}
-        </Field>
-        <Field
-          label="ClickHouse (ClickStack)"
-          description="Optional. grafana-clickhouse-datasource UID for querying the existing ClickStack / OpenTelemetry tables. Credentials stay on the Grafana datasource — do not paste secrets here."
-        >
-          {dsLoaded && clickHouseOptions.length > 0 ? (
-            <Combobox
-              options={clickHouseOptions}
-              value={state.clickHouseUid || null}
-              onChange={(v) => setState((prev) => ({ ...prev, clickHouseUid: v?.value ?? '' }))}
-              width={40}
-              placeholder="Select ClickHouse datasource..."
-              isClearable
-            />
-          ) : (
-            <Input
-              width={40}
-              value={state.clickHouseUid}
-              placeholder="e.g., clickhouse"
-              onChange={onChange('clickHouseUid')}
-            />
           )}
         </Field>
       </FieldSet>

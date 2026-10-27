@@ -17,7 +17,7 @@ func (a *App) handleServices(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if a.promClient == nil {
+	if a.promClient == nil && !a.clickStackMode() {
 		http.Error(w, "metrics datasource not configured", http.StatusServiceUnavailable)
 		return
 	}
@@ -49,7 +49,11 @@ func (a *App) handleServices(w http.ResponseWriter, req *http.Request) {
 	// Include the post-clamp step: it sets the sparkline resolution, so two
 	// requests over the same range with different steps must not share an entry.
 	stepStr := fmt.Sprintf("%ds", int(step.Seconds()))
-	ck := cacheKey("services", orgID, roundedFrom, roundedTo, computeRangeStr(from, to), stepStr, seriesStr, filterNamespace, filterEnvironment, filterServices)
+	mode := "prom"
+	if a.clickStackMode() {
+		mode = "ch"
+	}
+	ck := cacheKey("services", mode, orgID, roundedFrom, roundedTo, computeRangeStr(from, to), stepStr, seriesStr, filterNamespace, filterEnvironment, filterServices)
 	if cached, ok := a.respCache.get(ck); ok {
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("X-Cache", "HIT")
@@ -58,6 +62,10 @@ func (a *App) handleServices(w http.ResponseWriter, req *http.Request) {
 	}
 
 	data, err := a.respCache.getOrCompute(ck, func() (any, error) {
+		if a.clickStackMode() {
+			ch := a.chForRequest(req)
+			return a.fetchServiceSummariesClickHouse(ctx, ch, from, to, filterNamespace, filterEnvironment), nil
+		}
 		// Get capability info for metric names
 		caps := a.cachedOrDetectCapabilities(ctx)
 		if !caps.SpanMetrics.Detected {
@@ -552,13 +560,21 @@ func (a *App) cachedOrDetectCapabilities(ctx context.Context) queries.Capabiliti
 			return caps, nil
 		}
 
-		// Resolve the service token from the prom client in context (already resolved per-request)
-		token := ""
-		if c := a.prom(ctx); c != nil {
-			token = c.ServiceToken()
+		var caps queries.Capabilities
+		if a.clickStackMode() {
+			ch := a.chClient
+			if h := httpHeaders(ctx); h != nil {
+				ch = a.chClient.WithAuthHeaders(h).WithServiceToken(a.resolveServiceToken(ctx))
+			}
+			caps = a.detectClickStackCapabilities(ctx, ch)
+		} else {
+			// Resolve the service token from the prom client in context (already resolved per-request)
+			token := ""
+			if c := a.prom(ctx); c != nil {
+				token = c.ServiceToken()
+			}
+			caps = a.detectCapabilities(ctx, httpHeaders(ctx), token)
 		}
-
-		caps := a.detectCapabilities(ctx, httpHeaders(ctx), token)
 		a.capMu.Lock()
 		a.capCache = &cachedCapabilities{caps: caps, fetchedAt: time.Now()}
 		a.capMu.Unlock()

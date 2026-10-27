@@ -109,16 +109,19 @@ func (a *App) handleCapabilities(w http.ResponseWriter, req *http.Request) {
 			return caps, nil
 		}
 
-		authClient := a.promClientForRequest(req)
-		resolvedToken := a.resolveServiceToken(req.Context())
-
-		// Use a bounded context: preserve tracing/values from the request but
-		// detach from its cancellation so slow health checks aren't cut short.
 		detachedCtx, cancel := context.WithTimeout(context.WithoutCancel(req.Context()), 30*time.Second)
 		defer cancel()
-		detachedCtx = withAuthContext(detachedCtx, authClient)
 
-		caps := a.detectCapabilities(detachedCtx, req.Header, resolvedToken)
+		var caps queries.Capabilities
+		if a.clickStackMode() {
+			ch := a.chForRequest(req)
+			caps = a.detectClickStackCapabilities(detachedCtx, ch)
+		} else {
+			authClient := a.promClientForRequest(req)
+			resolvedToken := a.resolveServiceToken(req.Context())
+			detachedCtx = withAuthContext(detachedCtx, authClient)
+			caps = a.detectCapabilities(detachedCtx, req.Header, resolvedToken)
+		}
 
 		a.capMu.Lock()
 		a.capCache = &cachedCapabilities{caps: caps, fetchedAt: time.Now()}

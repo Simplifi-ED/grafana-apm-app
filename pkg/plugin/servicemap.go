@@ -41,12 +41,6 @@ func (a *App) handleServiceMap(w http.ResponseWriter, req *http.Request) {
 	}
 	ctx := a.requestContext(req)
 
-	caps := a.cachedOrDetectCapabilities(ctx)
-	if !caps.ServiceGraph.Detected {
-		writeJSON(w, ServiceMapResponse{Nodes: []ServiceMapNode{}, Edges: []ServiceMapEdge{}})
-		return
-	}
-
 	now := time.Now()
 	from := parseUnixParam(req, "from", now.Add(-1*time.Hour))
 	to := parseUnixParam(req, "to", now)
@@ -60,6 +54,17 @@ func (a *App) handleServiceMap(w http.ResponseWriter, req *http.Request) {
 	depth := 1
 	if d, err := strconv.Atoi(req.URL.Query().Get("depth")); err == nil && d >= 1 && d <= 3 {
 		depth = d
+	}
+
+	if a.clickStackMode() {
+		writeJSON(w, a.fetchServiceMapClickHouse(ctx, a.chForRequest(req), from, to, filterEnvironment))
+		return
+	}
+
+	caps := a.cachedOrDetectCapabilities(ctx)
+	if !caps.ServiceGraph.Detected {
+		writeJSON(w, ServiceMapResponse{Nodes: []ServiceMapNode{}, Edges: []ServiceMapEdge{}})
+		return
 	}
 
 	// Check response cache

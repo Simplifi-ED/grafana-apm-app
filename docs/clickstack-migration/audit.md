@@ -100,3 +100,8 @@ Porting inventory/RED/issues/sessions will need SQL (or CH metric queries) that 
 
 Step 2 implements HyperDX replay retrieval + drawer playback over ClickHouse.
 See [session-replay.md](session-replay.md).
+
+## Follow-up: ClickStack-native APM (Step 3)
+
+Handlers switch to ClickHouse when `clickHouseDataSource` is set (`clickStackMode`).
+SQL builders: `pkg/plugin/chquery/`. Status matrix: [feature-matrix.md](feature-matrix.md).
