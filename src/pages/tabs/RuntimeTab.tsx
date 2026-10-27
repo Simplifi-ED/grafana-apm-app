@@ -829,7 +829,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     display: flex;
     align-items: center;
     gap: ${theme.spacing(1)};
-    font-size: ${theme.typography.h5.fontSize};
+    font-size: ${theme.typography.base.fontSize};
     font-weight: ${theme.typography.fontWeightMedium};
     margin-bottom: ${theme.spacing(2)};
     color: ${theme.colors.text.primary};
@@ -845,7 +845,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     gap: ${theme.spacing(0.5)};
   `,
   groupTitle: css`
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     font-weight: ${theme.typography.fontWeightMedium};
     color: ${theme.colors.text.secondary};
     text-transform: uppercase;
@@ -860,12 +860,12 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   metricLabel: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.body.fontSize};
+    font-size: ${theme.typography.base.fontSize};
   `,
   metricValue: css`
     font-weight: ${theme.typography.fontWeightMedium};
     font-variant-numeric: tabular-nums;
-    font-size: ${theme.typography.body.fontSize};
+    font-size: ${theme.typography.base.fontSize};
   `,
   table: css`
     width: 100%;
@@ -876,7 +876,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
       text-align: left;
       padding: ${theme.spacing(1)} ${theme.spacing(1.5)};
       color: ${theme.colors.text.secondary};
-      font-size: ${theme.typography.bodySmall.fontSize};
+      font-size: ${theme.typography.sm.fontSize};
       font-weight: ${theme.typography.fontWeightMedium};
       border-bottom: 1px solid ${theme.colors.border.medium};
       white-space: nowrap;
@@ -929,7 +929,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   mono: css`
     font-family: ${theme.typography.fontFamilyMonospace};
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
   `,
   utilBar: css`
     display: flex;
@@ -957,7 +957,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     transition: width 0.3s ease;
   `,
   utilLabel: css`
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     color: ${theme.colors.text.secondary};
     min-width: 36px;
     text-align: right;
@@ -965,11 +965,11 @@ const getStyles = (theme: GrafanaTheme2) => ({
   warnValue: css`
     font-weight: ${theme.typography.fontWeightMedium};
     font-variant-numeric: tabular-nums;
-    font-size: ${theme.typography.body.fontSize};
+    font-size: ${theme.typography.base.fontSize};
     color: ${theme.colors.warning.text};
   `,
   uptimeBadge: css`
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     color: ${theme.colors.text.secondary};
     font-weight: normal;
   `,

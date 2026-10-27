@@ -419,7 +419,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   sectionTitle: css`
     margin: 0;
-    font-size: ${theme.typography.h4.fontSize};
+    font-size: ${theme.typography.md.fontSize};
     display: flex;
     align-items: center;
   `,
@@ -427,11 +427,11 @@ const getStyles = (theme: GrafanaTheme2) => ({
     margin-right: ${theme.spacing(0.75)};
   `,
   sectionSubtitle: css`
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     color: ${theme.colors.text.secondary};
   `,
   message: css`
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     color: ${theme.colors.text.secondary};
   `,
   empty: css`
@@ -444,7 +444,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     font-weight: ${theme.typography.fontWeightMedium};
   `,
   emptyHint: css`
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     color: ${theme.colors.text.secondary};
   `,
   table: css`
@@ -452,7 +452,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     border-collapse: collapse;
     th {
       text-align: left;
-      font-size: ${theme.typography.bodySmall.fontSize};
+      font-size: ${theme.typography.sm.fontSize};
       font-weight: ${theme.typography.fontWeightMedium};
       color: ${theme.colors.text.secondary};
       padding: ${theme.spacing(0.5)} ${theme.spacing(1)};
@@ -487,7 +487,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     }
   `,
   ruleSummary: css`
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     color: ${theme.colors.text.secondary};
   `,
   muted: css`
@@ -500,12 +500,12 @@ const getStyles = (theme: GrafanaTheme2) => ({
     gap: ${theme.spacing(0.5)};
   `,
   stateValue: css`
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     font-family: ${theme.typography.fontFamilyMonospace};
     color: ${theme.colors.text.primary};
   `,
   stateMeta: css`
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     color: ${theme.colors.text.secondary};
   `,
   instanceLabels: css`
@@ -514,7 +514,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     gap: ${theme.spacing(0.25)};
   `,
   instanceLabel: css`
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     font-family: ${theme.typography.fontFamilyMonospace};
     color: ${theme.colors.text.secondary};
     max-width: 32ch;
@@ -546,12 +546,12 @@ const getStyles = (theme: GrafanaTheme2) => ({
     font-weight: ${theme.typography.fontWeightMedium};
   `,
   cardDesc: css`
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     color: ${theme.colors.text.secondary};
   `,
   yamlHint: css`
     margin-top: ${theme.spacing(1)};
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     color: ${theme.colors.text.secondary};
   `,
   yamlActions: css`
@@ -566,7 +566,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     border: 1px solid ${theme.colors.border.weak};
     border-radius: ${theme.shape.radius.default};
     font-family: ${theme.typography.fontFamilyMonospace};
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     line-height: 1.5;
     overflow-x: auto;
     white-space: pre;

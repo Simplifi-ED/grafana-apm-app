@@ -146,7 +146,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   namespace: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     word-break: break-word;
   `,
 });

@@ -15,6 +15,7 @@ interface TraceBreakdownsProps {
   namespace: string;
   service: string;
   tracesUid: string;
+  clickHouseUid?: string;
   fromMs: number;
   toMs: number;
   /** Feed a value into the traces span-search filter. */
@@ -50,15 +51,23 @@ const MODE_LABEL: Record<string, string> = {
  * Expanded rows are capped to TOP_N with a "show all" affordance so a wide
  * breakdown still doesn't dominate the tab.
  */
-export function TraceBreakdowns({ namespace, service, tracesUid, fromMs, toMs, onSelectSpan }: TraceBreakdownsProps) {
+export function TraceBreakdowns({
+  namespace,
+  service,
+  tracesUid,
+  clickHouseUid,
+  fromMs,
+  toMs,
+  onSelectSpan,
+}: TraceBreakdownsProps) {
   const styles = useStyles2(getStyles);
   const [dimension, setDimension] = useState('name');
   const [showAll, setShowAll] = useState(false);
 
   const { data, loading, error } = useFetch(
     () => getTraceBreakdown(namespace, service, fromMs, toMs, tracesUid, dimension),
-    [namespace, service, fromMs, toMs, tracesUid, dimension],
-    { skip: !tracesUid }
+    [namespace, service, fromMs, toMs, tracesUid, clickHouseUid, dimension],
+    { skip: !tracesUid && !clickHouseUid }
   );
 
   // A new dimension or time window is a new dataset — start from the top-N view again.
@@ -202,12 +211,12 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   label: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
   `,
   modeBadge: css`
     margin-left: auto;
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     border: 1px solid ${theme.colors.border.weak};
     border-radius: ${theme.shape.radius.default};
     padding: ${theme.spacing(0, 0.75)};
@@ -216,7 +225,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   table: css`
     width: 100%;
     border-collapse: collapse;
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     th {
       text-align: left;
       color: ${theme.colors.text.secondary};

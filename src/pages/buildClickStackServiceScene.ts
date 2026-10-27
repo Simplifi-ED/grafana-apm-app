@@ -7,7 +7,8 @@ import {
   EmbeddedScene,
   behaviors,
 } from '@grafana/scenes';
-import { DashboardCursorSync } from '@grafana/schema';
+import { DashboardCursorSync, TooltipDisplayMode } from '@grafana/schema';
+import { HeatmapColorMode } from '@grafana/schema/dist/esm/raw/composable/heatmap/panelcfg/x/HeatmapPanelCfg_types.gen';
 import { sanitizeLabelValue } from '../utils/sanitize';
 import { buildDeployAnnotationsLayer } from './buildServiceScene';
 
@@ -21,6 +22,8 @@ export interface BuildClickStackServiceSceneParams {
   to: string;
   clickHouseUid: string;
   hasServerSpans: boolean;
+  /** Heatmap y-axis unit; ClickHouse Duration buckets are ms. */
+  durationUnit?: string;
 }
 
 const CH_DS_TYPE = 'grafana-clickhouse-datasource';
@@ -65,7 +68,17 @@ function chQuery(uid: string, rawSql: string) {
  * Used when no Prometheus metrics datasource is configured.
  */
 export function buildClickStackServiceScene(params: BuildClickStackServiceSceneParams): EmbeddedScene | null {
-  const { service, envFilter, percentile, percentileLabel, from, to, clickHouseUid, hasServerSpans } = params;
+  const {
+    service,
+    envFilter,
+    percentile,
+    percentileLabel,
+    from,
+    to,
+    clickHouseUid,
+    hasServerSpans,
+    durationUnit = 'ms',
+  } = params;
 
   if (!clickHouseUid || !service) {
     return null;
@@ -112,6 +125,34 @@ WHERE ${traceFilt}${traceKind}
 GROUP BY time
 ORDER BY time`.trim();
 
+  const heatmapSql = `
+SELECT
+  $__timeInterval(Timestamp) AS time,
+  toString(multiIf(
+    Duration < 1000000, 1,
+    Duration < 2000000, 2,
+    Duration < 5000000, 5,
+    Duration < 10000000, 10,
+    Duration < 25000000, 25,
+    Duration < 50000000, 50,
+    Duration < 100000000, 100,
+    Duration < 250000000, 250,
+    Duration < 500000000, 500,
+    Duration < 1000000000, 1000,
+    Duration < 2500000000, 2500,
+    Duration < 5000000000, 5000,
+    Duration < 10000000000, 10000,
+    Duration < 30000000000, 30000,
+    Duration < 60000000000, 60000,
+    120000
+  )) AS le,
+  count() AS value
+FROM \`default\`.\`otel_traces\`
+WHERE ${traceFilt}${traceKind}
+  AND $__timeFilter(Timestamp)
+GROUP BY time, le
+ORDER BY time, toFloat64(le)`.trim();
+
   const panelScope = hasServerSpans ? 'inbound (SERVER)' : 'all';
 
   const timeRange = new SceneTimeRange({ from, to });
@@ -157,6 +198,23 @@ ORDER BY time`.trim();
               }),
             ],
           }),
+        }),
+        new SceneFlexItem({
+          height: 220,
+          body: PanelBuilders.heatmap()
+            .setTitle('Duration Distribution')
+            .setDescription(`Distribution of ${panelScope} request durations over time (ClickHouse traces)`)
+            .setData(chQuery(clickHouseUid, heatmapSql))
+            .setOption('calculate', false)
+            .setOption('yAxis', { unit: durationUnit === 's' ? 's' : 'ms' })
+            .setOption('color', {
+              mode: HeatmapColorMode.Scheme,
+              scheme: 'Oranges',
+              steps: 128,
+            })
+            .setOption('cellGap', 1)
+            .setOption('tooltip', { mode: TooltipDisplayMode.Single, yHistogram: true })
+            .build(),
         }),
       ],
     }),

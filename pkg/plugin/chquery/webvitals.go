@@ -35,6 +35,32 @@ WHERE %s
 LIMIT 1`, table(queries.CHTableTraces), where)
 }
 
+// WebVitalsTimeseriesSQL returns time-bucketed p75 web-vital values for a
+// Grafana ClickHouse scene. The bucket is fixed by the caller because the
+// backend client does not expand Grafana's $__timeInterval macro.
+func WebVitalsTimeseriesSQL(service, environment string, bucketSeconds int) string {
+	if bucketSeconds < 1 {
+		bucketSeconds = 60
+	}
+	where := fmt.Sprintf(`ServiceName = %s
+  AND SpanName = %s`, q(service), q(SpanNameWebVitals))
+	if environment != "" {
+		where += fmt.Sprintf(" AND ResourceAttributes['%s'] = %s", ResCluster, q(environment))
+	}
+	return fmt.Sprintf(`
+SELECT
+  toStartOfInterval(Timestamp, INTERVAL %d SECOND) AS time,
+  quantileIf(0.75)(toFloat64OrZero(SpanAttributes['lcp']), SpanAttributes['lcp'] != '') AS lcp,
+  quantileIf(0.75)(toFloat64OrZero(SpanAttributes['fcp']), SpanAttributes['fcp'] != '') AS fcp,
+  quantileIf(0.75)(toFloat64OrZero(SpanAttributes['ttfb']), SpanAttributes['ttfb'] != '') AS ttfb,
+  quantileIf(0.75)(toFloat64OrZero(SpanAttributes['inp']), SpanAttributes['inp'] != '') AS inp,
+  quantileIf(0.75)(toFloat64OrZero(SpanAttributes['cls']), SpanAttributes['cls'] != '') AS cls
+FROM %s
+WHERE %s
+GROUP BY time
+ORDER BY time`, bucketSeconds, table(queries.CHTableTraces), where)
+}
+
 // BrowserTelemetryProbeSQL detects HyperDX / OTel browser SDK traffic for a service.
 func BrowserTelemetryProbeSQL(service, environment string, from, to time.Time) string {
 	fromMs, toMs := TimeBounds(from, to)

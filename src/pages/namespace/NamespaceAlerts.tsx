@@ -168,7 +168,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   ...getSectionStyles(theme),
   sectionTitle: css`
     margin-bottom: ${theme.spacing(1)};
-    font-size: ${theme.typography.h4.fontSize};
+    font-size: ${theme.typography.md.fontSize};
     display: flex;
     align-items: center;
   `,
@@ -177,7 +177,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   sourceLabel: css`
     margin-left: auto;
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     font-weight: ${theme.typography.fontWeightRegular};
     color: ${theme.colors.text.disabled};
   `,
@@ -215,10 +215,10 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   ruleName: css`
     font-weight: ${theme.typography.fontWeightMedium};
-    font-size: ${theme.typography.body.fontSize};
+    font-size: ${theme.typography.base.fontSize};
   `,
   activeCount: css`
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     color: ${theme.colors.text.secondary};
   `,
   ruleMeta: css`
@@ -228,11 +228,11 @@ const getStyles = (theme: GrafanaTheme2) => ({
     flex-wrap: wrap;
   `,
   ruleSummary: css`
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     color: ${theme.colors.text.secondary};
   `,
   activeSince: css`
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     color: ${theme.colors.text.disabled};
   `,
   instanceLabels: css`
@@ -241,7 +241,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     gap: ${theme.spacing(0.25)};
   `,
   instanceLabel: css`
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     font-family: ${theme.typography.fontFamilyMonospace};
     color: ${theme.colors.text.secondary};
     max-width: 100%;
@@ -254,7 +254,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     border: none;
     color: ${theme.colors.text.secondary};
     cursor: pointer;
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     padding: ${theme.spacing(0.5)} 0;
     display: flex;
     align-items: center;
@@ -264,7 +264,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     }
   `,
   allGood: css`
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     color: ${theme.colors.text.secondary};
     margin: 0;
   `,

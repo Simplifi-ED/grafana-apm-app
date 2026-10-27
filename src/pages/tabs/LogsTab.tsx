@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useStyles2, MultiCombobox, Input, Icon, Switch, Combobox, LinkButton } from '@grafana/ui';
+import { useStyles2, MultiCombobox, Input, Icon, Switch, Combobox, LinkButton, Alert } from '@grafana/ui';
 import { GrafanaTheme2 } from '@grafana/data';
 import { css } from '@emotion/css';
 import { GraphDrawStyle, StackingMode } from '@grafana/schema';
@@ -18,11 +18,13 @@ import { useTimeRange } from '../../utils/timeRange';
 import { buildLogsDrilldownUrl } from '../../utils/explore';
 import { otel } from '../../otelconfig';
 import { PatternsPanel } from './logs/PatternsPanel';
+import { ClickStackLogsPanel } from './logs/ClickStackLogsPanel';
 
 interface LogsTabProps {
   service: string;
   namespace: string;
   logsUid: string;
+  clickHouseUid?: string;
   from: string;
   to: string;
   serviceNameLabel?: string;
@@ -55,6 +57,7 @@ export function LogsTab({
   service,
   namespace,
   logsUid,
+  clickHouseUid = '',
   from,
   to,
   serviceNameLabel = otel.labels.serviceName,
@@ -76,6 +79,10 @@ export function LogsTab({
 
   // Fetch available pod names for this service
   useEffect(() => {
+    if (!logsUid) {
+      setPodOptions([]);
+      return;
+    }
     const controller = new AbortController();
     const clusterMatcher = clusterFilter ? `, ${clusterLabel}="${sanitizeLabelValue(clusterFilter)}"` : '';
     fetch(
@@ -94,6 +101,9 @@ export function LogsTab({
   }, [service, logsUid, serviceNameLabel, clusterFilter, clusterLabel]);
 
   const scene = useMemo(() => {
+    if (!logsUid) {
+      return null;
+    }
     // Resolve against the shared URL range (fromMs/toMs) rather than the raw
     // relative strings: the global header time picker replaced this scene's own
     // picker, and a refresh re-resolves fromMs/toMs while from/to stay "now-1h".
@@ -229,7 +239,7 @@ export function LogsTab({
           width={30}
           placeholder="All severities"
         />
-        {podOptions.length > 1 && (
+        {logsUid && podOptions.length > 1 && (
           <>
             <label className={styles.label}>Pod:</label>
             <Combobox
@@ -241,11 +251,13 @@ export function LogsTab({
             />
           </>
         )}
-        <label className={styles.toggle}>
-          <Switch value={includeFaro} onChange={() => setIncludeFaro(!includeFaro)} />
-          <span>Include browser telemetry</span>
-        </label>
-        {includeFaro && (
+        {logsUid && (
+          <label className={styles.toggle}>
+            <Switch value={includeFaro} onChange={() => setIncludeFaro(!includeFaro)} />
+            <span>Include browser telemetry</span>
+          </label>
+        )}
+        {logsUid && includeFaro && (
           <>
             <label className={styles.label}>Kind:</label>
             <MultiCombobox
@@ -257,34 +269,52 @@ export function LogsTab({
             />
           </>
         )}
-        <LinkButton
-          variant="secondary"
-          size="sm"
-          icon="gf-logs"
-          className={styles.drilldownLink}
-          href={buildLogsDrilldownUrl(logsUid, service, {
-            namespace,
-            from,
-            to,
-            serviceNameLabel,
-          })}
-          tooltip="Open this service's logs in Grafana's queryless Logs Drilldown app"
-        >
-          Open in Logs Drilldown
-        </LinkButton>
+        {logsUid && (
+          <LinkButton
+            variant="secondary"
+            size="sm"
+            icon="gf-logs"
+            className={styles.drilldownLink}
+            href={buildLogsDrilldownUrl(logsUid, service, {
+              namespace,
+              from,
+              to,
+              serviceNameLabel,
+            })}
+            tooltip="Open this service's logs in Grafana's queryless Logs Drilldown app"
+          >
+            Open in Logs Drilldown
+          </LinkButton>
+        )}
       </div>
       <PatternsPanel
         namespace={namespace}
         service={service}
         logsUid={logsUid}
+        clickHouseUid={clickHouseUid}
         fromMs={fromMs}
         toMs={toMs}
         clusterFilter={clusterFilter}
         onSelectFilter={setLogSearch}
       />
-      <div className={styles.sceneWrapper}>
-        <scene.Component model={scene} />
-      </div>
+      {clickHouseUid && !logsUid ? (
+        <ClickStackLogsPanel
+          namespace={namespace}
+          service={service}
+          fromMs={fromMs}
+          toMs={toMs}
+          severity={severityFilter}
+          search={debouncedSearch}
+        />
+      ) : scene ? (
+        <div className={styles.sceneWrapper}>
+          <scene.Component model={scene} />
+        </div>
+      ) : (
+        <Alert severity="info" title="Logs unavailable">
+          Configure Loki or ClickHouse to search logs for this service.
+        </Alert>
+      )}
     </div>
   );
 }
@@ -310,14 +340,14 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   label: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
   `,
   toggle: css`
     display: flex;
     align-items: center;
     gap: ${theme.spacing(0.75)};
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     cursor: pointer;
     margin-left: ${theme.spacing(0.5)};
   `,

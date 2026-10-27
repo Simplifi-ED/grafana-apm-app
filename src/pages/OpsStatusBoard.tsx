@@ -488,7 +488,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   title: css`
     margin: 0;
-    font-size: ${theme.typography.h4.fontSize};
+    font-size: ${theme.typography.md.fontSize};
     font-weight: ${theme.typography.fontWeightMedium};
   `,
   attentionBadge: css`
@@ -498,11 +498,11 @@ const getStyles = (theme: GrafanaTheme2) => ({
     border-radius: ${theme.shape.radius.pill};
     background: ${theme.colors.warning.transparent};
     color: ${theme.colors.warning.text};
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     font-weight: ${theme.typography.fontWeightMedium};
   `,
   watchlistCount: css`
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     color: ${theme.colors.text.secondary};
   `,
   controls: css`
@@ -580,7 +580,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     padding: 0;
   `,
   pageLabel: css`
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     color: ${theme.colors.text.secondary};
     margin-left: ${theme.spacing(1)};
     font-variant-numeric: tabular-nums;

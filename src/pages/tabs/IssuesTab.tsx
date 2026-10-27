@@ -14,6 +14,7 @@ import { useExceptionDrawerState } from './frontend/useExceptionDrawer';
 interface IssuesTabProps {
   service: string;
   namespace: string;
+  clickHouseUid?: string;
   environment?: string;
 }
 
@@ -26,7 +27,7 @@ interface IssuesTabProps {
  * pure server-issue triage. Time controls live in the global page header
  * (HeaderTimeControls); this tab just consumes the shared from/to URL params.
  */
-export function IssuesTab({ service, namespace, environment }: IssuesTabProps) {
+export function IssuesTab({ service, namespace, clickHouseUid, environment }: IssuesTabProps) {
   const styles = useStyles2(getStyles);
   const ds = usePluginDatasources(environment || undefined);
   // Shared with the Frontend tab (#69 P10) — an issueId deep link opens the
@@ -52,7 +53,9 @@ export function IssuesTab({ service, namespace, environment }: IssuesTabProps) {
     () => getFrontendMetrics(namespace, service, environment || undefined),
     [namespace, service, environment]
   );
-  const hasBrowserData = !!frontendProbe?.available && !!frontendProbe?.hasLoki;
+  const hasBrowserData = !!frontendProbe?.available;
+  const hasVersions = hasBrowserData && !!frontendProbe?.hasLoki;
+  const hasSessions = hasBrowserData && (!!frontendProbe?.hasLoki || !!clickHouseUid);
 
   return (
     <div className={styles.container}>
@@ -61,12 +64,16 @@ export function IssuesTab({ service, namespace, environment }: IssuesTabProps) {
       </div>
       {hasBrowserData && (
         <>
-          <div className={styles.panel}>
-            <VersionsPanel namespace={namespace} service={service} environment={environment} hideWhenEmpty />
-          </div>
-          <div className={styles.panel}>
-            <SessionsPanel namespace={namespace} service={service} environment={environment} />
-          </div>
+          {hasVersions && (
+            <div className={styles.panel}>
+              <VersionsPanel namespace={namespace} service={service} environment={environment} hideWhenEmpty />
+            </div>
+          )}
+          {hasSessions && (
+            <div className={styles.panel}>
+              <SessionsPanel namespace={namespace} service={service} environment={environment} />
+            </div>
+          )}
         </>
       )}
       {(drawerLoading || (drawerHashes && drawerHashes.length > 0) || drawerSource === 'server') && (

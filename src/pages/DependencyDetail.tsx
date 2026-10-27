@@ -423,7 +423,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   depName: css`
     margin: 0;
-    font-size: ${theme.typography.h2.fontSize};
+    font-size: ${theme.typography.xl.fontSize};
   `,
   typeBadge: css`
     display: inline-flex;
@@ -447,15 +447,15 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   statLabel: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
   `,
   statValue: css`
-    font-size: ${theme.typography.h4.fontSize};
+    font-size: ${theme.typography.md.fontSize};
     font-weight: ${theme.typography.fontWeightMedium};
     font-variant-numeric: tabular-nums;
   `,
   statValueError: css`
-    font-size: ${theme.typography.h4.fontSize};
+    font-size: ${theme.typography.md.fontSize};
     font-weight: ${theme.typography.fontWeightMedium};
     font-variant-numeric: tabular-nums;
     color: ${theme.colors.error.text};

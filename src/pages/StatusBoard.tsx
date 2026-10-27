@@ -508,7 +508,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     padding: 0;
   `,
   pageLabel: css`
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     color: ${theme.colors.text.secondary};
     margin-left: ${theme.spacing(1)};
     font-variant-numeric: tabular-nums;

@@ -126,7 +126,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     gap: ${theme.spacing(0.5)};
     padding: 1px 8px;
     border-radius: ${theme.shape.radius.pill};
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     border: 1px solid transparent;
     background: none;
     cursor: pointer;
@@ -149,7 +149,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   details: css`
     max-width: 360px;
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
   `,
   sectionTitle: css`
     font-weight: ${theme.typography.fontWeightMedium};
@@ -182,7 +182,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   naTag: css`
     margin-left: ${theme.spacing(0.5)};
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     color: ${theme.colors.text.disabled};
   `,
   hint: css`

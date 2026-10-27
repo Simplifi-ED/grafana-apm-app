@@ -2,6 +2,7 @@ package chquery
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/nais/grafana-otel-plugin/pkg/plugin/queries"
@@ -9,6 +10,11 @@ import (
 
 // LogSearchSQL returns recent log rows for a service (bounded).
 func LogSearchSQL(service string, from, to time.Time, environment, severity string, limit int) string {
+	return LogSearchSQLFiltered(service, from, to, environment, severity, "", limit)
+}
+
+// LogSearchSQLFiltered returns recent log rows with an optional body search.
+func LogSearchSQLFiltered(service string, from, to time.Time, environment, severity, search string, limit int) string {
 	if limit <= 0 || limit > 500 {
 		limit = 200
 	}
@@ -20,7 +26,21 @@ func LogSearchSQL(service string, from, to time.Time, environment, severity stri
 		where += fmt.Sprintf(" AND ResourceAttributes['%s'] = %s", ResCluster, q(environment))
 	}
 	if severity != "" {
-		where += fmt.Sprintf(" AND lower(SeverityText) = lower(%s)", q(severity))
+		levels := make([]string, 0)
+		for level := range strings.SplitSeq(severity, ",") {
+			level = strings.ToLower(strings.TrimSpace(level))
+			if level != "" {
+				levels = append(levels, q(level))
+			}
+		}
+		if len(levels) == 1 {
+			where += fmt.Sprintf(" AND lower(SeverityText) = %s", levels[0])
+		} else if len(levels) > 1 {
+			where += fmt.Sprintf(" AND lower(SeverityText) IN (%s)", strings.Join(levels, ", "))
+		}
+	}
+	if search != "" {
+		where += fmt.Sprintf(" AND positionCaseInsensitiveUTF8(Body, %s) > 0", q(search))
 	}
 	return fmt.Sprintf(`
 SELECT
@@ -38,6 +58,12 @@ LIMIT %d`, table(queries.CHTableLogs), where, limit)
 // LogPatternSQL groups recent log bodies by a truncated fingerprint for one service.
 // This replaces Loki's pattern API with an in-ClickHouse GROUP BY.
 func LogPatternSQL(service string, from, to time.Time, environment string, limit int) string {
+	return LogPatternSQLFiltered(service, from, to, environment, "", limit)
+}
+
+// LogPatternSQLFiltered groups normalized log bodies, optionally restricting
+// the result to one or more severity levels.
+func LogPatternSQLFiltered(service string, from, to time.Time, environment, severity string, limit int) string {
 	if limit <= 0 || limit > 100 {
 		limit = 50
 	}
@@ -49,13 +75,28 @@ func LogPatternSQL(service string, from, to time.Time, environment string, limit
 	if environment != "" {
 		where += fmt.Sprintf(" AND ResourceAttributes['%s'] = %s", ResCluster, q(environment))
 	}
+	if severity != "" {
+		levels := make([]string, 0)
+		for level := range strings.SplitSeq(severity, ",") {
+			level = strings.ToLower(strings.TrimSpace(level))
+			if level != "" {
+				levels = append(levels, q(level))
+			}
+		}
+		if len(levels) == 1 {
+			where += fmt.Sprintf(" AND lower(SeverityText) = %s", levels[0])
+		} else if len(levels) > 1 {
+			where += fmt.Sprintf(" AND lower(SeverityText) IN (%s)", strings.Join(levels, ", "))
+		}
+	}
 	// Normalize digits to reduce cardinality of otherwise-identical messages.
 	return fmt.Sprintf(`
 SELECT
   replaceRegexpAll(substring(Body, 1, 200), '[0-9]+', '#') AS pattern,
   count() AS c,
   any(SeverityText) AS severity,
-  max(Timestamp) AS last_seen
+  min(toUnixTimestamp64Milli(Timestamp)) AS first_seen,
+  max(toUnixTimestamp64Milli(Timestamp)) AS last_seen
 FROM %s
 WHERE %s
 GROUP BY pattern
@@ -89,9 +130,11 @@ func ParseLogSearchMaps(rows []map[string]any) []LogEntry {
 
 // LogPattern is one clustered pattern.
 type LogPattern struct {
-	Pattern  string
-	Count    int64
-	Severity string
+	Pattern     string
+	Count       int64
+	Severity    string
+	FirstSeenMs int64
+	LastSeenMs  int64
 }
 
 // ParseLogPatternMaps parses pattern aggregations.
@@ -99,9 +142,11 @@ func ParseLogPatternMaps(rows []map[string]any) []LogPattern {
 	out := make([]LogPattern, 0, len(rows))
 	for _, r := range rows {
 		out = append(out, LogPattern{
-			Pattern:  ParseString(r["pattern"]),
-			Count:    ParseInt64(r["c"]),
-			Severity: ParseString(r["severity"]),
+			Pattern:     ParseString(r["pattern"]),
+			Count:       ParseInt64(r["c"]),
+			Severity:    ParseString(r["severity"]),
+			FirstSeenMs: ParseInt64(r["first_seen"]),
+			LastSeenMs:  ParseInt64(r["last_seen"]),
 		})
 	}
 	return out

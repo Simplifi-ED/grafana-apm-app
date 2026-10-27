@@ -9,7 +9,7 @@ discuss the approach.
 ### Prerequisites
 
 - Node.js 22 (use `mise install` — the repo includes a [`mise.toml`](mise.toml))
-- Go 1.25+
+- Go 1.27+
 - Docker
 - [golangci-lint](https://golangci-lint.run/docs/install/) v2+
 - [Lefthook](https://github.com/evilmartians/lefthook) (optional, for git hooks)

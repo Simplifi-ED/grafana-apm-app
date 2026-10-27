@@ -369,11 +369,11 @@ const getStyles = (theme: GrafanaTheme2) => ({
     gap: ${theme.spacing(1)};
   `,
   meta: css`
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     color: ${theme.colors.text.secondary};
   `,
   notice: css`
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     color: ${theme.colors.text.secondary};
     padding: ${theme.spacing(1)} 0;
   `,
@@ -383,7 +383,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     gap: ${theme.spacing(1)};
   `,
   sectionTitle: css`
-    font-size: ${theme.typography.h5.fontSize};
+    font-size: ${theme.typography.base.fontSize};
     font-weight: ${theme.typography.fontWeightMedium};
     margin: 0;
     border-bottom: 1px solid ${theme.colors.border.weak};
@@ -393,7 +393,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     display: grid;
     grid-template-columns: max-content 1fr;
     gap: ${theme.spacing(0.5)} ${theme.spacing(2)};
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
   `,
   kvKey: css`
     color: ${theme.colors.text.secondary};
@@ -408,7 +408,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     border-radius: ${theme.shape.radius.default};
     padding: ${theme.spacing(1)};
     font-family: ${theme.typography.fontFamilyMonospace};
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     overflow-x: auto;
     white-space: pre-wrap;
     word-break: break-word;
@@ -424,7 +424,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     align-items: baseline;
     gap: ${theme.spacing(1)};
     font-family: ${theme.typography.fontFamilyMonospace};
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
   `,
   instanceLabels: css`
     color: ${theme.colors.text.primary};
@@ -438,7 +438,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     display: flex;
     flex-direction: column;
     gap: ${theme.spacing(0.25)};
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
   `,
   annotationKey: css`
     color: ${theme.colors.text.secondary};
@@ -461,7 +461,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     display: flex;
     align-items: center;
     gap: ${theme.spacing(1)};
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     color: ${theme.colors.text.secondary};
   `,
   contextLink: css`

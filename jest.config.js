@@ -5,6 +5,7 @@ process.env.TZ = 'UTC';
 const path = require('path');
 
 const scaffoldConfig = require('./.config/jest.config');
+const { grafanaESModules, nodeModulesToTransform } = require('./.config/jest/utils');
 
 // `react-router` is a webpack external in the real bundle (.config/bundler/externals.ts):
 // Grafana hands the plugin its single instance. Under jest there is no external, and pnpm
@@ -16,10 +17,14 @@ const reactRouterPath = require.resolve('react-router', {
   paths: [path.dirname(require.resolve('react-router-dom/package.json'))],
 });
 
+// Grafana 13.2+ pulls ESM-only deps into @grafana/data CJS hooks (@react-hookz → @ver0).
+const esmPackages = [...grafanaESModules, '@react-hookz', '@ver0'];
+
 module.exports = {
   // Jest configuration provided by Grafana scaffolding
   ...scaffoldConfig,
   moduleNameMapper: { ...scaffoldConfig.moduleNameMapper, '^react-router$': reactRouterPath },
   // The scaffold only matches src/**; also run the seed-generator tests (#90).
   testMatch: [...scaffoldConfig.testMatch, '<rootDir>/scripts/seed/**/*.test.{ts,tsx}'],
+  transformIgnorePatterns: [nodeModulesToTransform(esmPackages)],
 };

@@ -570,13 +570,11 @@ func (a *App) queryServerExceptionGroups(ctx context.Context, ds *queries.DsQuer
 		g, ok := groups[fp.Value]
 		if !ok {
 			g = &Issue{
-				ExceptionGroup: ExceptionGroup{
-					Fingerprint:  fp.Value,
-					Tier:         int(fp.Tier),
-					Title:        fp.Title,
-					MemberHashes: []string{},
-				},
-				Source: issueSourceServer,
+				Fingerprint:  fp.Value,
+				Tier:         int(fp.Tier),
+				Title:        fp.Title,
+				MemberHashes: []string{},
+				Source:       issueSourceServer,
 			}
 			groups[fp.Value] = g
 			seenType[fp.Value] = make(map[string]bool)

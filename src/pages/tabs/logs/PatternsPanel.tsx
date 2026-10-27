@@ -14,6 +14,7 @@ interface PatternsPanelProps {
   namespace: string;
   service: string;
   logsUid: string;
+  clickHouseUid?: string;
   fromMs: number;
   toMs: number;
   /** Environment filter for a centralized Loki datasource. */
@@ -46,6 +47,7 @@ export function PatternsPanel({
   namespace,
   service,
   logsUid,
+  clickHouseUid,
   fromMs,
   toMs,
   clusterFilter,
@@ -56,8 +58,8 @@ export function PatternsPanel({
 
   const { data, loading, error } = useFetch(
     () => getLogPatterns(namespace, service, fromMs, toMs, logsUid, clusterFilter),
-    [namespace, service, fromMs, toMs, logsUid, clusterFilter],
-    { skip: !logsUid }
+    [namespace, service, fromMs, toMs, logsUid, clickHouseUid, clusterFilter],
+    { skip: !logsUid && !clickHouseUid }
   );
 
   // A new time window is a new dataset — start from the top-N view again.
@@ -157,7 +159,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   modeBadge: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     border: 1px solid ${theme.colors.border.weak};
     border-radius: ${theme.shape.radius.default};
     padding: ${theme.spacing(0, 0.75)};
@@ -165,7 +167,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   subtitle: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     margin-left: auto;
   `,
   docsLink: css`
@@ -219,7 +221,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   pattern: css`
     font-family: ${theme.typography.fontFamilyMonospace};
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;

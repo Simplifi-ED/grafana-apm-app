@@ -263,6 +263,49 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/LogPatternsResponse" }
 
+  /services/{namespace}/{service}/logs/search:
+    get:
+      tags: [experimental]
+      summary: ClickStack log search (otel_logs via ClickHouse).
+      description: >
+        In-app log table for ClickStack mode. Loki scene remains the LGTM path;
+        this endpoint queries otel_logs directly when a ClickHouse datasource is
+        configured. Returns mode=unavailable otherwise.
+      parameters:
+        - { $ref: "#/components/parameters/namespacePath" }
+        - { $ref: "#/components/parameters/servicePath" }
+        - { $ref: "#/components/parameters/from" }
+        - { $ref: "#/components/parameters/to" }
+        - { $ref: "#/components/parameters/environment" }
+        - name: severity
+          in: query
+          schema: { type: string }
+        - name: search
+          in: query
+          schema: { type: string }
+          description: Substring match against log body.
+      responses:
+        "200":
+          description: Log rows (or unavailable stub).
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [mode, logs]
+                properties:
+                  mode: { type: string, enum: [clickhouse, unavailable] }
+                  logs:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        timestampMs: { type: integer, format: int64 }
+                        severity: { type: string }
+                        body: { type: string }
+                        traceId: { type: string }
+                        spanId: { type: string }
+                  note: { type: string }
+
   /services/{namespace}/{service}/sourcemap-doctor:
     get:
       tags: [experimental]
@@ -315,6 +358,102 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/TraceBreakdownResponse" }
+
+  /services/{namespace}/{service}/traces/search:
+    get:
+      tags: [experimental]
+      summary: ClickStack trace list (otel_traces via ClickHouse).
+      description: >
+        Bounded trace-list rows for ClickStack mode. Tempo TraceQL scene remains
+        the LGTM path; this endpoint queries otel_traces when ClickHouse is
+        configured. Returns mode=unavailable otherwise.
+      parameters:
+        - { $ref: "#/components/parameters/namespacePath" }
+        - { $ref: "#/components/parameters/servicePath" }
+        - { $ref: "#/components/parameters/from" }
+        - { $ref: "#/components/parameters/to" }
+        - { $ref: "#/components/parameters/environment" }
+        - name: status
+          in: query
+          schema: { type: string, enum: [error, ok, ""] }
+        - name: span
+          in: query
+          schema: { type: string }
+          description: Substring match against span name.
+        - name: minDurationMs
+          in: query
+          schema: { type: number }
+        - name: maxDurationMs
+          in: query
+          schema: { type: number }
+      responses:
+        "200":
+          description: Trace summaries (or unavailable stub).
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [mode, traces]
+                properties:
+                  mode: { type: string, enum: [clickhouse, unavailable] }
+                  traces:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        traceId: { type: string }
+                        startMs: { type: integer, format: int64 }
+                        endMs: { type: integer, format: int64 }
+                        spanCount: { type: integer, format: int64 }
+                        errors: { type: integer, format: int64 }
+                        totalMs: { type: number }
+                  note: { type: string }
+
+  /services/{namespace}/{service}/traces/{traceId}:
+    get:
+      tags: [experimental]
+      summary: ClickStack trace detail / waterfall spans.
+      description: >
+        Parent/child span rows for one trace from otel_traces (ClickStack mode).
+        Returns mode=unavailable when ClickHouse is not configured.
+      parameters:
+        - { $ref: "#/components/parameters/namespacePath" }
+        - { $ref: "#/components/parameters/servicePath" }
+        - name: traceId
+          in: path
+          required: true
+          schema: { type: string }
+        - { $ref: "#/components/parameters/from" }
+        - { $ref: "#/components/parameters/to" }
+      responses:
+        "200":
+          description: Trace spans (or unavailable stub).
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [mode, traceId, spans]
+                properties:
+                  mode: { type: string, enum: [clickhouse, unavailable] }
+                  traceId: { type: string }
+                  spans:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        timestampMs: { type: integer, format: int64 }
+                        traceId: { type: string }
+                        spanId: { type: string }
+                        parentSpanId: { type: string }
+                        spanName: { type: string }
+                        spanKind: { type: string }
+                        service: { type: string }
+                        status: { type: string }
+                        durationMs: { type: number }
+                        statusMessage: { type: string }
+                  note: { type: string }
+        "400":
+          description: Missing trace id.
 
   /services/{namespace}/{service}/feedback:
     get:

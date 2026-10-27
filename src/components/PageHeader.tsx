@@ -45,7 +45,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   title: css`
     margin: 0;
-    font-size: ${theme.typography.h2.fontSize};
+    font-size: ${theme.typography.xl.fontSize};
   `,
   controls: css`
     display: flex;

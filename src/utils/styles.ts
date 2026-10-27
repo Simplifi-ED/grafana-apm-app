@@ -8,11 +8,11 @@ export const getSectionStyles = (theme: GrafanaTheme2) => ({
   `,
   sectionTitle: css`
     margin-bottom: ${theme.spacing(1)};
-    font-size: ${theme.typography.h4.fontSize};
+    font-size: ${theme.typography.md.fontSize};
   `,
   sectionSubtitle: css`
     margin: 0 0 ${theme.spacing(1.5)} 0;
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
   `,
 });

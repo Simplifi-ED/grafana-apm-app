@@ -229,16 +229,16 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   title: css`
     margin: 0;
-    font-size: ${theme.typography.body.fontSize};
+    font-size: ${theme.typography.base.fontSize};
   `,
   subtitle: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
   `,
   table: css`
     width: 100%;
     border-collapse: collapse;
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     th {
       text-align: left;
       color: ${theme.colors.text.secondary};
@@ -263,12 +263,12 @@ const getStyles = (theme: GrafanaTheme2) => ({
   unit: css`
     margin-left: ${theme.spacing(1)};
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
   `,
   cardinalityHint: css`
     display: block;
     color: ${theme.colors.warning.text};
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
   `,
   num: css`
     text-align: right;
@@ -283,6 +283,6 @@ const getStyles = (theme: GrafanaTheme2) => ({
   hint: css`
     padding: ${theme.spacing(0.5, 1)};
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
   `,
 });

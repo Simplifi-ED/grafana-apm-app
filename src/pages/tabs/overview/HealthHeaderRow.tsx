@@ -152,13 +152,13 @@ const getStyles = (theme: GrafanaTheme2) => ({
     padding: ${theme.spacing(1.5)} ${theme.spacing(2)};
   `,
   label: css`
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     color: ${theme.colors.text.secondary};
     text-transform: uppercase;
     letter-spacing: 0.5px;
   `,
   value: css`
-    font-size: ${theme.typography.h2.fontSize};
+    font-size: ${theme.typography.xl.fontSize};
     font-weight: ${theme.typography.fontWeightMedium};
     font-variant-numeric: tabular-nums;
   `,
@@ -166,7 +166,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     display: inline-flex;
     align-items: center;
     gap: ${theme.spacing(0.5)};
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     color: ${theme.colors.text.secondary};
     font-variant-numeric: tabular-nums;
   `,
@@ -174,7 +174,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     display: inline-flex;
     align-items: center;
     gap: ${theme.spacing(0.5)};
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     color: ${theme.colors.success.text};
     font-variant-numeric: tabular-nums;
   `,
@@ -182,7 +182,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     display: inline-flex;
     align-items: center;
     gap: ${theme.spacing(0.5)};
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     color: ${theme.colors.warning.text};
     font-variant-numeric: tabular-nums;
     font-weight: ${theme.typography.fontWeightMedium};
@@ -191,7 +191,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     display: inline-flex;
     align-items: center;
     gap: ${theme.spacing(0.5)};
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     color: ${theme.colors.error.text};
     font-variant-numeric: tabular-nums;
     font-weight: ${theme.typography.fontWeightMedium};

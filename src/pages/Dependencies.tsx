@@ -294,7 +294,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     display: flex;
     align-items: center;
     gap: ${theme.spacing(0.75)};
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     color: ${theme.colors.text.secondary};
     cursor: pointer;
     white-space: nowrap;
@@ -304,7 +304,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     }
   `,
   resultCount: css`
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     color: ${theme.colors.text.secondary};
     margin-bottom: ${theme.spacing(1)};
   `,

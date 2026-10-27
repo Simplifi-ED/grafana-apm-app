@@ -39,4 +39,13 @@ export default defineConfig([
     ],
   },
   ...baseConfig,
+  // React Compiler lint (eslint-plugin-react-hooks ≥7.1) flags common
+  // fetch-in-effect loading patterns used across this plugin. Keep the
+  // classic hooks rules; defer Compiler-strict setState-in-effect until a
+  // dedicated refactor.
+  {
+    rules: {
+      'react-hooks/set-state-in-effect': 'off',
+    },
+  },
 ]);

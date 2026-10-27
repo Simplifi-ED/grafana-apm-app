@@ -33,17 +33,40 @@ func OperationsToEndpointGroups(ops []queries.OperationSummary) queries.Endpoint
 		}
 		switch op.SpanKindRaw {
 		case SpanKindServer, TraceSpanKindServer:
-			method, route := splitHTTPName(op.SpanName)
-			ep.HTTPMethod = method
-			ep.HTTPRoute = route
-			groups.HTTP = append(groups.HTTP, ep)
-		case SpanKindClient, TraceSpanKindClient:
-			if looksLikeDBSpan(op.SpanName) {
-				groups.Database = append(groups.Database, ep)
+			ep.HTTPMethod = op.HTTPMethod
+			ep.HTTPRoute = op.HTTPRoute
+			if op.RPCService != "" || op.RPCMethod != "" {
+				ep.RPCService = op.RPCService
+				ep.RPCMethod = op.RPCMethod
+				groups.GRPC = append(groups.GRPC, ep)
 			} else {
 				method, route := splitHTTPName(op.SpanName)
-				ep.HTTPMethod = method
-				ep.HTTPRoute = route
+				if ep.HTTPMethod == "" {
+					ep.HTTPMethod = method
+				}
+				if ep.HTTPRoute == "" {
+					ep.HTTPRoute = route
+				}
+				groups.HTTP = append(groups.HTTP, ep)
+			}
+		case SpanKindClient, TraceSpanKindClient:
+			switch {
+			case op.DBSystem != "" || looksLikeDBSpan(op.SpanName):
+				ep.DBSystem = op.DBSystem
+				groups.Database = append(groups.Database, ep)
+			case op.MessagingSystem != "":
+				ep.MessagingKind = "Client"
+				groups.Messaging = append(groups.Messaging, ep)
+			default:
+				method, route := splitHTTPName(op.SpanName)
+				ep.HTTPMethod = op.HTTPMethod
+				ep.HTTPRoute = op.HTTPRoute
+				if ep.HTTPMethod == "" {
+					ep.HTTPMethod = method
+				}
+				if ep.HTTPRoute == "" {
+					ep.HTTPRoute = route
+				}
 				groups.Client = append(groups.Client, ep)
 			}
 		case "SPAN_KIND_INTERNAL", "Internal":

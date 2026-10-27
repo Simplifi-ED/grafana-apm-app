@@ -111,11 +111,11 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   message: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
   `,
   details: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
   `,
   pre: css`
     white-space: pre-wrap;

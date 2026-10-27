@@ -9,9 +9,15 @@ import (
 
 // TraceBreakdownSQL groups spans by name for a service (replaces Tempo TraceQL breakdown).
 func TraceBreakdownSQL(service string, from, to time.Time, environment string, limit int) string {
+	return TraceBreakdownSQLForDimension(service, from, to, environment, "name", limit)
+}
+
+// TraceBreakdownSQLForDimension groups spans by a curated span attribute.
+func TraceBreakdownSQLForDimension(service string, from, to time.Time, environment, dimension string, limit int) string {
 	if limit <= 0 || limit > 200 {
 		limit = 100
 	}
+	dimensionExpr := traceDimensionExpr(dimension)
 	fromMs, toMs := TimeBounds(from, to)
 	where := fmt.Sprintf(`Timestamp >= fromUnixTimestamp64Milli(%d)
   AND Timestamp <= fromUnixTimestamp64Milli(%d)
@@ -21,22 +27,39 @@ func TraceBreakdownSQL(service string, from, to time.Time, environment string, l
 	}
 	return fmt.Sprintf(`
 SELECT
-  SpanName AS span_name,
+  %s AS dimension,
   SpanKind AS span_kind,
   count() AS spans,
   countIf(StatusCode = 'Error') AS errors,
   quantile(0.50)(Duration) / 1e6 AS p50_ms,
   quantile(0.95)(Duration) / 1e6 AS p95_ms,
+  quantile(0.99)(Duration) / 1e6 AS p99_ms,
   avg(Duration) / 1e6 AS avg_ms
 FROM %s
 WHERE %s
-GROUP BY span_name, span_kind
+GROUP BY dimension, span_kind
+HAVING dimension != ''
 ORDER BY spans DESC
-LIMIT %d`, table(queries.CHTableTraces), where, limit)
+LIMIT %d`, dimensionExpr, table(queries.CHTableTraces), where, limit)
 }
 
 // TraceSearchSQL finds recent traces for a service (bounded).
 func TraceSearchSQL(service string, from, to time.Time, environment string, onlyErrors bool, limit int) string {
+	status := ""
+	if onlyErrors {
+		status = "error"
+	}
+	return TraceSearchSQLFiltered(service, from, to, environment, status, "", 0, 0, limit)
+}
+
+// TraceSearchSQLFiltered finds recent traces with UI filter support.
+func TraceSearchSQLFiltered(
+	service string,
+	from, to time.Time,
+	environment, status, spanSearch string,
+	minDurationMs, maxDurationMs float64,
+	limit int,
+) string {
 	if limit <= 0 || limit > 100 {
 		limit = 50
 	}
@@ -48,14 +71,26 @@ func TraceSearchSQL(service string, from, to time.Time, environment string, only
 	if environment != "" {
 		where += fmt.Sprintf(" AND ResourceAttributes['%s'] = %s", ResCluster, q(environment))
 	}
-	if onlyErrors {
+	if status == "error" {
 		where += " AND StatusCode = 'Error'"
+	}
+	if status == "ok" {
+		where += " AND StatusCode != 'Error'"
+	}
+	if spanSearch != "" {
+		where += fmt.Sprintf(" AND positionCaseInsensitiveUTF8(SpanName, %s) > 0", q(spanSearch))
+	}
+	if minDurationMs > 0 {
+		where += fmt.Sprintf(" AND Duration >= %g * 1000000", minDurationMs)
+	}
+	if maxDurationMs > 0 {
+		where += fmt.Sprintf(" AND Duration <= %g * 1000000", maxDurationMs)
 	}
 	return fmt.Sprintf(`
 SELECT
   TraceId AS trace_id,
-  min(Timestamp) AS start_ts,
-  max(Timestamp) AS end_ts,
+  toUnixTimestamp64Milli(min(Timestamp)) AS start_ts,
+  toUnixTimestamp64Milli(max(Timestamp)) AS end_ts,
   count() AS spans,
   countIf(StatusCode = 'Error') AS errors,
   sum(Duration) / 1e6 AS total_ms
@@ -92,14 +127,35 @@ ORDER BY Timestamp ASC
 LIMIT %d`, table(queries.CHTableTraces), q(traceID), fromMs, toMs, limit)
 }
 
+func traceDimensionExpr(dimension string) string {
+	switch dimension {
+	case "http.route":
+		return "SpanAttributes['http.route']"
+	case "http.status_code":
+		return "SpanAttributes['http.status_code']"
+	case "db.system":
+		return "SpanAttributes['db.system']"
+	case "db.operation":
+		return "SpanAttributes['db.operation.name']"
+	case "messaging.system":
+		return "SpanAttributes['messaging.system']"
+	case "rpc.method":
+		return "SpanAttributes['rpc.method']"
+	default:
+		return "SpanName"
+	}
+}
+
 // TraceBreakdownRow is one span-name aggregate.
 type TraceBreakdownRow struct {
 	SpanName string
+	Value    string
 	SpanKind string
 	Spans    int64
 	Errors   int64
 	P50Ms    float64
 	P95Ms    float64
+	P99Ms    float64
 	AvgMs    float64
 }
 
@@ -107,13 +163,19 @@ type TraceBreakdownRow struct {
 func ParseTraceBreakdownMaps(rows []map[string]any) []TraceBreakdownRow {
 	out := make([]TraceBreakdownRow, 0, len(rows))
 	for _, r := range rows {
+		value := ParseString(r["dimension"])
+		if value == "" {
+			value = ParseString(r["span_name"])
+		}
 		out = append(out, TraceBreakdownRow{
-			SpanName: ParseString(r["span_name"]),
+			SpanName: value,
+			Value:    value,
 			SpanKind: ParseString(r["span_kind"]),
 			Spans:    ParseInt64(r["spans"]),
 			Errors:   ParseInt64(r["errors"]),
 			P50Ms:    ParseFloat(r["p50_ms"]),
 			P95Ms:    ParseFloat(r["p95_ms"]),
+			P99Ms:    ParseFloat(r["p99_ms"]),
 			AvgMs:    ParseFloat(r["avg_ms"]),
 		})
 	}

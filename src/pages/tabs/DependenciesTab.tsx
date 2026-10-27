@@ -247,17 +247,17 @@ const getStyles = (theme: GrafanaTheme2) => ({
     }
   `,
   sectionTitle: css`
-    font-size: ${theme.typography.h4.fontSize};
+    font-size: ${theme.typography.md.fontSize};
     margin: 0 0 ${theme.spacing(0.5)} 0;
   `,
   sectionSubtitle: css`
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     color: ${theme.colors.text.secondary};
     margin: 0 0 ${theme.spacing(1)} 0;
   `,
   kindCell: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
   `,
   sidecarBadge: css`
     margin-left: ${theme.spacing(1)};
@@ -281,14 +281,14 @@ const getStyles = (theme: GrafanaTheme2) => ({
     }
   `,
   depGroupLabel: css`
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     font-weight: ${theme.typography.fontWeightMedium};
     color: ${theme.colors.text.secondary};
     text-transform: uppercase;
     letter-spacing: 0.5px;
   `,
   depGroupCount: css`
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     color: ${theme.colors.text.disabled};
   `,
 });

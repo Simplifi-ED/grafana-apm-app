@@ -213,7 +213,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     color: ${theme.colors.text.secondary};
     margin: 0;
     max-width: 720px;
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
   `,
   headerRow: css`
     display: flex;
@@ -238,11 +238,11 @@ const getStyles = (theme: GrafanaTheme2) => ({
     flex-shrink: 0;
   `,
   counts: css`
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     color: ${theme.colors.text.secondary};
   `,
   warn: css`
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     color: ${theme.colors.warning.text};
     display: inline-flex;
     align-items: center;

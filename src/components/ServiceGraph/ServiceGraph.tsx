@@ -320,6 +320,6 @@ const getStyles = (theme: GrafanaTheme2) => ({
     justify-content: center;
     height: 400px;
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.body.fontSize};
+    font-size: ${theme.typography.base.fontSize};
   `,
 });

@@ -552,14 +552,14 @@ const getStyles = (theme: GrafanaTheme2) => ({
     background: ${theme.colors.background.secondary};
     border: 1px solid ${theme.colors.border.weak};
     border-radius: ${theme.shape.radius.pill};
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     color: ${theme.colors.text.secondary};
   `,
   clearAll: css`
     background: none;
     border: none;
     color: ${theme.colors.text.link};
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     cursor: pointer;
     padding: ${theme.spacing(0.5)};
     &:hover {
@@ -568,16 +568,16 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   title: css`
     margin: 0;
-    font-size: ${theme.typography.body.fontSize};
+    font-size: ${theme.typography.base.fontSize};
   `,
   subtitle: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
   `,
   table: css`
     width: 100%;
     border-collapse: collapse;
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     th {
       text-align: left;
       color: ${theme.colors.text.secondary};
@@ -643,7 +643,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   shareLabel: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
   `,
   actionsCol: css`
     white-space: nowrap;
@@ -658,7 +658,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     background: none;
     border: none;
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
     cursor: pointer;
     padding: ${theme.spacing(0.5, 1)};
     &:hover {
@@ -673,6 +673,6 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   footerCount: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.bodySmall.fontSize};
+    font-size: ${theme.typography.sm.fontSize};
   `,
 });

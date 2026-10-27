@@ -55,7 +55,15 @@ jest.mock('./logs/PatternsPanel', () => ({
 const renderTab = (search = '', options: { clusterFilter?: string; clusterLabel?: string } = {}) =>
   render(
     <MemoryRouter initialEntries={[`/${search}`]}>
-      <LogsTab service="my-svc" namespace="team-a" logsUid="loki-uid" from="now-1h" to="now" {...options} />
+      <LogsTab
+        service="my-svc"
+        namespace="team-a"
+        logsUid="loki-uid"
+        clickHouseUid=""
+        from="now-1h"
+        to="now"
+        {...options}
+      />
     </MemoryRouter>
   );
 
