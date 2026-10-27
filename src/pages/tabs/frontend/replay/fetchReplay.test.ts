@@ -1,4 +1,4 @@
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 import { gzipSync, strToU8 } from 'fflate';
 import { fetchReplay, probeReplay, decodeReplayChunk, ReplayEventWithTime } from './fetchReplay';
 
@@ -8,7 +8,9 @@ jest.mock('@grafana/runtime', () => ({
   getBackendSrv: () => ({ fetch: (options: unknown) => mockFetch(options) }),
 }));
 
-/** Round-trip half of the SDK's transport: gzip the rrweb event array and base64 it. */
+jest.mock('../../../../plugin.json', () => ({ id: 'nais-apm-app' }), { virtual: true });
+
+/** Round-trip half of the Faro SDK's transport: gzip the rrweb event array and base64 it. */
 function encodeChunk(events: ReplayEventWithTime[]): string {
   return Buffer.from(gzipSync(strToU8(JSON.stringify(events)))).toString('base64');
 }
@@ -29,11 +31,12 @@ function lokiStreams(lines: string[]) {
 }
 
 const baseOpts = {
-  logsUid: 'loki-uid',
+  namespace: 'team-a',
   service: 'my-app',
   sessionId: 'sess-1',
   fromMs: 1751500000000,
   toMs: 1751503600000,
+  logsUid: 'loki-uid',
 };
 
 const ev = (timestamp: number, type = 3): ReplayEventWithTime => ({ type, data: { t: timestamp }, timestamp });
@@ -49,76 +52,87 @@ describe('decodeReplayChunk', () => {
   });
 });
 
-describe('fetchReplay', () => {
-  it('queries the datasource proxy with the chunk pipeline and reassembles chunks in seq order', async () => {
-    const chunk0 = [ev(1000, 4), ev(1000, 2)];
-    const chunk1 = [ev(2000), ev(3000)];
-    // Deliberately out of order: Loki returns seq 1 before seq 0.
-    mockFetch.mockReturnValue(lokiStreams([chunkLine(1, 'recording', chunk1), chunkLine(0, 'recording', chunk0)]));
+describe('fetchReplay (ClickHouse backend)', () => {
+  it('calls the plugin resource API and returns reassembled events', async () => {
+    const events = [ev(1000, 4), ev(1000, 2), ev(2000)];
+    mockFetch.mockReturnValue(
+      of({
+        data: { events, mode: 'recording', chunkCount: 3, eventCount: 3 },
+      })
+    );
 
     const result = await fetchReplay(baseOpts);
 
     expect(mockFetch).toHaveBeenCalledTimes(1);
     const call = mockFetch.mock.calls[0][0];
-    expect(call.url).toBe('/api/datasources/proxy/uid/loki-uid/loki/api/v1/query_range');
-    expect(call.params.query).toBe(
-      '{service_name="my-app", kind=~"event|replay"} |= `faro.session_recording.chunk` |= `sess-1` | logfmt | session_id="sess-1"'
+    expect(call.url).toContain(
+      '/api/plugins/nais-apm-app/resources/services/team-a/my-app/frontend/sessions/sess-1/replay?'
     );
-    expect(call.params.limit).toBe('1000');
-    expect(call.params.direction).toBe('forward');
-    expect(call.params.start).toBe('1751500000000000000');
-    expect(call.params.end).toBe('1751503600000000000');
-
-    expect(result).not.toBeNull();
-    expect(result!.mode).toBe('recording');
-    expect(result!.chunkCount).toBe(2);
-    expect(result!.events).toEqual([...chunk0, ...chunk1]);
-    // Concatenation preserved chronological order across chunks.
-    const timestamps = result!.events.map((e) => e.timestamp);
-    expect(timestamps).toEqual([...timestamps].sort((a, b) => a - b));
+    expect(call.url).toContain('from=1751500000');
+    expect(call.url).toContain('to=1751503600');
+    expect(result).toEqual({ events, mode: 'recording', chunkCount: 3, truncated: undefined });
   });
 
-  it('adds the environment matcher with the given label', async () => {
-    mockFetch.mockReturnValue(lokiStreams([chunkLine(0, 'snapshot', [ev(1, 4), ev(1, 2)])]));
-
-    await fetchReplay({ ...baseOpts, environment: 'prod', environmentLabel: 'env' });
-
-    expect(mockFetch.mock.calls[0][0].params.query).toContain(
-      '{service_name="my-app", kind=~"event|replay", env="prod"}'
-    );
-  });
-
-  it('reports snapshot mode when no chunk is a recording', async () => {
-    mockFetch.mockReturnValue(lokiStreams([chunkLine(0, 'snapshot', [ev(1, 4), ev(1, 2)])]));
-
-    const result = await fetchReplay(baseOpts);
-    expect(result!.mode).toBe('snapshot');
-    expect(result!.events).toHaveLength(2);
-  });
-
-  it('dedupes retried lines with the same chunk_seq', async () => {
-    const chunk = [ev(1000, 4), ev(1000, 2)];
-    mockFetch.mockReturnValue(lokiStreams([chunkLine(0, 'recording', chunk), chunkLine(0, 'recording', chunk)]));
-
-    const result = await fetchReplay(baseOpts);
-    expect(result!.chunkCount).toBe(1);
-    expect(result!.events).toHaveLength(2);
-  });
-
-  it('returns null when the session has no chunks', async () => {
-    mockFetch.mockReturnValue(of({ data: { data: { result: [] } } }));
+  it('returns null when the backend has no events', async () => {
+    mockFetch.mockReturnValue(of({ data: { events: [], mode: 'recording', chunkCount: 0 } }));
     expect(await fetchReplay(baseOpts)).toBeNull();
   });
 
-  it('rejects unknown chunk encodings instead of rendering garbage', async () => {
-    mockFetch.mockReturnValue(lokiStreams([chunkLine(0, 'recording', [ev(1, 4), ev(1, 2)], 'zstd+b64')]));
+  it('throws on backend error payloads without events', async () => {
+    mockFetch.mockReturnValue(of({ data: { events: [], error: 'recording data is malformed' } }));
+    await expect(fetchReplay(baseOpts)).rejects.toThrow(/malformed/);
+  });
+
+  it('falls back to Loki when ClickHouse is unavailable', async () => {
+    const chunk0 = [ev(1000, 4), ev(1000, 2)];
+    mockFetch
+      .mockReturnValueOnce(of({ data: { unavailable: true } }))
+      .mockReturnValueOnce(lokiStreams([chunkLine(0, 'recording', chunk0)]));
+
+    const result = await fetchReplay(baseOpts);
+    expect(result!.events).toEqual(chunk0);
+    expect(mockFetch.mock.calls[1][0].url).toContain('/api/datasources/proxy/uid/loki-uid/loki/api/v1/query_range');
+  });
+
+  it('returns null when ClickHouse is unavailable and no Loki UID is set', async () => {
+    mockFetch.mockReturnValue(of({ data: { unavailable: true } }));
+    expect(await fetchReplay({ ...baseOpts, logsUid: undefined })).toBeNull();
+  });
+});
+
+describe('fetchReplay (Loki fallback)', () => {
+  function mockUnavailableThenLoki(lines: string[]) {
+    mockFetch.mockReturnValueOnce(of({ data: { unavailable: true } })).mockReturnValueOnce(lokiStreams(lines));
+  }
+
+  it('reassembles Faro chunks in seq order', async () => {
+    const chunk0 = [ev(1000, 4), ev(1000, 2)];
+    const chunk1 = [ev(2000), ev(3000)];
+    mockUnavailableThenLoki([chunkLine(1, 'recording', chunk1), chunkLine(0, 'recording', chunk0)]);
+
+    const result = await fetchReplay(baseOpts);
+    expect(result!.mode).toBe('recording');
+    expect(result!.chunkCount).toBe(2);
+    expect(result!.events).toEqual([...chunk0, ...chunk1]);
+  });
+
+  it('rejects unknown chunk encodings', async () => {
+    mockUnavailableThenLoki([chunkLine(0, 'recording', [ev(1, 4), ev(1, 2)], 'zstd+b64')]);
     await expect(fetchReplay(baseOpts)).rejects.toThrow(/Unsupported replay chunk encoding "zstd\+b64"/);
   });
 });
 
-describe('probeReplay', () => {
-  it('issues a count-only instant metric query grouped by mode', async () => {
-    mockFetch.mockReturnValue(
+describe('probeReplay (ClickHouse backend)', () => {
+  it('calls the probe resource endpoint', async () => {
+    mockFetch.mockReturnValue(of({ data: { hasChunks: true, mode: 'recording', chunkCount: 5 } }));
+
+    const probe = await probeReplay(baseOpts);
+    expect(mockFetch.mock.calls[0][0].url).toContain('/replay/probe?');
+    expect(probe).toEqual({ hasChunks: true, mode: 'recording', chunkCount: 5 });
+  });
+
+  it('falls back to Loki when unavailable', async () => {
+    mockFetch.mockReturnValueOnce(of({ data: { unavailable: true } })).mockReturnValueOnce(
       of({
         data: {
           data: {
@@ -131,31 +145,16 @@ describe('probeReplay', () => {
       })
     );
 
-    const probe = await probeReplay(baseOpts);
-
-    const call = mockFetch.mock.calls[0][0];
-    expect(call.url).toBe('/api/datasources/proxy/uid/loki-uid/loki/api/v1/query');
-    expect(call.params.time).toBe('1751503600000000000');
-    // Count-only metric query over the same pipeline — no chunk payloads cross the wire.
-    expect(call.params.query).toBe(
-      'sum by (event_data_mode) (count_over_time(' +
-        '{service_name="my-app", kind=~"event|replay"} |= `faro.session_recording.chunk` |= `sess-1` | logfmt | session_id="sess-1"' +
-        ' [3600s]))'
-    );
-
-    // "recording" wins when both modes are present.
-    expect(probe).toEqual({ hasChunks: true, mode: 'recording', chunkCount: 5 });
+    expect(await probeReplay(baseOpts)).toEqual({ hasChunks: true, mode: 'recording', chunkCount: 5 });
   });
 
-  it('reports snapshot-only sessions', async () => {
-    mockFetch.mockReturnValue(
-      of({ data: { data: { result: [{ metric: { event_data_mode: 'snapshot' }, value: [1, '1'] }] } } })
-    );
-    expect(await probeReplay(baseOpts)).toEqual({ hasChunks: true, mode: 'snapshot', chunkCount: 1 });
-  });
-
-  it('reports absence when the vector is empty', async () => {
-    mockFetch.mockReturnValue(of({ data: { data: { result: [] } } }));
+  it('reports absence when backend has no chunks', async () => {
+    mockFetch.mockReturnValue(of({ data: { hasChunks: false, mode: '', chunkCount: 0 } }));
     expect(await probeReplay(baseOpts)).toEqual({ hasChunks: false, mode: null, chunkCount: 0 });
+  });
+
+  it('surfaces backend fetch failures', async () => {
+    mockFetch.mockReturnValue(throwError(() => new Error('network down')));
+    await expect(probeReplay(baseOpts)).rejects.toThrow(/network down/);
   });
 });

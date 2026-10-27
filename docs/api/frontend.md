@@ -10,6 +10,9 @@ Contents:
 - [`GET /frontend`](#get-frontend)
 - [`GET /frontend/versions`](#get-frontendversions)
 - [`GET /frontend/sessions`](#get-frontendsessions)
+- [`GET /frontend/sessions/recordings`](#get-frontendsessionsrecordings)
+- [`GET /frontend/sessions/{sessionId}/replay`](#get-frontendsessionssessionidreplay)
+- [`GET /frontend/sessions/{sessionId}/replay/probe`](#get-frontendsessionssessionidreplayprobe)
 - [`GET /feedback`](#get-feedback)
 
 All four take the standard `namespace`/`service` path params (service required,
@@ -173,6 +176,60 @@ curl -s ".../services/fager/min-side-arbeidsgiver/frontend/sessions?from=1783090
 
 > The `q` filter and the `userEmail`/`userId` fields can expose end-user
 > identifiers. Scrub them before republishing session data.
+
+---
+
+## `GET /frontend/sessions/recordings`
+
+`GET /services/{namespace}/{service}/frontend/sessions/recordings`
+
+Lists HyperDX sessions that have rows in ClickHouse `hyperdx_sessions` for the
+service (and optional `environment` → `ResourceAttributes['cluster']`).
+Requires `jsonData.clickHouseDataSource`. Time range is capped at 24 h.
+
+### Response — `SessionRecordingsResponse`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `sessions` | array | Up to 50 `{ sessionId, firstSeenMs, lastSeenMs, rowCount, eventCount }`. |
+| `truncated` | bool | More sessions matched than the cap. |
+| `unavailable` | bool | ClickHouse datasource not configured/reachable. |
+
+---
+
+## `GET /frontend/sessions/{sessionId}/replay/probe`
+
+`GET /services/{namespace}/{service}/frontend/sessions/{sessionId}/replay/probe`
+
+Cheap count-only check for HyperDX recording rows. Compatible with the drawer
+`ReplayProbeResult` shape (`hasChunks`, `mode`, `chunkCount`). HyperDX has no
+Faro snapshot mode — `mode` is `"recording"` when rows exist.
+
+---
+
+## `GET /frontend/sessions/{sessionId}/replay`
+
+`GET /services/{namespace}/{service}/frontend/sessions/{sessionId}/replay`
+
+Fetches `hyperdx_sessions` rows, reassembles `rr-web.*` string chunks into
+rrweb `eventWithTime` objects, and returns them ordered by event timestamp.
+Row fetch is capped (5000); assembled payload capped at 50 MiB. Returns `400`
+when the recording is entirely malformed/incomplete.
+
+### Response — `SessionReplayResponse`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `events` | array | rrweb events (`type`, `data`, `timestamp`). |
+| `mode` | string | Always `"recording"` for HyperDX. |
+| `chunkCount` | int | Input row count. |
+| `eventCount` | int | Successfully parsed events. |
+| `drops` | array? | Dropped chunk groups (`parse-error`, `incomplete-event`, …). |
+| `truncated` | bool? | Hit row/size cap. |
+| `unavailable` | bool? | ClickHouse not configured. |
+
+> Replay bodies can contain DOM structure (masked at capture by the SDK). Do
+> not log or commit unredacted fixtures.
 
 ---
 

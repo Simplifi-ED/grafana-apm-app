@@ -95,3 +95,8 @@ Porting inventory/RED/issues/sessions will need SQL (or CH metric queries) that 
 - Removing LGTM clients
 - Deploying ClickHouse or changing OTel collectors / `@hyperdx/browser`
 - Claiming end-to-end Grafana→ClickHouse verification without a provisioned Grafana CH datasource in this environment
+
+## Follow-up: session replay vertical slice
+
+Step 2 implements HyperDX replay retrieval + drawer playback over ClickHouse.
+See [session-replay.md](session-replay.md).

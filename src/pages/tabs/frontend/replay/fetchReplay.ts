@@ -1,21 +1,21 @@
 /**
- * Session-replay data access (#58/#67).
+ * Session-replay data access.
  *
- * Wire contract (written by @nais/apm's ReplayInstrumentation, flattened by
- * Alloy's faro.receiver into logfmt `event_data_<key>` fields):
+ * Primary path (ClickStack / HyperDX): plugin backend reads `hyperdx_sessions`
+ * via the configured Grafana ClickHouse datasource, reassembles rr-web chunks
+ * (`rr-web.event` / `rr-web.chunk` / `rr-web.total-chunks`), and returns
+ * rrweb eventWithTime objects. Body is raw JSON — not the NAIS Faro
+ * gzip+b64 Loki chunk format.
  *
- *   kind=event event_name=faro.session_recording.chunk session_id=<sid>
- *   event_data_chunk_seq=<n> event_data_mode=snapshot|recording
- *   event_data_enc=gzip+b64 event_data_count=<events in chunk>
- *   event_data_data=<base64(gzip(JSON rrweb eventWithTime[]))>
- *
- * Today chunks land under kind="event"; the future Alloy pipeline relabels
- * the stream to kind="replay" (dedicated 7d retention), so all queries here
- * match kind=~"event|replay".
+ * Fallback (LGTM / Faro): when ClickHouse is not configured the backend
+ * returns unavailable; if `logsUid` is set we still probe/fetch the legacy
+ * Alloy faro.receiver chunk format from Loki so existing NAIS recordings keep
+ * working.
  */
 import { getBackendSrv } from '@grafana/runtime';
 import { lastValueFrom } from 'rxjs';
 import { gunzipSync, strFromU8 } from 'fflate';
+import pluginJson from '../../../../plugin.json';
 import { otel } from '../../../../otelconfig';
 import { sanitizeLabelValue } from '../../../../utils/sanitize';
 import { parseLogfmt } from '../exception-utils';
@@ -30,21 +30,29 @@ export interface ReplayEventWithTime {
 }
 
 export interface ReplayQueryOptions {
-  logsUid: string;
+  /** Namespace path segment for the plugin resource API (use "" / "_" when none). */
+  namespace: string;
   service: string;
   sessionId: string;
   fromMs: number;
   toMs: number;
   environment?: string;
-  /** Stream label used for the environment matcher (defaults to otel.labels.deploymentEnv). */
+  /**
+   * Loki datasource UID — only used when the ClickHouse-backed backend reports
+   * unavailable (LGTM Faro path).
+   */
+  logsUid?: string;
+  /** Stream label used for the Loki environment matcher (defaults to otel.labels.deploymentEnv). */
   environmentLabel?: string;
 }
 
 export interface ReplayData {
-  /** All rrweb events for the session, chunk-ordered and concatenated. */
+  /** All rrweb events for the session, ordered by timestamp. */
   events: ReplayEventWithTime[];
   mode: ReplayMode;
   chunkCount: number;
+  /** True when the backend hit a row/size cap. */
+  truncated?: boolean;
 }
 
 export interface ReplayProbeResult {
@@ -54,8 +62,28 @@ export interface ReplayProbeResult {
   chunkCount: number;
 }
 
-/** The only chunk encoding this plugin version understands (format is versioned via `enc`). */
+const RESOURCES_BASE = `/api/plugins/${pluginJson.id}/resources`;
+
+/** The only Faro/Loki chunk encoding this plugin version understands. */
 const SUPPORTED_ENC = 'gzip+b64';
+
+function nsParam(namespace: string): string {
+  return encodeURIComponent(namespace || '_');
+}
+
+function timeParams(fromMs: number, toMs: number): Record<string, string> {
+  return {
+    from: String(Math.floor(fromMs / 1000)),
+    to: String(Math.floor(toMs / 1000)),
+  };
+}
+
+function replayPath(opts: ReplayQueryOptions, suffix: '' | '/probe'): string {
+  return (
+    `${RESOURCES_BASE}/services/${nsParam(opts.namespace)}/${encodeURIComponent(opts.service)}` +
+    `/frontend/sessions/${encodeURIComponent(opts.sessionId)}/replay${suffix}`
+  );
+}
 
 /** Millisecond timestamp → Loki nanosecond string (string concat avoids float precision loss). */
 function msToNs(ms: number): string {
@@ -63,10 +91,9 @@ function msToNs(ms: number): string {
 }
 
 /**
- * Shared log pipeline: stream selector + cheap line prefilters (Loki skips
- * logfmt-parsing lines that miss them) + exact session match.
+ * Shared Loki log pipeline: stream selector + cheap line prefilters + exact session match.
  */
-function buildReplayPipeline(opts: ReplayQueryOptions): string {
+function buildLokiReplayPipeline(opts: ReplayQueryOptions): string {
   const fl = otel.faroLoki;
   const service = sanitizeLabelValue(opts.service);
   const sessionId = sanitizeLabelValue(opts.sessionId);
@@ -76,7 +103,7 @@ function buildReplayPipeline(opts: ReplayQueryOptions): string {
   return `${selector} |= \`${fl.replayChunkEvent}\` |= \`${sessionId}\` | logfmt | ${fl.sessionId}="${sessionId}"`;
 }
 
-/** Decode one chunk payload: base64 → gunzip → JSON rrweb eventWithTime[]. */
+/** Decode one Faro/Loki chunk payload: base64 → gunzip → JSON rrweb eventWithTime[]. */
 export function decodeReplayChunk(b64: string): ReplayEventWithTime[] {
   const bin = atob(b64);
   const bytes = new Uint8Array(bin.length);
@@ -87,17 +114,105 @@ export function decodeReplayChunk(b64: string): ReplayEventWithTime[] {
   return Array.isArray(parsed) ? parsed : [];
 }
 
+interface BackendProbeResponse {
+  hasChunks?: boolean;
+  mode?: ReplayMode | '';
+  chunkCount?: number;
+  unavailable?: boolean;
+  error?: string;
+}
+
+interface BackendReplayResponse {
+  events?: ReplayEventWithTime[];
+  mode?: ReplayMode;
+  chunkCount?: number;
+  eventCount?: number;
+  truncated?: boolean;
+  unavailable?: boolean;
+  error?: string;
+}
+
+async function fetchBackendProbe(opts: ReplayQueryOptions): Promise<BackendProbeResponse> {
+  const params: Record<string, string> = { ...timeParams(opts.fromMs, opts.toMs) };
+  if (opts.environment) {
+    params.environment = opts.environment;
+  }
+  const res = await lastValueFrom(
+    getBackendSrv().fetch<BackendProbeResponse>({
+      url: `${replayPath(opts, '/probe')}?${new URLSearchParams(params).toString()}`,
+      method: 'GET',
+    })
+  );
+  return res.data ?? {};
+}
+
+async function fetchBackendReplay(opts: ReplayQueryOptions): Promise<BackendReplayResponse> {
+  const params: Record<string, string> = { ...timeParams(opts.fromMs, opts.toMs) };
+  if (opts.environment) {
+    params.environment = opts.environment;
+  }
+  const res = await lastValueFrom(
+    getBackendSrv().fetch<BackendReplayResponse>({
+      url: `${replayPath(opts, '')}?${new URLSearchParams(params).toString()}`,
+      method: 'GET',
+    })
+  );
+  return res.data ?? {};
+}
+
 /**
- * Fetch and reassemble all replay chunks for a session: query Loki via the
- * datasource proxy, order by chunk_seq, gunzip and concatenate the rrweb
- * events. Returns null when the session has no chunks in the range.
+ * Fetch and reassemble all replay events for a session.
+ * Returns null when the session has no recording data in the range.
  */
 export async function fetchReplay(opts: ReplayQueryOptions): Promise<ReplayData | null> {
+  const backend = await fetchBackendReplay(opts);
+  if (!backend.unavailable) {
+    if (backend.error && !(backend.events && backend.events.length > 0)) {
+      throw new Error(backend.error);
+    }
+    if (!backend.events || backend.events.length === 0) {
+      return null;
+    }
+    return {
+      events: backend.events,
+      mode: backend.mode === 'snapshot' ? 'snapshot' : 'recording',
+      chunkCount: backend.chunkCount ?? backend.eventCount ?? backend.events.length,
+      truncated: backend.truncated,
+    };
+  }
+
+  if (!opts.logsUid) {
+    return null;
+  }
+  return fetchLokiReplay(opts);
+}
+
+/**
+ * Cheap existence probe for the exception drawer.
+ */
+export async function probeReplay(opts: ReplayQueryOptions): Promise<ReplayProbeResult> {
+  const backend = await fetchBackendProbe(opts);
+  if (!backend.unavailable) {
+    const mode = backend.mode === 'snapshot' || backend.mode === 'recording' ? backend.mode : null;
+    return {
+      hasChunks: Boolean(backend.hasChunks),
+      mode: backend.hasChunks ? (mode ?? 'recording') : null,
+      chunkCount: Number(backend.chunkCount ?? 0),
+    };
+  }
+
+  if (!opts.logsUid) {
+    return { hasChunks: false, mode: null, chunkCount: 0 };
+  }
+  return probeLokiReplay(opts);
+}
+
+async function fetchLokiReplay(opts: ReplayQueryOptions): Promise<ReplayData | null> {
   const res = await lastValueFrom(
     getBackendSrv().fetch<any>({
-      url: `/api/datasources/proxy/uid/${encodeURIComponent(opts.logsUid)}/loki/api/v1/query_range`,
+      url: `/api/datasources/proxy/uid/${encodeURIComponent(opts.logsUid!)}/loki/api/v1/query_range`,
       params: {
-        query: buildReplayPipeline(opts),
+        query: buildLokiReplayPipeline(opts),
         limit: '1000',
         direction: 'forward',
         start: msToNs(opts.fromMs),
@@ -135,7 +250,7 @@ export async function fetchReplay(opts: ReplayQueryOptions): Promise<ReplayData 
   let decoded = 0;
   for (const chunk of chunks) {
     if (Number.isFinite(chunk.seq) && seen.has(chunk.seq)) {
-      continue; // Loki retries can duplicate lines — keep the first of each seq
+      continue;
     }
     seen.add(chunk.seq);
     if (chunk.enc && chunk.enc !== SUPPORTED_ENC) {
@@ -154,18 +269,13 @@ export async function fetchReplay(opts: ReplayQueryOptions): Promise<ReplayData 
   };
 }
 
-/**
- * Cheap existence probe: a count-only Loki metric query (no chunk payloads
- * cross the wire) grouped by mode, so the drawer knows whether to offer
- * "Play replay" (recording) or "View snapshot" (snapshot-only session).
- */
-export async function probeReplay(opts: ReplayQueryOptions): Promise<ReplayProbeResult> {
+async function probeLokiReplay(opts: ReplayQueryOptions): Promise<ReplayProbeResult> {
   const rangeSec = Math.max(1, Math.ceil((opts.toMs - opts.fromMs) / 1000));
-  const query = `sum by (event_data_mode) (count_over_time(${buildReplayPipeline(opts)} [${rangeSec}s]))`;
+  const query = `sum by (event_data_mode) (count_over_time(${buildLokiReplayPipeline(opts)} [${rangeSec}s]))`;
 
   const res = await lastValueFrom(
     getBackendSrv().fetch<any>({
-      url: `/api/datasources/proxy/uid/${encodeURIComponent(opts.logsUid)}/loki/api/v1/query`,
+      url: `/api/datasources/proxy/uid/${encodeURIComponent(opts.logsUid!)}/loki/api/v1/query`,
       params: {
         query,
         time: msToNs(opts.toMs),

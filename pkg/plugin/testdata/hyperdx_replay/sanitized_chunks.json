@@ -1,0 +1,38 @@
+{
+  "description": "Synthetic HyperDX hyperdx_sessions rows. No live DOM, URLs, or PII.",
+  "rows": [
+    {
+      "body": "{\"type\":4,\"data\":{\"href\":\"https://example.test/\",\"width\":800,\"height\":600},\"timestamp\":1000}",
+      "eventId": 1,
+      "chunk": 1,
+      "totalChunks": 1,
+      "offset": 1,
+      "timestampMs": 1000
+    },
+    {
+      "body": "{\"type\":2,\"data\":{\"node\":{\"type\":0,\"childNodes\":[{\"type\":2,\"tagName\":\"div\",\"attributes\":{\"id\":\"root\"},\"childNodes\":[]}]}},\"timestamp\":1010}",
+      "eventId": 2,
+      "chunk": 1,
+      "totalChunks": 2,
+      "offset": 2,
+      "timestampMs": 1010
+    },
+    {
+      "body": "",
+      "note": "chunk 2 filled in by test (string continuation)",
+      "eventId": 2,
+      "chunk": 2,
+      "totalChunks": 2,
+      "offset": 3,
+      "timestampMs": 1010
+    },
+    {
+      "body": "{\"type\":3,\"data\":{\"source\":1,\"positions\":[{\"x\":1,\"y\":2,\"id\":1,\"timeOffset\":0}]},\"timestamp\":1500}",
+      "eventId": 3,
+      "chunk": 1,
+      "totalChunks": 1,
+      "offset": 4,
+      "timestampMs": 1500
+    }
+  ]
+}

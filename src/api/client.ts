@@ -887,6 +887,40 @@ export async function getFrontendSessions(
   );
 }
 
+/** HyperDX / ClickHouse session with replay rows. */
+export interface SessionRecordingSummary {
+  sessionId: string;
+  firstSeenMs: number;
+  lastSeenMs: number;
+  rowCount: number;
+  eventCount: number;
+}
+
+export interface SessionRecordingsResponse {
+  sessions: SessionRecordingSummary[];
+  truncated?: boolean;
+  unavailable?: boolean;
+  error?: string;
+}
+
+/** List sessions that have HyperDX recordings in ClickHouse. */
+export async function getSessionRecordings(
+  namespace: string,
+  service: string,
+  from: number,
+  to: number,
+  environment?: string
+): Promise<SessionRecordingsResponse> {
+  const params: Record<string, string> = { ...timeParams(from, to) };
+  if (environment) {
+    params.environment = environment;
+  }
+  return fetchResource<SessionRecordingsResponse>(
+    `/services/${nsParam(namespace)}/${encodeURIComponent(service)}/frontend/sessions/recordings`,
+    params
+  );
+}
+
 // ---- Issue triage (#57) ----
 
 export interface TriageState {

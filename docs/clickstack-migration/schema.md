@@ -107,15 +107,31 @@ ClickStack source mapping (HyperDX UI):
 
 ✅ Table exists; column layout matches log-like OTel row shape (`Timestamp`, `TraceId`, `SpanId`, `ServiceName`, `Body`, attribute maps, materialized k8s fields) per `clickstack_describe_source`.
 
-⚠️ Body / attribute encoding for rrweb payloads and privacy fields: not sampled in detail — inspect a single row with a strict `LIMIT 1` and column projection before UI work. Avoid selecting full `Body` in unbounded queries.
+✅ **Verified recording format (2026-10-27, live sample against Local-ClickHouse):**
+
+| Aspect | Value |
+|--------|-------|
+| Table | `default.hyperdx_sessions` |
+| ScopeName | `rum.rr-web` |
+| Service | `ServiceName` (observed: `nova-frontend`); also `ResourceAttributes['service.name']` |
+| Session ID | `ResourceAttributes['rum.sessionId']` (32-char hex) |
+| Environment | `ResourceAttributes['cluster']` (observed: `prod-k3s-omnivya`) — not `deployment.environment` |
+| SDK | `ResourceAttributes['telemetry.sdk.name']` = `@hyperdx/otel-web`, `rum.version` ≈ `0.20.0` |
+| Body | **Raw JSON string** — one rrweb `eventWithTime` per logical event (`type`, `data`, `timestamp`). **Not** NAIS Faro `gzip+b64` |
+| Chunking | Large events split ~950KB: `LogAttributes['rr-web.event']`, `rr-web.chunk` (1-based), `rr-web.total-chunks`, `rr-web.offset`. Chunk >1 bodies are **string fragments** (do not parse alone) |
+| Ordering | Prefer `Timestamp ASC`, then `rr-web.event`, then `rr-web.chunk`. Reassemble by sorting chunks within an event id before `JSON.parse` |
+| Compression | None at rest in Body |
+| Size | Observed p50 Body ~251 B, p95 ~890 KB, max ~973 KB per row; multi-chunk FullSnapshots concatenate larger |
+
+⚠️ Avoid selecting full `Body` in unbounded queries. Cap rows and assembled bytes in the plugin.
+
+⚠️ Player compatibility: recordings come from HyperDX's rrweb recorder; Grafana ships `@grafana/rrweb-player` 2.x. Major-version skew can degrade fidelity (see HyperDX issue #2569). Retrieval is correct; playback quality depends on player/recorder pairing.
 
 ---
 
 ## Browser telemetry (`@hyperdx/browser`)
 
-⚠️ Not isolated as a separate table. Expect browser signals inside `otel_traces` / `otel_logs` / `hyperdx_sessions` and possibly metrics — confirm with filters on `ServiceName` / resource attrs once target app names are known.
-
-❌ Exact browser SDK attribute dictionary for this deployment: unknown.
+✅ Session replay rows land in `hyperdx_sessions` (collector routes `rr-web.event` logs there). Other browser signals may also appear in `otel_traces` / `otel_logs` — out of scope for the replay vertical slice.
 
 ---
 

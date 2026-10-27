@@ -178,6 +178,71 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/FrontendSessionsResponse" }
 
+  /services/{namespace}/{service}/frontend/sessions/recordings:
+    get:
+      tags: [experimental]
+      summary: List HyperDX sessions that have ClickHouse replay rows.
+      parameters:
+        - { $ref: "#/components/parameters/namespacePath" }
+        - { $ref: "#/components/parameters/servicePath" }
+        - { $ref: "#/components/parameters/environment" }
+        - { $ref: "#/components/parameters/from" }
+        - { $ref: "#/components/parameters/to" }
+      responses:
+        "200":
+          description: Session recording summaries from hyperdx_sessions.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SessionRecordingsResponse" }
+        "400":
+          description: Invalid time range (max 24h).
+
+  /services/{namespace}/{service}/frontend/sessions/{sessionId}/replay:
+    get:
+      tags: [experimental]
+      summary: Fetch and reassemble HyperDX rrweb events for a session.
+      parameters:
+        - { $ref: "#/components/parameters/namespacePath" }
+        - { $ref: "#/components/parameters/servicePath" }
+        - { $ref: "#/components/parameters/environment" }
+        - { $ref: "#/components/parameters/from" }
+        - { $ref: "#/components/parameters/to" }
+        - name: sessionId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Reassembled rrweb eventWithTime array.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SessionReplayResponse" }
+        "400":
+          description: Invalid range, session id, or malformed recording data.
+
+  /services/{namespace}/{service}/frontend/sessions/{sessionId}/replay/probe:
+    get:
+      tags: [experimental]
+      summary: Cheap existence check for HyperDX session recording rows.
+      parameters:
+        - { $ref: "#/components/parameters/namespacePath" }
+        - { $ref: "#/components/parameters/servicePath" }
+        - { $ref: "#/components/parameters/environment" }
+        - { $ref: "#/components/parameters/from" }
+        - { $ref: "#/components/parameters/to" }
+        - name: sessionId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Probe result (hasChunks / mode / chunkCount).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SessionReplayProbeResponse" }
+        "400":
+          description: Invalid time range or session id.
+
   /services/{namespace}/{service}/logs/patterns:
     get:
       tags: [experimental]
@@ -1223,6 +1288,54 @@ components:
         truncated: { type: boolean }
         unavailable: { type: boolean }
         windowSeconds: { type: integer }
+    SessionRecordingsResponse:
+      type: object
+      properties:
+        sessions:
+          type: array
+          items:
+            type: object
+            properties:
+              sessionId: { type: string }
+              firstSeenMs: { type: integer, format: int64 }
+              lastSeenMs: { type: integer, format: int64 }
+              rowCount: { type: integer, format: int64 }
+              eventCount: { type: integer, format: int64 }
+        truncated: { type: boolean }
+        unavailable: { type: boolean }
+        error: { type: string }
+    SessionReplayProbeResponse:
+      type: object
+      properties:
+        hasChunks: { type: boolean }
+        mode: { type: string, enum: [recording, snapshot, ""] }
+        chunkCount: { type: integer, format: int64 }
+        eventCount: { type: integer, format: int64 }
+        unavailable: { type: boolean }
+        error: { type: string }
+    SessionReplayResponse:
+      type: object
+      properties:
+        events:
+          type: array
+          items: { type: object }
+          description: rrweb eventWithTime objects (type, data, timestamp).
+        mode: { type: string, enum: [recording, snapshot] }
+        chunkCount: { type: integer }
+        eventCount: { type: integer }
+        drops:
+          type: array
+          items:
+            type: object
+            properties:
+              reason: { type: string }
+              eventId: { type: integer }
+              chunksReceived: { type: integer }
+              totalChunks: { type: integer }
+              detail: { type: string }
+        truncated: { type: boolean }
+        unavailable: { type: boolean }
+        error: { type: string }
     FeedbackResponse:
       type: object
       properties:

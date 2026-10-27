@@ -305,13 +305,14 @@ export function ExceptionDrawer({
     }
     let cancelled = false;
     probeReplay({
-      logsUid,
+      namespace,
       service,
       sessionId: selectedSessionId,
       fromMs: fromMs - SESSION_PAD_MS,
       toMs: toMs + SESSION_PAD_MS,
       environment,
       environmentLabel: clusterLabel,
+      logsUid,
     })
       .then((probe) => {
         if (!cancelled) {
@@ -324,7 +325,7 @@ export function ExceptionDrawer({
     return () => {
       cancelled = true;
     };
-  }, [selectedSessionId, service, environment, logsUid, clusterLabel, fromMs, toMs]);
+  }, [selectedSessionId, service, namespace, environment, logsUid, clusterLabel, fromMs, toMs]);
 
   // User feedback (M6): scoped to this issue's fingerprint, not the selected
   // session — feedback is rare, so we show everything tied to the issue
@@ -765,13 +766,14 @@ export function ExceptionDrawer({
                 <h4 className={styles.sectionTitle}>Session Replay</h4>
                 <ReplaySection
                   key={exception.sessionId}
-                  logsUid={logsUid}
+                  namespace={namespace}
                   service={service}
                   environment={environment}
                   environmentLabel={clusterLabel}
                   sessionId={exception.sessionId}
                   fromMs={fromMs - SESSION_PAD_MS}
                   toMs={toMs + SESSION_PAD_MS}
+                  logsUid={logsUid}
                   mode={replayProbe.mode ?? 'recording'}
                   exceptionTsMs={exceptionTsMs}
                 />
