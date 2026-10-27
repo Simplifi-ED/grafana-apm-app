@@ -33,18 +33,16 @@ mise run backend:check        # go vet + golangci-lint
 mise run backend:test         # Go tests with -race
 mise run backend:build        # mage buildAll (all platforms)
 mise run deploy                # Build all + restart Grafana
-mise run deploy:up             # Start full local stack
+mise run deploy:up             # Start local Grafana container
 mise run deploy:down           # Stop local stack
 mise run deploy:restart        # Restart Grafana (pick up new dist/)
 mise run deploy:logs           # Tail Grafana logs
 mise run deploy:status         # Show containers + health check
-mise run deploy:demo           # Start stack with OTel Demo traffic
-mise run dev                  # Docker stack + frontend watch
+mise run dev                  # Local Grafana + frontend watch
 mise run clean                # Remove dist/ and coverage/
 mise run release              # Cut release (patch bump, or: -- minor/major/X.Y.Z)
-pnpm run e2e                  # Playwright E2E (needs running stack)
-docker compose up             # Full LGTM dev stack
-docker compose -f docker-compose.demo.yaml up  # With OTel Demo traffic
+pnpm run e2e                  # Playwright E2E (needs running Grafana)
+docker compose up             # Local Grafana container
 ```
 
 ## Patterns

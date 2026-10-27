@@ -29,7 +29,7 @@ function chQuery(uid: string, rawSql: string) {
 }
 
 function webVitalsWhere(service: string, environment: string): string {
-  let where = `(ServiceName = ${sqlStr(service)} OR Attributes['service.name'] = ${sqlStr(service)})`;
+  let where = `ServiceName = ${sqlStr(service)}`;
   where += ` AND SpanName = 'webvitals'`;
   if (environment) {
     where += ` AND ResourceAttributes['cluster'] = ${sqlStr(environment)}`;

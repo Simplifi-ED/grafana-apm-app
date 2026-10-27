@@ -101,15 +101,18 @@ pnpm run dev
 
 Open `http://localhost:3000/a/clickhouse-apm-app/services`.
 
-### Full local LGTM demo stack
+### Local Grafana container
+
+The default Docker Compose file starts Grafana only. It does not provision
+Mimir, Tempo, Loki, or an OpenTelemetry Collector. Configure an external
+ClickStack ClickHouse datasource, then run:
 
 ```bash
-mise run dev
-# or with OTel Demo traffic:
-docker compose -f docker-compose.demo.yaml up
+mise run deploy:up:clickstack
 ```
 
-`mise run deploy` after Go backend changes. Debug with Delve: `mise run dev:debug`.
+Use `mise run deploy` after Go backend changes. Debug with Delve:
+`mise run dev:debug`.
 
 ### Commands
 
@@ -119,7 +122,7 @@ docker compose -f docker-compose.demo.yaml up
 | `mise run check`                | Lint, typecheck, format                          |
 | `mise run test`                 | Jest + Go tests                                  |
 | `mise run build`                | Production frontend + backend                    |
-| `mise run dev`                  | Full stack + frontend watch                      |
+| `mise run dev`                  | Local Grafana + frontend watch                  |
 | `mise run deploy:up:clickstack` | Grafana only (expects CH on localhost)           |
 | `mise run clickstack:tunnel`    | SSH LocalForward to ClickHouse                   |
 | `mise run deploy`               | Rebuild and reload plugin in Grafana             |

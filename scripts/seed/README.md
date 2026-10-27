@@ -24,6 +24,7 @@ Properties (asserted by `generator.test.ts`):
   is visible in a panel, pipeline scrubbing is broken; the marker makes both
   outcomes assertable end to end.
 
-Consumed three ways (see #90): plugin e2e against the compose LGTM stack,
+Consumed three ways (see #90): plugin e2e against a configured Grafana/ClickStack
+environment,
 SDK smoke tests against a real receiver, and the auto-config acceptance
 criteria in #133.

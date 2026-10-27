@@ -68,8 +68,12 @@ RUN if [ "${development}" = "true" ]; then \
     go run bootstrap.go; \
     fi
 
-# Inject livereload script into grafana index.html
-RUN sed -i 's|</body>|<script src="http://localhost:35729/livereload.js"></script></body>|g' /usr/share/grafana/public/views/index.html
+# Inject livereload only into development images. Production/ClickStack images do
+# not run the webpack dev server, so the unconditional script caused a browser
+# connection-refused error on port 35729.
+RUN if [ "${development}" = "true" ]; then \
+    sed -i 's|</body>|<script src="http://localhost:35729/livereload.js"></script></body>|g' /usr/share/grafana/public/views/index.html; \
+    fi
 
 
 COPY entrypoint.sh /entrypoint.sh

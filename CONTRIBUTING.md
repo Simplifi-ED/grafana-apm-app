@@ -30,7 +30,7 @@ discuss the approach.
    lefthook install --force
    ```
 
-3. Start the development stack (Grafana + Mimir + Tempo + Loki + OTel Collector):
+3. Start the local Grafana container:
 
    ```bash
    docker compose up
