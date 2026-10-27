@@ -42,7 +42,7 @@
 | Database top queries / N+1 | DB tab | `otel_traces` db attrs | 🟨 | **D** `chquery` top queries + N+1 |
 | Runtime metrics | Runtime tab | `otel_metrics_*` `go_*`/`process_*` | 🟨 | **C** shipped: alias → scrape `ServiceName`; Go/process CH queries; miss → hint |
 | Custom metrics | Custom tab | `otel_metrics_*` | 🟨 | **C** shipped: denylist discovery across gauge/sum/hist/summary |
-| GraphQL | GraphQL / Server tab | `otel_metrics_*` probes ∨ `otel_traces` `graphql.operation.*` | 🟨 | **H** CH detect path; live demo still **16** |
+| GraphQL | GraphQL / Server tab | `otel_metrics_*` probes ∨ `otel_traces` `graphql.operation.*` | 🟨 | **H** ✅ detect; **16** fixture+emitter shipped; live OTLP seed pending |
 | Alerts / templates | Alerts UI | Grafana UA + CH SQL | 🟨 | **D** list/firing (**10**); full catalog CH SQL eval (**27**) |
 | Scorecard | Scorecard | CH probes | 🟨 | **D** Nais 6 + graphql/jobs N/A (**22**); **J** profiling scored via Pyroscope probe |
 | Jobs | Jobs UI | KSM/Prom and/or `kube_*` in CH | 🟨 | **I** Path A Prom preferred; Path B CH `kube_*` probe; soft-unavailable + ticket **17** hint when empty |

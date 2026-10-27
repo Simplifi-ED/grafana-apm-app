@@ -1,7 +1,11 @@
 -- CI / local smoke fixture for GraphQL span detection (ticket 16).
--- Insert into a test ClickHouse with ClickStack otel_traces schema
--- (columns match docs/clickstack-migration/schema.md / DESCRIBE otel_traces).
--- Adjust Timestamp / ServiceName as needed for your seed window.
+-- Columns match ClickStack DESCRIBE default.otel_traces
+-- (docs/clickstack-migration/schema.md).
+--
+-- Load:
+--   CLICKHOUSE_URL=… CLICKHOUSE_PASSWORD=… ./scripts/fixtures/load-graphql-spans.sh
+--   # or SKIP_CREATE=1 against an existing ClickStack otel_traces
+-- See scripts/fixtures/README.md. Live CH: use scripts/graphql-demo (OTLP), not INSERT.
 --
 -- Verify:
 --   SELECT count() FROM otel_traces

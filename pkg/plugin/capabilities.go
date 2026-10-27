@@ -113,12 +113,12 @@ func (a *App) handleCapabilities(w http.ResponseWriter, req *http.Request) {
 		defer cancel()
 
 		var caps queries.Capabilities
+		resolvedToken := a.resolveServiceToken(req.Context())
 		if a.clickStackMode() {
 			ch := a.chForRequest(req)
-			caps = a.detectClickStackCapabilities(detachedCtx, ch)
+			caps = a.detectClickStackCapabilities(detachedCtx, ch, req.Header, resolvedToken)
 		} else {
 			authClient := a.promClientForRequest(req)
-			resolvedToken := a.resolveServiceToken(req.Context())
 			detachedCtx = withAuthContext(detachedCtx, authClient)
 			caps = a.detectCapabilities(detachedCtx, req.Header, resolvedToken)
 		}

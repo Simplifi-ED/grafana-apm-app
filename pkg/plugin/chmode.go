@@ -30,12 +30,17 @@ func (a *App) chForRequest(req *http.Request) *queries.ClickHouseClient {
 }
 
 // detectClickStackCapabilities probes verified spanmetrics / service-graph
-// metric names in ClickHouse and lists services/environments.
-func (a *App) detectClickStackCapabilities(ctx context.Context, ch *queries.ClickHouseClient) queries.Capabilities {
+// metric names in ClickHouse and lists services/environments. Pyroscope is
+// probed independently (ticket 18 / letter J) so Profiling works in ClickStack
+// mode even when ClickHouse is down.
+func (a *App) detectClickStackCapabilities(ctx context.Context, ch *queries.ClickHouseClient, headers http.Header, serviceToken string) queries.Capabilities {
 	caps := queries.Capabilities{
 		Tempo: DataSourceStatusUnavailable(),
 		Loki:  DataSourceStatusUnavailable(),
 	}
+	// Profiling DS detection does not depend on ClickHouse.
+	caps.Pyroscope = a.detectPyroscope(ctx, headers, serviceToken)
+
 	if ch == nil {
 		st := queries.DataSourceStatus{Available: false, Error: "clickhouse datasource not configured"}
 		caps.ClickHouse = &st

@@ -181,3 +181,22 @@ func TestDetectPyroscopePrefersConfiguredUID(t *testing.T) {
 		}
 	})
 }
+
+// Ticket 18: ClickStack mode must still surface pyroscope.available when a
+// Grafana Pyroscope DS exists — independent of ClickHouse connectivity.
+func TestDetectClickStackCapabilitiesIncludesPyroscope(t *testing.T) {
+	srv := fakeDatasourcesServer(t, []map[string]string{
+		{"uid": "clickhouse", "type": "grafana-clickhouse-datasource"},
+		{"uid": "pyroscope", "type": "grafana-pyroscope-datasource"},
+	}, http.StatusOK)
+	defer srv.Close()
+
+	app := pyroscopeTestApp(srv.URL)
+	got := app.detectClickStackCapabilities(context.Background(), nil, http.Header{}, "")
+	if got.ClickHouse == nil || got.ClickHouse.Available {
+		t.Fatalf("expected ClickHouse unavailable when client nil, got %+v", got.ClickHouse)
+	}
+	if !got.Pyroscope.Available || got.Pyroscope.UID != "pyroscope" {
+		t.Fatalf("ClickStack caps missing Pyroscope: %+v", got.Pyroscope)
+	}
+}

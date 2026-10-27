@@ -1,0 +1,51 @@
+# graphql-demo — ticket 16 live OTel GraphQL spans via Sanad OTLP path.
+# Apply: kubectl apply -k scripts/graphql-demo/k8s
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: graphql-demo
+  namespace: demo
+  labels:
+    app.kubernetes.io/name: graphql-demo
+    app.kubernetes.io/part-of: clickstack-nais-parity
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: graphql-demo
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: graphql-demo
+    spec:
+      containers:
+        - name: emitter
+          image: python:3.12-alpine
+          imagePullPolicy: IfNotPresent
+          command: ["python3", "-u", "/app/emit_graphql_spans.py"]
+          env:
+            - name: OTLP_ENDPOINT
+              value: http://otel-collector-logs.observability.svc.cluster.local:4318/v1/traces
+            - name: SERVICE_NAME
+              value: graphql-demo
+            - name: SERVICE_NS
+              value: demo
+            - name: ENVIRONMENT
+              value: prod-k3s-omnivya
+            - name: INTERVAL_SEC
+              value: "30"
+          volumeMounts:
+            - name: emitter
+              mountPath: /app
+              readOnly: true
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+      volumes:
+        - name: emitter
+          configMap:
+            name: graphql-demo-emitter

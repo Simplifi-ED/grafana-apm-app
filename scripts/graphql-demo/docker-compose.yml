@@ -1,0 +1,14 @@
+# Local graphql-demo → OTLP HTTP (:4318). Point OTLP_ENDPOINT at your collector.
+# ClickStack needs OTLP_AUTH=<ingestion key>.
+name: graphql-demo
+services:
+  graphql-demo:
+    build: .
+    environment:
+      OTLP_ENDPOINT: ${OTLP_ENDPOINT:-http://host.docker.internal:4318/v1/traces}
+      OTLP_AUTH: ${OTLP_AUTH:-}
+      SERVICE_NAME: graphql-demo
+      SERVICE_NS: demo
+      ENVIRONMENT: ${ENVIRONMENT:-ci}
+      INTERVAL_SEC: ${INTERVAL_SEC:-15}
+    restart: unless-stopped

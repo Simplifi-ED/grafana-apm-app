@@ -561,19 +561,21 @@ func (a *App) cachedOrDetectCapabilities(ctx context.Context) queries.Capabiliti
 		}
 
 		var caps queries.Capabilities
+		headers := httpHeaders(ctx)
 		if a.clickStackMode() {
+			token := a.resolveServiceToken(ctx)
 			ch := a.chClient
-			if h := httpHeaders(ctx); h != nil {
-				ch = a.chClient.WithAuthHeaders(h).WithServiceToken(a.resolveServiceToken(ctx))
+			if h := headers; h != nil {
+				ch = a.chClient.WithAuthHeaders(h).WithServiceToken(token)
 			}
-			caps = a.detectClickStackCapabilities(ctx, ch)
+			caps = a.detectClickStackCapabilities(ctx, ch, headers, token)
 		} else {
 			// Resolve the service token from the prom client in context (already resolved per-request)
 			token := ""
 			if c := a.prom(ctx); c != nil {
 				token = c.ServiceToken()
 			}
-			caps = a.detectCapabilities(ctx, httpHeaders(ctx), token)
+			caps = a.detectCapabilities(ctx, headers, token)
 		}
 		a.capMu.Lock()
 		a.capCache = &cachedCapabilities{caps: caps, fetchedAt: time.Now()}
