@@ -98,6 +98,9 @@ type FrontendMetricsResponse struct {
 	Vitals    map[string]float64 `json:"vitals,omitempty"`
 	ErrorRate float64            `json:"errorRate"`
 	HasLoki   bool               `json:"hasLoki,omitempty"` // true if Loki has Faro data for enrichment panels
+	// Hint is set when ClickStack mode cannot resolve jsonData.serviceAliases
+	// for browser/session ServiceName (empty panels; operator must configure).
+	Hint string `json:"hint,omitempty"`
 }
 
 // ---------------------------------------------------------------------------

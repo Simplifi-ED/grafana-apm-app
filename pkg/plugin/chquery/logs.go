@@ -18,10 +18,8 @@ func LogSearchSQLFiltered(service string, from, to time.Time, environment, sever
 	if limit <= 0 || limit > 500 {
 		limit = 200
 	}
-	fromMs, toMs := TimeBounds(from, to)
-	where := fmt.Sprintf(`Timestamp >= fromUnixTimestamp64Milli(%d)
-  AND Timestamp <= fromUnixTimestamp64Milli(%d)
-  AND ServiceName = %s`, fromMs, toMs, q(service))
+	where := fmt.Sprintf(`%s
+  AND ServiceName = %s`, TimestampFilter(from, to), q(service))
 	if environment != "" {
 		where += fmt.Sprintf(" AND ResourceAttributes['%s'] = %s", ResCluster, q(environment))
 	}
@@ -67,11 +65,9 @@ func LogPatternSQLFiltered(service string, from, to time.Time, environment, seve
 	if limit <= 0 || limit > 100 {
 		limit = 50
 	}
-	fromMs, toMs := TimeBounds(from, to)
-	where := fmt.Sprintf(`Timestamp >= fromUnixTimestamp64Milli(%d)
-  AND Timestamp <= fromUnixTimestamp64Milli(%d)
+	where := fmt.Sprintf(`%s
   AND ServiceName = %s
-  AND Body != ''`, fromMs, toMs, q(service))
+  AND Body != ''`, TimestampFilter(from, to), q(service))
 	if environment != "" {
 		where += fmt.Sprintf(" AND ResourceAttributes['%s'] = %s", ResCluster, q(environment))
 	}

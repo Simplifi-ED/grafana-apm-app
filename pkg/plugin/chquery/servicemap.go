@@ -9,7 +9,6 @@ import (
 
 // ServiceGraphSQL returns client→server edge totals and failures.
 func ServiceGraphSQL(from, to time.Time, environment string) string {
-	fromMs, toMs := TimeBounds(from, to)
 	envFilt := "1"
 	if environment != "" {
 		envFilt = fmt.Sprintf("ResourceAttributes['%s'] = %s", ResCluster, q(environment))
@@ -22,8 +21,7 @@ SELECT
   sumIf(Value, MetricName = %s) AS failed
 FROM %s
 WHERE MetricName IN (%s, %s)
-  AND TimeUnix >= fromUnixTimestamp64Milli(%d)
-  AND TimeUnix <= fromUnixTimestamp64Milli(%d)
+  AND %s
   AND Attributes['client'] != ''
   AND Attributes['server'] != ''
   AND (%s)
@@ -34,7 +32,7 @@ LIMIT 500`,
 		q(MetricSGRequest), q(MetricSGFailed),
 		table(queries.CHTableMetricsSum),
 		q(MetricSGRequest), q(MetricSGFailed),
-		fromMs, toMs,
+		MetricTimeFilter(from, to),
 		envFilt,
 	)
 }

@@ -27,6 +27,11 @@ type IngressAlias = {
   service: string;
 };
 
+type ServiceAlias = {
+  inventory: string;
+  scrape: string;
+};
+
 type State = {
   metricsUid: string;
   tracesUid: string;
@@ -37,6 +42,7 @@ type State = {
   labelOverrides: LabelOverrides;
   envOverrides: EnvOverride[];
   ingressAliases: IngressAlias[];
+  serviceAliases: ServiceAlias[];
   opsWatchlist: OpsWatchlistEntry[];
   serviceAccountToken: string;
   tokenConfigured: boolean;
@@ -79,6 +85,10 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
     ingressAliases: Object.entries(jsonData?.ingressAliases ?? {}).map(([hostname, service]) => ({
       hostname,
       service,
+    })),
+    serviceAliases: Object.entries(jsonData?.serviceAliases ?? {}).map(([inventory, scrape]) => ({
+      inventory,
+      scrape,
     })),
     opsWatchlist: Array.isArray(jsonData?.opsWatchlist) ? jsonData.opsWatchlist : [],
     serviceAccountToken: '',
@@ -269,6 +279,28 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
     }));
   };
 
+  const onServiceAliasChange = (idx: number, field: keyof ServiceAlias) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    setState((prev) => {
+      const aliases = [...prev.serviceAliases];
+      aliases[idx] = { ...aliases[idx], [field]: e.currentTarget.value.trim() };
+      return { ...prev, serviceAliases: aliases };
+    });
+  };
+
+  const addServiceAlias = () => {
+    setState((prev) => ({
+      ...prev,
+      serviceAliases: [...prev.serviceAliases, { inventory: '', scrape: '' }],
+    }));
+  };
+
+  const removeServiceAlias = (idx: number) => {
+    setState((prev) => ({
+      ...prev,
+      serviceAliases: prev.serviceAliases.filter((_, i) => i !== idx),
+    }));
+  };
+
   const onWatchlistChange =
     (idx: number, field: keyof OpsWatchlistEntry) => (e: React.ChangeEvent<HTMLInputElement>) => {
       setState((prev) => {
@@ -323,6 +355,14 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
       }
     }
 
+    // Inventory → scrape/browser ServiceName (ClickStack non-spanmetrics signals).
+    const serviceAliases: Record<string, string> = {};
+    for (const alias of state.serviceAliases) {
+      if (alias.inventory && alias.scrape) {
+        serviceAliases[alias.inventory] = alias.scrape;
+      }
+    }
+
     // Build ops watchlist, filtering out incomplete entries
     const opsWatchlist = state.opsWatchlist.filter((e) => e.namespace && e.service);
 
@@ -363,6 +403,7 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
         durationUnit: state.durationUnit || undefined,
         labelOverrides: Object.values(state.labelOverrides).some(Boolean) ? state.labelOverrides : undefined,
         ingressAliases: Object.keys(ingressAliases).length > 0 ? ingressAliases : undefined,
+        serviceAliases: Object.keys(serviceAliases).length > 0 ? serviceAliases : undefined,
         opsWatchlist: opsWatchlist.length > 0 ? opsWatchlist : undefined,
       },
       secureJsonData: Object.keys(secureJsonData).length > 0 ? secureJsonData : undefined,
@@ -727,6 +768,40 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
             onChange={onLabelOverrideChange('deploymentEnvLabel')}
           />
         </Field>
+      </FieldSet>
+
+      <FieldSet label="Service Aliases (ClickStack)" className={s.marginTop}>
+        <p className={s.description}>
+          Map inventory (spanmetrics) names to scrape/browser <code>ServiceName</code> values for Runtime, Custom
+          Metrics, HyperDX sessions/webvitals, and browser Issues. Canonical UI/URL stays the inventory name. Missing
+          entries yield empty panels with a configure hint — no silent <code>-api</code>↔<code>-app</code> rewrite.
+          Identity entries (e.g. <code>nova-frontend</code>→<code>nova-frontend</code>) are required when the names
+          already match.
+        </p>
+        {state.serviceAliases.map((alias, idx) => (
+          <div key={idx} className={s.envRow}>
+            <Field label={idx === 0 ? 'Inventory name' : undefined}>
+              <Input
+                width={30}
+                value={alias.inventory}
+                placeholder="nova-api"
+                onChange={onServiceAliasChange(idx, 'inventory')}
+              />
+            </Field>
+            <Field label={idx === 0 ? 'Scrape / browser name' : undefined}>
+              <Input
+                width={30}
+                value={alias.scrape}
+                placeholder="nova-app"
+                onChange={onServiceAliasChange(idx, 'scrape')}
+              />
+            </Field>
+            <IconButton name="trash-alt" tooltip="Remove alias" onClick={() => removeServiceAlias(idx)} />
+          </div>
+        ))}
+        <Button variant="secondary" icon="plus" size="sm" onClick={addServiceAlias} type="button">
+          Add service alias
+        </Button>
       </FieldSet>
 
       <FieldSet label="Ingress Aliases" className={s.marginTop}>

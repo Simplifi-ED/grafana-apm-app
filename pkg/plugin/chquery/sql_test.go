@@ -127,6 +127,60 @@ func TestFilterClause_EscapesQuotes(t *testing.T) {
 	}
 }
 
+func TestADR0003_ContractHelpers(t *testing.T) {
+	from := time.UnixMilli(1_700_000_000_000)
+	to := time.UnixMilli(1_700_000_360_000)
+
+	metricTime := MetricTimeFilter(from, to)
+	for _, want := range []string{ColTimeUnix, "fromUnixTimestamp64Milli(1700000000000)", "fromUnixTimestamp64Milli(1700000360000)"} {
+		if !strings.Contains(metricTime, want) {
+			t.Errorf("MetricTimeFilter missing %q: %s", want, metricTime)
+		}
+	}
+
+	tsTime := TimestampFilter(from, to)
+	for _, want := range []string{ColTimestamp, "fromUnixTimestamp64Milli(1700000000000)"} {
+		if !strings.Contains(tsTime, want) {
+			t.Errorf("TimestampFilter missing %q: %s", want, tsTime)
+		}
+	}
+
+	if got := MetricSpanKindServerFilter(); !strings.Contains(got, SpanKindServer) || !strings.Contains(got, AttrSpanKind) {
+		t.Fatalf("MetricSpanKindServerFilter: %s", got)
+	}
+	if got := MetricStatusErrorFilter(); !strings.Contains(got, StatusError) || !strings.Contains(got, AttrStatusCode) {
+		t.Fatalf("MetricStatusErrorFilter: %s", got)
+	}
+	if got := TraceServerKindFilter(); !strings.Contains(got, TraceSpanKindServer) || !strings.Contains(got, SpanKindServer) {
+		t.Fatalf("TraceServerKindFilter: %s", got)
+	}
+	if got := TraceStatusErrorFilter(); !strings.Contains(got, TraceStatusError) || !strings.Contains(got, StatusError) {
+		t.Fatalf("TraceStatusErrorFilter dual encoding: %s", got)
+	}
+	if got := TraceStatusNotErrorFilter(); !strings.Contains(got, "NOT IN") {
+		t.Fatalf("TraceStatusNotErrorFilter: %s", got)
+	}
+	if got := BucketMsExpr(ColTimeUnix, 60); !strings.Contains(got, "toStartOfInterval") || !strings.Contains(got, "* 1000") {
+		t.Fatalf("BucketMsExpr: %s", got)
+	}
+
+	// InventorySQL must use metric helpers (SPAN_KIND_* / STATUS_CODE_* / TimeUnix).
+	inv := InventorySQL(from, to, "sanad", "prod")
+	for _, want := range []string{SpanKindServer, StatusError, "fromUnixTimestamp64Milli", ColTimeUnix} {
+		if !strings.Contains(inv, want) {
+			t.Errorf("InventorySQL missing %q", want)
+		}
+	}
+	// ErrorSpansSQL must use dual StatusCode filter, not metrics STATUS_CODE alone.
+	errSQL := ErrorSpansSQL("nova-api", from, to, "")
+	if !strings.Contains(errSQL, TraceStatusError) || !strings.Contains(errSQL, StatusError) {
+		t.Fatalf("ErrorSpansSQL expected dual StatusCode: %s", errSQL)
+	}
+	if strings.Contains(errSQL, "Attributes['status.code']") {
+		t.Fatal("ErrorSpansSQL must not use metrics status attribute on traces")
+	}
+}
+
 func TestWebVitalsSQL_TargetsHyperDXSpans(t *testing.T) {
 	sql := WebVitalsSQL("nova-frontend", "prod-k3s-omnivya", time.Now().Add(-6*time.Hour), time.Now())
 	for _, want := range []string{"webvitals", "nova-frontend", "quantileIf(0.75)", "SpanAttributes['lcp']", "prod-k3s-omnivya"} {

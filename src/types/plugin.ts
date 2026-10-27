@@ -44,6 +44,12 @@ export interface AppPluginSettings {
   labelOverrides?: LabelOverrides;
   /** Ingress hostname → service name mapping for discovering on-prem callers via nais ingress. */
   ingressAliases?: Record<string, string>;
+  /**
+   * Inventory (spanmetrics) name → scrape/browser ServiceName for non-spanmetrics
+   * signals (Runtime, Custom, HyperDX sessions/webvitals, browser Issues).
+   * Canonical UI/URL stays the inventory name. Missing entry → empty panels + hint.
+   */
+  serviceAliases?: Record<string, string>;
   /** Global ops watchlist — services monitored on the Ops Status Board. Editable by any user via the backend API. */
   opsWatchlist?: OpsWatchlistEntry[];
 }

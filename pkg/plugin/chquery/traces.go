@@ -18,10 +18,8 @@ func TraceBreakdownSQLForDimension(service string, from, to time.Time, environme
 		limit = 100
 	}
 	dimensionExpr := traceDimensionExpr(dimension)
-	fromMs, toMs := TimeBounds(from, to)
-	where := fmt.Sprintf(`Timestamp >= fromUnixTimestamp64Milli(%d)
-  AND Timestamp <= fromUnixTimestamp64Milli(%d)
-  AND ServiceName = %s`, fromMs, toMs, q(service))
+	where := fmt.Sprintf(`%s
+  AND ServiceName = %s`, TimestampFilter(from, to), q(service))
 	if environment != "" {
 		where += fmt.Sprintf(" AND ResourceAttributes['%s'] = %s", ResCluster, q(environment))
 	}
@@ -30,7 +28,7 @@ SELECT
   %s AS dimension,
   SpanKind AS span_kind,
   count() AS spans,
-  countIf(StatusCode = 'Error') AS errors,
+  countIf(%s) AS errors,
   quantile(0.50)(Duration) / 1e6 AS p50_ms,
   quantile(0.95)(Duration) / 1e6 AS p95_ms,
   quantile(0.99)(Duration) / 1e6 AS p99_ms,
@@ -40,7 +38,7 @@ WHERE %s
 GROUP BY dimension, span_kind
 HAVING dimension != ''
 ORDER BY spans DESC
-LIMIT %d`, dimensionExpr, table(queries.CHTableTraces), where, limit)
+LIMIT %d`, dimensionExpr, TraceStatusErrorFilter(), table(queries.CHTableTraces), where, limit)
 }
 
 // TraceSearchSQL finds recent traces for a service (bounded).
@@ -63,19 +61,17 @@ func TraceSearchSQLFiltered(
 	if limit <= 0 || limit > 100 {
 		limit = 50
 	}
-	fromMs, toMs := TimeBounds(from, to)
-	where := fmt.Sprintf(`Timestamp >= fromUnixTimestamp64Milli(%d)
-  AND Timestamp <= fromUnixTimestamp64Milli(%d)
+	where := fmt.Sprintf(`%s
   AND ServiceName = %s
-  AND TraceId != ''`, fromMs, toMs, q(service))
+  AND TraceId != ''`, TimestampFilter(from, to), q(service))
 	if environment != "" {
 		where += fmt.Sprintf(" AND ResourceAttributes['%s'] = %s", ResCluster, q(environment))
 	}
 	if status == "error" {
-		where += " AND StatusCode = 'Error'"
+		where += " AND " + TraceStatusErrorFilter()
 	}
 	if status == "ok" {
-		where += " AND StatusCode != 'Error'"
+		where += " AND " + TraceStatusNotErrorFilter()
 	}
 	if spanSearch != "" {
 		where += fmt.Sprintf(" AND positionCaseInsensitiveUTF8(SpanName, %s) > 0", q(spanSearch))
@@ -92,13 +88,13 @@ SELECT
   toUnixTimestamp64Milli(min(Timestamp)) AS start_ts,
   toUnixTimestamp64Milli(max(Timestamp)) AS end_ts,
   count() AS spans,
-  countIf(StatusCode = 'Error') AS errors,
+  countIf(%s) AS errors,
   sum(Duration) / 1e6 AS total_ms
 FROM %s
 WHERE %s
 GROUP BY trace_id
 ORDER BY start_ts DESC
-LIMIT %d`, table(queries.CHTableTraces), where, limit)
+LIMIT %d`, TraceStatusErrorFilter(), table(queries.CHTableTraces), where, limit)
 }
 
 // TraceDetailSQL returns spans for one trace id (waterfall input).
@@ -106,7 +102,6 @@ func TraceDetailSQL(traceID string, from, to time.Time, limit int) string {
 	if limit <= 0 || limit > 2000 {
 		limit = 1000
 	}
-	fromMs, toMs := TimeBounds(from, to)
 	return fmt.Sprintf(`
 SELECT
   toUnixTimestamp64Milli(Timestamp) AS ts_ms,
@@ -121,10 +116,9 @@ SELECT
   StatusMessage AS status_message
 FROM %s
 WHERE TraceId = %s
-  AND Timestamp >= fromUnixTimestamp64Milli(%d)
-  AND Timestamp <= fromUnixTimestamp64Milli(%d)
+  AND %s
 ORDER BY Timestamp ASC
-LIMIT %d`, table(queries.CHTableTraces), q(traceID), fromMs, toMs, limit)
+LIMIT %d`, table(queries.CHTableTraces), q(traceID), TimestampFilter(from, to), limit)
 }
 
 func traceDimensionExpr(dimension string) string {

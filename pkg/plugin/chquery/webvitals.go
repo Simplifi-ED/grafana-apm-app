@@ -14,11 +14,9 @@ const SpanNameWebVitals = "webvitals"
 
 // WebVitalsSQL returns p75 for each Core Web Vital from otel_traces webvitals spans.
 func WebVitalsSQL(service, environment string, from, to time.Time) string {
-	fromMs, toMs := TimeBounds(from, to)
-	where := fmt.Sprintf(`Timestamp >= fromUnixTimestamp64Milli(%d)
-  AND Timestamp <= fromUnixTimestamp64Milli(%d)
+	where := fmt.Sprintf(`%s
   AND ServiceName = %s
-  AND SpanName = %s`, fromMs, toMs, q(service), q(SpanNameWebVitals))
+  AND SpanName = %s`, TimestampFilter(from, to), q(service), q(SpanNameWebVitals))
 	if environment != "" {
 		where += fmt.Sprintf(" AND ResourceAttributes['%s'] = %s", ResCluster, q(environment))
 	}
@@ -63,13 +61,11 @@ ORDER BY time`, bucketSeconds, table(queries.CHTableTraces), where)
 
 // BrowserTelemetryProbeSQL detects HyperDX / OTel browser SDK traffic for a service.
 func BrowserTelemetryProbeSQL(service, environment string, from, to time.Time) string {
-	fromMs, toMs := TimeBounds(from, to)
-	where := fmt.Sprintf(`Timestamp >= fromUnixTimestamp64Milli(%d)
-  AND Timestamp <= fromUnixTimestamp64Milli(%d)
+	where := fmt.Sprintf(`%s
   AND ServiceName = %s
   AND (SpanName = %s OR ResourceAttributes['process.runtime.name'] = 'browser'
        OR ResourceAttributes['telemetry.sdk.language'] = 'webjs')`,
-		fromMs, toMs, q(service), q(SpanNameWebVitals))
+		TimestampFilter(from, to), q(service), q(SpanNameWebVitals))
 	if environment != "" {
 		where += fmt.Sprintf(" AND ResourceAttributes['%s'] = %s", ResCluster, q(environment))
 	}

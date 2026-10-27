@@ -134,6 +134,9 @@ type IssuesResponse struct {
 	FacetedSource string `json:"facetedSource,omitempty"`
 	// Unavailable is set when Loki is unconfigured or both sides failed.
 	Unavailable bool `json:"unavailable,omitempty"`
+	// Hint is set when ClickStack browser Issues need a serviceAliases entry
+	// and none is configured (server Issues still use inventory ServiceName).
+	Hint string `json:"hint,omitempty"`
 }
 
 // handleIssues returns the unified issues list (#63 Phase 1): Faro frontend

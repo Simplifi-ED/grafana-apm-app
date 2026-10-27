@@ -1,0 +1,19 @@
+# Optional overlay: local Pyroscope for Profiling-tab smoke (ticket 18).
+#
+#   docker compose -f docker-compose.yaml -f docker-compose.pyroscope.yaml up -d
+#
+# Then provision provisioning/datasources/pyroscope.yaml.example (copy to a
+# live datasources*.yaml) and restart Grafana. Confirm:
+#   GET /api/plugins/clickhouse-apm-app/resources/capabilities → pyroscope.available
+
+services:
+  grafana:
+    environment:
+      GF_INSTALL_PLUGINS: grafana-clickhouse-datasource,grafana-pyroscope-datasource
+
+  pyroscope:
+    image: grafana/pyroscope:1.13.2
+    ports:
+      - '4040:4040'
+    command:
+      - -server.http-listen-port=4040

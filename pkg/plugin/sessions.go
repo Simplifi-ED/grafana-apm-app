@@ -63,6 +63,9 @@ type FrontendSessionsResponse struct {
 	// over a narrower window than the requested range (Loki max_query_series
 	// on the session_id series set), mirroring ExceptionGroupsResponse.
 	WindowSeconds int `json:"windowSeconds,omitempty"`
+	// Hint is set when ClickStack mode cannot resolve jsonData.serviceAliases
+	// for the browser ServiceName (empty list; operator must configure).
+	Hint string `json:"hint,omitempty"`
 }
 
 // handleFrontendSessions returns recent Faro sessions for a frontend app.

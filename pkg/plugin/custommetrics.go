@@ -72,6 +72,9 @@ type CustomMetric struct {
 type CustomMetricsResponse struct {
 	Metrics   []CustomMetric `json:"metrics"`
 	Truncated bool           `json:"truncated"`
+	// Hint is set when ClickStack mode cannot resolve jsonData.serviceAliases
+	// for this inventory service (empty panels; operator must configure).
+	Hint string `json:"hint,omitempty"`
 }
 
 // handleCustomMetrics discovers a service's custom (non-platform) metric
@@ -90,6 +93,19 @@ func (a *App) handleCustomMetrics(w http.ResponseWriter, req *http.Request) {
 	}
 
 	from, to := parseTimeRange(req)
+
+	// ClickStack: custom scrapes resolve via serviceAliases. Missing → empty + hint.
+	// Letter C wires CH discovery against the scrape ServiceName.
+	if a.clickStackMode() {
+		scrape, ok := a.ResolveServiceAlias(service)
+		if !ok {
+			writeJSON(w, CustomMetricsResponse{Metrics: []CustomMetric{}, Hint: AliasMissingHint(service)})
+			return
+		}
+		_ = scrape
+		writeJSON(w, CustomMetricsResponse{Metrics: []CustomMetric{}})
+		return
+	}
 
 	orgID := req.Header.Get("X-Grafana-Org-Id")
 	ck := cacheKey("custommetrics", orgID, roundedUnix(from), roundedUnix(to), namespace, service, environment)

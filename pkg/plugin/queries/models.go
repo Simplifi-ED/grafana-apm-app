@@ -94,6 +94,13 @@ type PluginSettings struct {
 	// ingress hostname (e.g., on-prem callers using a public ingress).
 	// Key: hostname, Value: service_name.
 	IngressAliases map[string]string `json:"ingressAliases,omitempty"`
+
+	// ServiceAliases maps inventory / spanmetrics service names to the
+	// scrape or browser ServiceName used by non-spanmetrics signals
+	// (Runtime go_*/process_*, custom metrics, HyperDX sessions/webvitals,
+	// browser Issues). Key: inventory name, Value: scrape/browser name.
+	// Missing entry → empty panels + operator hint (no silent -api↔-app heuristic).
+	ServiceAliases map[string]string `json:"serviceAliases,omitempty"`
 }
 
 // Capabilities represents the detected OTel data capabilities.
@@ -254,6 +261,9 @@ type RuntimeResponse struct {
 	Go        *GoRuntime        `json:"go,omitempty"`
 	DBPool    *DBPoolRuntime    `json:"dbPool,omitempty"`
 	Kafka     *KafkaRuntime     `json:"kafka,omitempty"`
+	// Hint is set when ClickStack mode cannot resolve jsonData.serviceAliases
+	// for this inventory service (empty panels; operator must configure).
+	Hint string `json:"hint,omitempty"`
 }
 
 // ContainerRuntime holds Kubernetes container resource metrics.

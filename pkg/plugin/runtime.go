@@ -26,6 +26,19 @@ func (a *App) handleRuntime(w http.ResponseWriter, req *http.Request) {
 
 	from, to := parseTimeRange(req)
 
+	// ClickStack: non-spanmetrics scrapes use serviceAliases (inventory → scrape).
+	// Missing → empty + hint (no silent -api↔-app query). Letter C wires CH queries.
+	if a.clickStackMode() {
+		scrape, ok := a.ResolveServiceAlias(service)
+		if !ok {
+			writeJSON(w, queries.RuntimeResponse{Hint: AliasMissingHint(service)})
+			return
+		}
+		_ = scrape // letter C: query otel_metrics_* with scrape ServiceName
+		writeJSON(w, queries.RuntimeResponse{})
+		return
+	}
+
 	orgID := req.Header.Get("X-Grafana-Org-Id")
 	ck := cacheKey("runtime", orgID, roundedUnix(from), roundedUnix(to), namespace, service, environment)
 	a.writeCached(w, ck, "querying runtime metrics failed", func() (any, error) {

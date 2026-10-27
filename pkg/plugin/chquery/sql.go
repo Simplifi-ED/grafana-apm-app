@@ -28,24 +28,73 @@ const (
 	AttrDBSystem        = "db.system"
 	AttrDBOperation     = "db.operation.name"
 	AttrMessagingSystem = "messaging.system"
-	StatusError         = "STATUS_CODE_ERROR"
+	StatusError         = "STATUS_CODE_ERROR" // spanmetrics Attributes['status.code']
+	StatusOK            = "STATUS_CODE_OK"
+	StatusUnset         = "STATUS_CODE_UNSET"
 	SpanKindServer      = "SPAN_KIND_SERVER" // spanmetrics Attributes['span.kind']
 	SpanKindClient      = "SPAN_KIND_CLIENT"
-	// otel_traces.SpanKind uses short enum labels (Server/Client), not SPAN_KIND_*.
+	// otel_traces.SpanKind / StatusCode use short enum labels, not SPAN_KIND_* / STATUS_CODE_*.
 	TraceSpanKindServer = "Server"
 	TraceSpanKindClient = "Client"
+	TraceStatusError    = "Error"
+	TraceStatusOK       = "Ok"
+	TraceStatusUnset    = "Unset"
 	ResCluster          = "cluster"
 	ResServiceNamespace = "service.namespace"
+	ColTimeUnix         = "TimeUnix"  // metrics tables
+	ColTimestamp        = "Timestamp" // traces / logs / sessions
 )
+
+// MetricSpanKindServerFilter matches SERVER in spanmetrics Attributes.
+func MetricSpanKindServerFilter() string {
+	return fmt.Sprintf("Attributes['%s'] = %s", AttrSpanKind, q(SpanKindServer))
+}
+
+// MetricStatusErrorFilter matches ERROR in spanmetrics Attributes.
+func MetricStatusErrorFilter() string {
+	return fmt.Sprintf("Attributes['%s'] = %s", AttrStatusCode, q(StatusError))
+}
 
 // TraceServerKindFilter matches SERVER spans in otel_traces across both label styles.
 func TraceServerKindFilter() string {
 	return fmt.Sprintf("SpanKind IN (%s, %s)", q(TraceSpanKindServer), q(SpanKindServer))
 }
 
+// TraceStatusErrorFilter matches error spans; dual-encodes short + STATUS_CODE_* defensively.
+func TraceStatusErrorFilter() string {
+	return fmt.Sprintf("StatusCode IN (%s, %s)", q(TraceStatusError), q(StatusError))
+}
+
+// TraceStatusNotErrorFilter excludes error spans (ok + unset).
+func TraceStatusNotErrorFilter() string {
+	return fmt.Sprintf("StatusCode NOT IN (%s, %s)", q(TraceStatusError), q(StatusError))
+}
+
 // TimeBounds returns epoch-ms bounds for SQL literals.
 func TimeBounds(from, to time.Time) (fromMs, toMs int64) {
 	return from.UnixMilli(), to.UnixMilli()
+}
+
+// MetricTimeFilter bounds metrics rows on TimeUnix (DateTime64) via fromUnixTimestamp64Milli.
+func MetricTimeFilter(from, to time.Time) string {
+	fromMs, toMs := TimeBounds(from, to)
+	return fmt.Sprintf("%s >= fromUnixTimestamp64Milli(%d) AND %s <= fromUnixTimestamp64Milli(%d)",
+		ColTimeUnix, fromMs, ColTimeUnix, toMs)
+}
+
+// TimestampFilter bounds traces/logs/sessions on Timestamp (DateTime64).
+func TimestampFilter(from, to time.Time) string {
+	fromMs, toMs := TimeBounds(from, to)
+	return fmt.Sprintf("%s >= fromUnixTimestamp64Milli(%d) AND %s <= fromUnixTimestamp64Milli(%d)",
+		ColTimestamp, fromMs, ColTimestamp, toMs)
+}
+
+// BucketMsExpr buckets a DateTime64 column into epoch-ms for sparkline series.
+func BucketMsExpr(col string, stepSec int) string {
+	if stepSec <= 0 {
+		stepSec = 60
+	}
+	return fmt.Sprintf("toUnixTimestamp(toStartOfInterval(%s, INTERVAL %d SECOND)) * 1000", col, stepSec)
 }
 
 // WindowSeconds is the query window length used to convert call counts → rates.

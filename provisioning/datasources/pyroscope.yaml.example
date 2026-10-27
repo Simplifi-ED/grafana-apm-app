@@ -1,0 +1,19 @@
+# Optional Pyroscope datasource for the Profiling tab (parity ticket 18).
+# Copy beside your other datasources (e.g. merge into datasources.yaml) and
+# ensure grafana-pyroscope-datasource is installed:
+#   GF_INSTALL_PLUGINS=grafana-clickhouse-datasource,grafana-pyroscope-datasource
+#
+# The plugin auto-detects the first DS of type grafana-pyroscope-datasource or
+# phlare via GET /capabilities — no plugin jsonData UID required.
+# Suggested UID: pyroscope
+
+apiVersion: 1
+
+datasources:
+  - name: Pyroscope
+    type: grafana-pyroscope-datasource
+    uid: pyroscope
+    access: proxy
+    url: http://pyroscope:4040
+    jsonData:
+      keepCookies: []

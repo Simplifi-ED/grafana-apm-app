@@ -193,12 +193,20 @@ func (a *App) fetchFrontendMetricsClickHouse(
 	from, to time.Time,
 ) FrontendMetricsResponse {
 	logger := log.DefaultLogger.With("handler", "frontend-clickhouse")
+	browserName, ok := a.ResolveServiceAlias(service)
+	if !ok {
+		return FrontendMetricsResponse{
+			Available: false,
+			Source:    "clickhouse",
+			Hint:      AliasMissingHint(service),
+		}
+	}
 	if ch == nil {
 		return FrontendMetricsResponse{Available: false, Source: "clickhouse"}
 	}
 	opts := queries.ClickHouseQueryOptions{From: from, To: to, Limit: 1, SkipLimitEnforcement: true}
 
-	probe, err := ch.Query(ctx, chquery.BrowserTelemetryProbeSQL(service, environment, from, to), opts)
+	probe, err := ch.Query(ctx, chquery.BrowserTelemetryProbeSQL(browserName, environment, from, to), opts)
 	if err != nil {
 		logger.Warn("browser telemetry probe failed", "error", err)
 		return FrontendMetricsResponse{Available: false, Source: "clickhouse"}
@@ -207,7 +215,7 @@ func (a *App) fetchFrontendMetricsClickHouse(
 		return FrontendMetricsResponse{Available: false, Source: "clickhouse"}
 	}
 
-	vitalsRes, err := ch.Query(ctx, chquery.WebVitalsSQL(service, environment, from, to), opts)
+	vitalsRes, err := ch.Query(ctx, chquery.WebVitalsSQL(browserName, environment, from, to), opts)
 	if err != nil {
 		logger.Warn("web vitals query failed", "error", err)
 		return FrontendMetricsResponse{Available: true, Source: "clickhouse-traces"}
@@ -533,6 +541,8 @@ func (a *App) fetchIssuesClickHouse(
 			Unavailable:        true,
 		}
 	}
+	// Server exception spans/logs use inventory ServiceName (spanmetrics identity).
+	// Browser Issues (letter F) must ResolveServiceAlias before querying HyperDX.
 	opts := queries.ClickHouseQueryOptions{From: from, To: to, Limit: 50}
 	logRes, logErr := ch.Query(ctx, chquery.ExceptionGroupsSQL(service, from, to, environment, 50), opts)
 	if logErr != nil {
@@ -622,13 +632,19 @@ func (a *App) fetchFrontendSessionsClickHouse(
 	service, environment string,
 	from, to time.Time,
 ) FrontendSessionsResponse {
+	browserName, ok := a.ResolveServiceAlias(service)
+	if !ok {
+		return FrontendSessionsResponse{
+			Sessions: []SessionSummary{},
+			Hint:     AliasMissingHint(service),
+		}
+	}
 	// Reuse recordings list: HyperDX sessions with rum.sessionId.
 	table, err := queries.QualifiedTable(queries.CHDatabaseDefault, queries.CHTableSessions)
 	if err != nil {
 		return FrontendSessionsResponse{Sessions: []SessionSummary{}, Unavailable: true}
 	}
-	fromMs, toMs := from.UnixMilli(), to.UnixMilli()
-	where := fmt.Sprintf("ServiceName = %s AND ResourceAttributes['rum.sessionId'] != ''", queries.QuoteClickHouseString(service))
+	where := fmt.Sprintf("ServiceName = %s AND ResourceAttributes['rum.sessionId'] != ''", queries.QuoteClickHouseString(browserName))
 	if environment != "" {
 		where += fmt.Sprintf(" AND ResourceAttributes['cluster'] = %s", queries.QuoteClickHouseString(environment))
 	}
@@ -640,11 +656,10 @@ SELECT
   count() AS events
 FROM %s
 WHERE %s
-  AND Timestamp >= fromUnixTimestamp64Milli(%d)
-  AND Timestamp <= fromUnixTimestamp64Milli(%d)
+  AND %s
 GROUP BY session_id
 ORDER BY last_ms DESC
-LIMIT 50`, table, where, fromMs, toMs)
+LIMIT 50`, table, where, chquery.TimestampFilter(from, to))
 
 	res, err := ch.Query(ctx, sql, queries.ClickHouseQueryOptions{From: from, To: to, Limit: 50})
 	if err != nil {

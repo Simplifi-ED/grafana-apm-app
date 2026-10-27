@@ -12,7 +12,6 @@ import (
 // Latency is filled separately via LatencySQL (otel_traces quantiles) because
 // histogram Sum/Count on this cluster is not a reliable p95 source.
 func InventorySQL(from, to time.Time, namespace, environment string) string {
-	fromMs, toMs := TimeBounds(from, to)
 	filt := FilterClause(namespace, environment, "", "ResourceAttributes")
 	return fmt.Sprintf(`
 SELECT
@@ -20,12 +19,11 @@ SELECT
   any(ResourceAttributes['%s']) AS namespace,
   any(ResourceAttributes['%s']) AS environment,
   sum(Value) AS calls,
-  sumIf(Value, Attributes['%s'] = %s) AS errors
+  sumIf(Value, %s) AS errors
 FROM %s
 WHERE MetricName = %s
-  AND TimeUnix >= fromUnixTimestamp64Milli(%d)
-  AND TimeUnix <= fromUnixTimestamp64Milli(%d)
-  AND Attributes['%s'] = %s
+  AND %s
+  AND %s
   AND (%s)
 GROUP BY service
 HAVING calls > 0
@@ -33,32 +31,25 @@ ORDER BY calls DESC
 LIMIT 500`,
 		ServiceExpr("Attributes"),
 		ResServiceNamespace, ResCluster,
-		AttrStatusCode, q(StatusError),
+		MetricStatusErrorFilter(),
 		table(queries.CHTableMetricsSum),
 		q(MetricSpanCalls),
-		fromMs, toMs,
-		AttrSpanKind, q(SpanKindServer),
+		MetricTimeFilter(from, to),
+		MetricSpanKindServerFilter(),
 		filt,
 	)
 }
 
 // LatencySQL returns p95 duration in milliseconds from raw SERVER spans.
 func LatencySQL(from, to time.Time, namespace, environment string) string {
-	fromMs, toMs := TimeBounds(from, to)
 	var parts []string
-	parts = append(parts, fmt.Sprintf("Timestamp >= fromUnixTimestamp64Milli(%d)", fromMs))
-	parts = append(parts, fmt.Sprintf("Timestamp <= fromUnixTimestamp64Milli(%d)", toMs))
+	parts = append(parts, TimestampFilter(from, to))
 	parts = append(parts, TraceServerKindFilter())
 	if namespace != "" {
 		parts = append(parts, fmt.Sprintf("ResourceAttributes['%s'] = %s", ResServiceNamespace, q(namespace)))
 	}
 	if environment != "" {
 		parts = append(parts, fmt.Sprintf("ResourceAttributes['%s'] = %s", ResCluster, q(environment)))
-	}
-	var where strings.Builder
-	where.WriteString(parts[0])
-	for _, p := range parts[1:] {
-		where.WriteString(" AND " + p)
 	}
 	return fmt.Sprintf(`
 SELECT
@@ -67,7 +58,7 @@ SELECT
 FROM %s
 WHERE %s
 GROUP BY service
-LIMIT 500`, table(queries.CHTableTraces), where.String())
+LIMIT 500`, table(queries.CHTableTraces), strings.Join(parts, " AND "))
 }
 
 // InventoryRow is one parsed inventory aggregate.
@@ -180,33 +171,31 @@ func InventoryCallsSeriesSQL(from, to time.Time, stepSec int64, namespace, envir
 	if stepSec < 1 {
 		stepSec = 60
 	}
-	fromMs, toMs := TimeBounds(from, to)
 	filt := FilterClause(namespace, environment, "", "ResourceAttributes")
 	svcFilt := ServiceNamesFilter(servicesCSV)
 	return fmt.Sprintf(`
 SELECT
   %s AS service,
-  toUnixTimestamp(toStartOfInterval(TimeUnix, INTERVAL %d SECOND)) * 1000 AS t,
+  %s AS t,
   sum(Value) / %d AS rate,
-  sumIf(Value, Attributes['%s'] = %s) / nullIf(sum(Value), 0) AS error_rate
+  sumIf(Value, %s) / nullIf(sum(Value), 0) AS error_rate
 FROM %s
 WHERE MetricName = %s
-  AND TimeUnix >= fromUnixTimestamp64Milli(%d)
-  AND TimeUnix <= fromUnixTimestamp64Milli(%d)
-  AND Attributes['%s'] = %s
+  AND %s
+  AND %s
   AND (%s)
   AND (%s)
 GROUP BY service, t
 ORDER BY service, t
 LIMIT 5000`,
 		ServiceExpr("Attributes"),
+		BucketMsExpr(ColTimeUnix, int(stepSec)),
 		stepSec,
-		stepSec,
-		AttrStatusCode, q(StatusError),
+		MetricStatusErrorFilter(),
 		table(queries.CHTableMetricsSum),
 		q(MetricSpanCalls),
-		fromMs, toMs,
-		AttrSpanKind, q(SpanKindServer),
+		MetricTimeFilter(from, to),
+		MetricSpanKindServerFilter(),
 		filt,
 		svcFilt,
 	)
@@ -217,10 +206,8 @@ func InventoryDurationSeriesSQL(from, to time.Time, stepSec int64, namespace, en
 	if stepSec < 1 {
 		stepSec = 60
 	}
-	fromMs, toMs := TimeBounds(from, to)
 	var parts []string
-	parts = append(parts, fmt.Sprintf("Timestamp >= fromUnixTimestamp64Milli(%d)", fromMs))
-	parts = append(parts, fmt.Sprintf("Timestamp <= fromUnixTimestamp64Milli(%d)", toMs))
+	parts = append(parts, TimestampFilter(from, to))
 	parts = append(parts, TraceServerKindFilter())
 	if namespace != "" {
 		parts = append(parts, fmt.Sprintf("ResourceAttributes['%s'] = %s", ResServiceNamespace, q(namespace)))
@@ -239,14 +226,14 @@ func InventoryDurationSeriesSQL(from, to time.Time, stepSec int64, namespace, en
 	return fmt.Sprintf(`
 SELECT
   ServiceName AS service,
-  toUnixTimestamp(toStartOfInterval(Timestamp, INTERVAL %d SECOND)) * 1000 AS t,
+  %s AS t,
   quantile(0.95)(Duration) / 1e6 AS p95_ms
 FROM %s
 WHERE %s
 GROUP BY service, t
 ORDER BY service, t
 LIMIT 5000`,
-		stepSec,
+		BucketMsExpr(ColTimestamp, int(stepSec)),
 		table(queries.CHTableTraces),
 		strings.Join(parts, " AND "),
 	)
@@ -303,7 +290,6 @@ func AttachInventorySeries(summaries []queries.ServiceSummary, callRows, duratio
 // the semantic attributes needed to classify HTTP, RPC, database, and
 // messaging operations without relying on span-name heuristics.
 func OperationsSQL(service string, from, to time.Time, environment string) string {
-	fromMs, toMs := TimeBounds(from, to)
 	filt := FilterClause("", environment, service, "ResourceAttributes")
 	return fmt.Sprintf(`
 SELECT
@@ -316,11 +302,10 @@ SELECT
   Attributes['%s'] AS db_system,
   Attributes['%s'] AS messaging_system,
   sum(Value) AS calls,
-  sumIf(Value, Attributes['%s'] = %s) AS errors
+  sumIf(Value, %s) AS errors
 FROM %s
 WHERE MetricName = %s
-  AND TimeUnix >= fromUnixTimestamp64Milli(%d)
-  AND TimeUnix <= fromUnixTimestamp64Milli(%d)
+  AND %s
   AND (%s)
 GROUP BY span_name, span_kind, http_method, http_route, rpc_service, rpc_method, db_system, messaging_system
 HAVING calls > 0 AND span_name != ''
@@ -328,20 +313,18 @@ ORDER BY calls DESC
 LIMIT 200`,
 		AttrSpanName, AttrSpanKind,
 		AttrHTTPMethod, AttrHTTPRoute, AttrRPCService, AttrRPCMethod, AttrDBSystem, AttrMessagingSystem,
-		AttrStatusCode, q(StatusError),
+		MetricStatusErrorFilter(),
 		table(queries.CHTableMetricsSum),
 		q(MetricSpanCalls),
-		fromMs, toMs,
+		MetricTimeFilter(from, to),
 		filt,
 	)
 }
 
 // OperationLatencySQL returns p50/p95/p99 per span name from raw spans.
 func OperationLatencySQL(service string, from, to time.Time, environment string) string {
-	fromMs, toMs := TimeBounds(from, to)
-	where := fmt.Sprintf(`Timestamp >= fromUnixTimestamp64Milli(%d)
-  AND Timestamp <= fromUnixTimestamp64Milli(%d)
-  AND ServiceName = %s`, fromMs, toMs, q(service))
+	where := fmt.Sprintf(`%s
+  AND ServiceName = %s`, TimestampFilter(from, to), q(service))
 	if environment != "" {
 		where += fmt.Sprintf(" AND ResourceAttributes['%s'] = %s", ResCluster, q(environment))
 	}

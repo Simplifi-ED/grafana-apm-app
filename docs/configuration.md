@@ -22,6 +22,26 @@ same ClickHouse.
 
 Feature status: [clickstack-migration/feature-matrix.md](clickstack-migration/feature-matrix.md).
 
+### Profiling (Pyroscope) — optional, ticket 18
+
+The Profiling tab is **capability-gated**: it appears only when Grafana has a
+datasource of type `grafana-pyroscope-datasource` (or legacy `phlare`). The
+plugin probes `GET /api/datasources` — no plugin `jsonData` UID is required.
+
+| Item | Value |
+|------|--------|
+| Suggested UID | `pyroscope` |
+| Example provisioning | [`provisioning/datasources/pyroscope.yaml.example`](../provisioning/datasources/pyroscope.yaml.example) |
+| Local overlay | `docker compose -f docker-compose.yaml -f docker-compose.pyroscope.yaml up` |
+
+Install the Grafana plugin alongside ClickHouse:
+
+```sh
+GF_INSTALL_PLUGINS=grafana-clickhouse-datasource,grafana-pyroscope-datasource
+```
+
+Enablement notes: `.scratch/clickstack-nais-parity/enablement/18-pyroscope-ds.md`.
+
 ### LGTM path (optional dual-mode)
 
 | Signal  | Type       | Default UID | Purpose                                                       |
@@ -67,6 +87,12 @@ jsonData:
   clickHouseDataSource:
     uid: clickhouse
     type: grafana-clickhouse-datasource
+  # Inventory (spanmetrics) → scrape/browser ServiceName for Runtime, Custom,
+  # sessions/webvitals, browser Issues. Missing → empty panels + configure hint.
+  serviceAliases:
+    nova-api: nova-app
+    admin-api: admin-app
+    nova-frontend: nova-frontend
 ```
 
 Schema notes for this fork's ClickStack instance:

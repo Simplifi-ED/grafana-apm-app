@@ -142,4 +142,34 @@ describe('Components/AppConfig', () => {
     // Nothing was touched, so no secure payload should be sent (secrets preserved).
     expect(payload.secureJsonData).toBeUndefined();
   });
+
+  test('persists serviceAliases inventory → scrape map on save', async () => {
+    const plugin = {
+      meta: {
+        ...props.plugin.meta,
+        enabled: true,
+        jsonData: {
+          ...props.plugin.meta.jsonData,
+          clickHouseDataSource: { uid: 'clickhouse', type: 'grafana-clickhouse-datasource' },
+          serviceAliases: { 'nova-api': 'nova-app' },
+        },
+      },
+    };
+
+    await act(async () => {
+      // @ts-ignore
+      render(<AppConfig plugin={plugin} query={props.query} />);
+    });
+
+    expect(screen.getByRole('group', { name: /service aliases \(clickstack\)/i })).toBeInTheDocument();
+    expect(screen.getByDisplayValue('nova-api')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('nova-app')).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId(testIds.appConfig.submit));
+    });
+
+    const payload = submittedPayload();
+    expect(payload.jsonData.serviceAliases).toEqual({ 'nova-api': 'nova-app' });
+  });
 });

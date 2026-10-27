@@ -14,14 +14,12 @@ func ExceptionGroupsSQL(service string, from, to time.Time, environment string, 
 	if limit <= 0 || limit > 100 {
 		limit = 50
 	}
-	fromMs, toMs := TimeBounds(from, to)
-	where := fmt.Sprintf(`Timestamp >= fromUnixTimestamp64Milli(%d)
-  AND Timestamp <= fromUnixTimestamp64Milli(%d)
+	where := fmt.Sprintf(`%s
   AND ServiceName = %s
   AND (
     LogAttributes['exception.type'] != ''
     OR lower(SeverityText) IN ('error', 'fatal', 'critical')
-  )`, fromMs, toMs, q(service))
+  )`, TimestampFilter(from, to), q(service))
 	if environment != "" {
 		where += fmt.Sprintf(" AND ResourceAttributes['%s'] = %s", ResCluster, q(environment))
 	}
@@ -68,11 +66,9 @@ func ParseExceptionGroupsMaps(rows []map[string]any) []ExceptionGroup {
 
 // ErrorSpansSQL counts error spans per service (supplement when logs lack exceptions).
 func ErrorSpansSQL(service string, from, to time.Time, environment string) string {
-	fromMs, toMs := TimeBounds(from, to)
-	where := fmt.Sprintf(`Timestamp >= fromUnixTimestamp64Milli(%d)
-  AND Timestamp <= fromUnixTimestamp64Milli(%d)
+	where := fmt.Sprintf(`%s
   AND ServiceName = %s
-  AND StatusCode = 'Error'`, fromMs, toMs, q(service))
+  AND %s`, TimestampFilter(from, to), q(service), TraceStatusErrorFilter())
 	if environment != "" {
 		where += fmt.Sprintf(" AND ResourceAttributes['%s'] = %s", ResCluster, q(environment))
 	}
