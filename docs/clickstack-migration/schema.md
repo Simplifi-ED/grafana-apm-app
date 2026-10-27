@@ -2,6 +2,8 @@
 
 **Inspected:** 2026-10-27 via ClickStack MCP (`clickstack_list_sources`, `clickstack_describe_source`, `clickstack_sql`) against connection **Local-ClickHouse** (`connectionId` `6ad0e2cb978a70ad2dbf744c`).
 
+**Normative query rules** (enums, time, env/ns, duration, inventory discover vs RED): see [ADR 0003 — ClickStack query contract](../adr/0003-clickstack-query-contract.md). This file remains the **live examples / verified shapes** reference.
+
 **Legend**
 
 - ✅ **Verified** — observed from live DESCRIBE / system tables / describe_source

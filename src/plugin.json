@@ -101,7 +101,7 @@
     }
   ],
   "dependencies": {
-    "grafanaDependency": ">=13.0.0",
+    "grafanaDependency": ">=13.3.0",
     "plugins": []
   },
   "iam": {

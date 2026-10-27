@@ -41,7 +41,7 @@ Status and gaps: [docs/clickstack-migration/feature-matrix.md](https://github.co
 
 ## Prerequisites
 
-- **Grafana** >= 13.0.0
+- **Grafana** >= 13.3.0
 - **grafana-clickhouse-datasource** pointing at your ClickStack ClickHouse
 - OTel data in ClickHouse (`otel_traces`, `otel_logs`, `otel_metrics_*`, optional `hyperdx_sessions`)
 
