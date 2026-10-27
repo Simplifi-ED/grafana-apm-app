@@ -27,6 +27,8 @@ export interface Capabilities {
   serviceGraph: ServiceGraphCapability;
   tempo: DataSourceStatus;
   loki: DataSourceStatus;
+  /** Present when a ClickHouse datasource is configured (ClickStack mode). */
+  clickHouse?: DataSourceStatus;
   services: string[];
   environments?: string[];
   tempoByEnv?: Record<string, DataSourceStatus>;

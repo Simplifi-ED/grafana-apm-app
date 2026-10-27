@@ -110,6 +110,10 @@ type Capabilities struct {
 	Services     []string               `json:"services"`
 	Environments []string               `json:"environments,omitempty"`
 
+	// ClickHouse is set when a ClickHouse datasource is configured (ClickStack
+	// mode). Available=false means the tunnel/DS is unreachable — not "no data".
+	ClickHouse *DataSourceStatus `json:"clickHouse,omitempty"`
+
 	// Pyroscope profiling datasource availability (M7). Gated on a platform
 	// decision to run Pyroscope; production has none today, so the common
 	// value is {Available: false} and the Profiling tab never appears.

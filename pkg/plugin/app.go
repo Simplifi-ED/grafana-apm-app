@@ -361,13 +361,14 @@ func (a *App) CheckHealth(ctx context.Context, req *backend.CheckHealthRequest) 
 		}
 		st := &clickHouseHealthStatus{UID: ch.DatasourceUID(), Available: true}
 		if err := ch.Ping(ctx); err != nil {
+			reason := summarizeClickHouseError(err)
 			st.Available = false
-			st.Error = err.Error()
+			st.Error = reason
 			details.ClickHouse = st
 			raw, _ := json.Marshal(details)
 			return &backend.CheckHealthResult{
 				Status:      backend.HealthStatusError,
-				Message:     "ClickHouse is not reachable via datasource UID " + ch.DatasourceUID() + ": " + err.Error(),
+				Message:     "ClickHouse is not reachable (" + reason + ")",
 				JSONDetails: raw,
 			}, nil
 		}
@@ -385,7 +386,7 @@ func (a *App) CheckHealth(ctx context.Context, req *backend.CheckHealthRequest) 
 				raw, _ := json.Marshal(details)
 				return &backend.CheckHealthResult{
 					Status:      backend.HealthStatusError,
-					Message:     "No span metrics detected in Mimir. Ensure the OTel Collector spanmetrics connector is configured, or configure a ClickHouse datasource for ClickStack.",
+					Message:     "No span metrics detected. Ensure the OTel Collector spanmetrics connector writes to your metrics store (or ClickHouse in ClickStack mode).",
 					JSONDetails: raw,
 				}, nil
 			}

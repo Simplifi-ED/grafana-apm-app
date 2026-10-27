@@ -620,11 +620,16 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
           </Button>
         </div>
 
-        {caps && !caps.spanMetrics.detected && (
+        {caps?.clickHouse && !caps.clickHouse.available && (
+          <Alert severity="error" title="ClickHouse unreachable" className={s.marginTop}>
+            {caps.clickHouse.error || 'The ClickHouse datasource is not reachable.'}
+          </Alert>
+        )}
+        {caps && !caps.spanMetrics.detected && !(caps.clickHouse && !caps.clickHouse.available) && (
           <Alert severity="warning" title="No span metrics detected" className={s.marginTop}>
-            Could not find span metrics in the configured Mimir datasource. Verify that the OTel Collector&apos;s
-            spanmetrics connector is running and writing to Mimir, and that the service account token (if required) has
-            read access.
+            {caps.clickHouse || state.clickHouseUid
+              ? 'Could not find traces.spanmetrics.calls in ClickHouse. Verify the OTel Collector spanmetrics connector is writing into ClickStack.'
+              : "Could not find span metrics in the configured metrics datasource. Verify the OTel Collector's spanmetrics connector is running and the service account token (if required) has read access."}
           </Alert>
         )}
 

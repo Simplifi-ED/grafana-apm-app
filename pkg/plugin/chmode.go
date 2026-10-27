@@ -34,6 +34,19 @@ func (a *App) detectClickStackCapabilities(ctx context.Context, ch *queries.Clic
 		Tempo: DataSourceStatusUnavailable(),
 		Loki:  DataSourceStatusUnavailable(),
 	}
+	if ch == nil {
+		st := queries.DataSourceStatus{Available: false, Error: "clickhouse datasource not configured"}
+		caps.ClickHouse = &st
+		return caps
+	}
+	if err := ch.Ping(ctx); err != nil {
+		st := queries.DataSourceStatus{Available: false, Error: summarizeClickHouseError(err)}
+		caps.ClickHouse = &st
+		return caps
+	}
+	st := queries.DataSourceStatus{Available: true}
+	caps.ClickHouse = &st
+
 	now := time.Now()
 	opts := queries.ClickHouseQueryOptions{From: now.Add(-time.Hour), To: now, SkipLimitEnforcement: true}
 

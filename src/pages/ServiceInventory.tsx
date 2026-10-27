@@ -321,9 +321,16 @@ function ServiceInventory() {
           </Alert>
         )}
         {loading && <LoadingPlaceholder text="Loading services..." />}
-        {!loading && caps && !caps.spanMetrics.detected && (
+        {!loading && caps?.clickHouse && !caps.clickHouse.available && (
+          <Alert severity="error" title="ClickHouse unreachable">
+            {caps.clickHouse.error || 'The ClickHouse datasource is not reachable.'} Then refresh this page.
+          </Alert>
+        )}
+        {!loading && caps && !caps.spanMetrics.detected && !(caps.clickHouse && !caps.clickHouse.available) && (
           <Alert severity="warning" title="No span metrics detected">
-            Ensure the OpenTelemetry Collector spanmetrics connector is configured and sending data to Mimir.
+            {caps.clickHouse
+              ? 'ClickHouse is up, but no traces.spanmetrics.calls series were found in the last hour. Confirm the OTel Collector spanmetrics connector writes into ClickHouse.'
+              : 'Ensure the OpenTelemetry Collector spanmetrics connector is configured and sending data to your metrics datasource.'}
           </Alert>
         )}
 
