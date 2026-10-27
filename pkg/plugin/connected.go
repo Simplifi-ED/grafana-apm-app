@@ -32,6 +32,9 @@ func (a *App) handleConnectedServices(w http.ResponseWriter, req *http.Request) 
 	orgID := req.Header.Get("X-Grafana-Org-Id")
 	ck := cacheKey("connected", orgID, roundedUnix(from), roundedUnix(to), service, filterEnv)
 	a.writeCached(w, ck, "querying connected services failed", func() (any, error) {
+		if a.clickStackMode() {
+			return a.fetchConnectedClickHouse(ctx, a.chForRequest(req), service, filterEnv, from, to), nil
+		}
 		caps := a.cachedOrDetectCapabilities(ctx)
 		if !caps.ServiceGraph.Detected {
 			return ConnectedServicesResponse{

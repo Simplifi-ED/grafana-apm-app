@@ -41,10 +41,6 @@ type State = {
   serviceAccountToken: string;
   tokenConfigured: boolean;
   tokenReset: boolean;
-  naisApiUrl: string;
-  naisApiToken: string;
-  naisTokenConfigured: boolean;
-  naisTokenReset: boolean;
 };
 
 function parseEnvOverrides(
@@ -88,10 +84,6 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
     serviceAccountToken: '',
     tokenConfigured: secureJsonFields?.serviceAccountToken === true,
     tokenReset: false,
-    naisApiUrl: jsonData?.naisApiUrl || '',
-    naisApiToken: '',
-    naisTokenConfigured: secureJsonFields?.naisApiToken === true,
-    naisTokenReset: false,
   });
   const [caps, setCaps] = useState<Capabilities | null>(null);
   const [detecting, setDetecting] = useState(false);
@@ -344,11 +336,6 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
     } else if (state.tokenReset) {
       secureJsonData.serviceAccountToken = '';
     }
-    if (state.naisApiToken) {
-      secureJsonData.naisApiToken = state.naisApiToken;
-    } else if (state.naisTokenReset) {
-      secureJsonData.naisApiToken = '';
-    }
 
     updatePluginAndReload(plugin.meta.id, {
       enabled,
@@ -377,7 +364,6 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
         labelOverrides: Object.values(state.labelOverrides).some(Boolean) ? state.labelOverrides : undefined,
         ingressAliases: Object.keys(ingressAliases).length > 0 ? ingressAliases : undefined,
         opsWatchlist: opsWatchlist.length > 0 ? opsWatchlist : undefined,
-        naisApiUrl: state.naisApiUrl || undefined,
       },
       secureJsonData: Object.keys(secureJsonData).length > 0 ? secureJsonData : undefined,
     } as any);
@@ -618,47 +604,6 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
             }
             onReset={() =>
               setState((prev) => ({ ...prev, serviceAccountToken: '', tokenConfigured: false, tokenReset: true }))
-            }
-          />
-        </Field>
-      </FieldSet>
-
-      <FieldSet label="nais API (optional)" className={s.marginTop}>
-        <p className={s.description}>
-          Enables <strong>deploy/release tracking</strong> and the <strong>scorecard ownership card</strong> (team,
-          Slack, repo, ingress URLs). Both no-op cleanly without a token. Requires a netpol egress rule to the nais API
-          host — see{' '}
-          <a
-            href="https://github.com/nais/grafana-otel-plugin/blob/main/README.md#platform-dependencies"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Platform dependencies
-          </a>
-          .
-        </p>
-        <Field label="nais API URL" description="nais Console GraphQL endpoint.">
-          <Input
-            width={40}
-            value={state.naisApiUrl}
-            placeholder="https://console.<tenant>.cloud.nais.io/graphql"
-            onChange={onChange('naisApiUrl')}
-          />
-        </Field>
-        <Field
-          label="nais API Token"
-          description="Bearer token for the nais API. Stored encrypted; only sent when you enter a new value."
-        >
-          <SecretInput
-            width={40}
-            isConfigured={state.naisTokenConfigured}
-            value={state.naisApiToken}
-            placeholder="nais API token"
-            onChange={(e) =>
-              setState((prev) => ({ ...prev, naisApiToken: e.currentTarget.value, naisTokenReset: false }))
-            }
-            onReset={() =>
-              setState((prev) => ({ ...prev, naisApiToken: '', naisTokenConfigured: false, naisTokenReset: true }))
             }
           />
         </Field>

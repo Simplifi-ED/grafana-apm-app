@@ -67,7 +67,7 @@ function App(props: AppRootProps) {
           fontFamily: 'sans-serif',
         }}
       >
-        Loading Nais APM...
+        Loading ClickStack APM...
       </div>
     );
   }
@@ -85,7 +85,7 @@ function App(props: AppRootProps) {
             fontFamily: 'sans-serif',
           }}
         >
-          Loading Nais APM...
+          Loading ClickStack APM...
         </div>
       }
     >

@@ -83,7 +83,14 @@ export function OverviewTab({
           markers (#64) are already layered onto every child timeseries panel
           via buildServiceScene's `$data: buildDeployAnnotationsLayer(...)`. */}
       <div style={{ marginBottom: 16 }}>
-        {scene ? <scene.Component key={sceneKey} model={scene} /> : <LoadingPlaceholder text="Loading metrics..." />}
+        {scene ? (
+          <scene.Component key={sceneKey} model={scene} />
+        ) : (
+          <Alert severity="info" title="Prometheus RED charts unavailable">
+            ClickStack mode serves inventory, health, and operations from ClickHouse. Time-series RED panels need a
+            metrics datasource (Mimir/Prometheus) configured alongside ClickHouse, or a future CH-backed scene.
+          </Alert>
+        )}
       </div>
 
       {/* Attention section — degraded operations and dependencies */}

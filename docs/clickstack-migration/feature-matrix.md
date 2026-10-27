@@ -21,7 +21,7 @@
 | Service inventory | `GET /services` → ServiceInventory | `otel_metrics_sum` (`traces.spanmetrics.calls`) + `otel_traces` p95 | 🟨 | Live inventory SQL verified; Grafana DS path unit-tested via mock |
 | Capabilities | `GET /capabilities` | sum metrics probes | 🟨 | Detects spanmetrics + service graph + lists services/envs |
 | Operations RED | `GET .../operations` | spanmetrics + traces quantiles | 🟨 | |
-| Endpoints | `GET .../endpoints` | — | 🟧 | Still LGTM unless dual-mode; CH path not specialized |
+| Endpoints | `GET .../endpoints` | spanmetrics → protocol groups | 🟨 | Maps CH operations into HTTP/DB/client/messaging groups |
 | Service health | `GET .../health` | — | 🟧 | Still Prom when configured |
 | Trace breakdown | `GET .../traces/breakdown` | `otel_traces` | 🟨 | Replaces Tempo TraceQL |
 | Trace waterfall / Explore | Traces tab Tempo links | `otel_traces` available | 🟧 | Plugin breakdown CH; Explore Tempo URLs disabled without Tempo UID |
@@ -29,7 +29,7 @@
 | Log Explore | Logs tab | — | 🟧 | Needs CH Explore or in-app search (patterns only today) |
 | Issues / exceptions | `GET .../issues` | `otel_traces` StatusCode=Error | 🟧 | Server error spans only; **no Faro browser exceptions** in CH |
 | Issue occurrences / drawer breadcrumbs | Loki Faro | — | ❌ | Faro streams not in this CH; replay still works via hyperdx_sessions |
-| Frontend Web Vitals | `GET .../frontend` | — | ❌ | Alloy Faro histos absent; returns `available: false` |
+| Frontend Web Vitals | `GET .../frontend` | `otel_traces` `webvitals` spans | 🟨 | HyperDX/@hyperdx/otel-web attributes (lcp/fcp/…); bullet charts in ClickStack UI |
 | Frontend versions | `GET .../frontend/versions` | — | ❌ | Faro `app_version` not verified |
 | Frontend sessions list | `GET .../frontend/sessions` | `hyperdx_sessions` | 🟨 | rum.sessionId list |
 | Session replay | `.../replay`, probe, recordings | `hyperdx_sessions` | ✅ | Step 2; live chunk reassembly verified |
@@ -55,7 +55,7 @@
 | Service graph edges | client/server including nova-api→postgres, nova-frontend→envoy-gateway |
 | `hyperdx_sessions` multi-chunk concat | Valid rrweb type=2 + timestamp |
 | Log `exception.type` attrs | **Empty** in sampled window — Body text / error spans used instead |
-| Faro / Alloy web vitals metrics | **Not found** as Faro names in CH |
+| Faro / Alloy web vitals metrics | **Not found** as Faro names; HyperDX `webvitals` spans in `otel_traces` verified |
 
 ---
 

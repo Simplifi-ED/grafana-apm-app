@@ -185,6 +185,9 @@ func (v PromValue) Float() float64 {
 
 // InstantQuery executes a PromQL instant query.
 func (c *PrometheusClient) InstantQuery(ctx context.Context, query string, t time.Time) ([]PromResult, error) {
+	if c == nil {
+		return nil, fmt.Errorf("prometheus client not configured")
+	}
 	params := url.Values{
 		"query": {query},
 		"time":  {fmt.Sprintf("%d", t.Unix())},
@@ -194,6 +197,9 @@ func (c *PrometheusClient) InstantQuery(ctx context.Context, query string, t tim
 
 // RangeQuery executes a PromQL range query.
 func (c *PrometheusClient) RangeQuery(ctx context.Context, query string, start, end time.Time, step time.Duration) ([]PromResult, error) {
+	if c == nil {
+		return nil, fmt.Errorf("prometheus client not configured")
+	}
 	params := url.Values{
 		"query": {query},
 		"start": {fmt.Sprintf("%d", start.Unix())},

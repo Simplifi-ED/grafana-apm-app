@@ -45,6 +45,10 @@ ci/
 .idea
 .vscode
 
+# Local-only ClickStack / prod tunnel provisioning (secrets + host overrides)
+provisioning/**/*.local.yaml
+.env.clickstack.local
+
 # macOS
 .DS_Store
 

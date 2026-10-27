@@ -19,7 +19,6 @@ import { usePluginDatasources, usePluginLabelOverrides } from '../../utils/datas
 import { useTimeRange } from '../../utils/timeRange';
 import { useSceneTimeSync } from '../../utils/useSceneTimeSync';
 import { sanitizeLabelValue } from '../../utils/sanitize';
-import { apmDocs, APM_SDK_REPO_URL } from '../../utils/docsLinks';
 import { otel } from '../../otelconfig';
 import { buildDeployAnnotationsLayer } from '../buildServiceScene';
 import { ExceptionDrawer } from './frontend/components/ExceptionDrawer';
@@ -103,6 +102,9 @@ export function FrontendTab({ service, namespace, environment }: FrontendTabProp
   }
 
   const noRecentData = !vitals || Object.keys(vitals).length === 0;
+  // ClickStack-primary: no Prometheus/Loki UIDs — show CH-derived vitals only
+  // (Faro histogram trend scenes would toast on missing datasources).
+  const clickStackOnly = !ds.metricsUid;
 
   return (
     <div className={styles.container}>
@@ -112,15 +114,19 @@ export function FrontendTab({ service, namespace, environment }: FrontendTabProp
           range or wait for new traffic.
         </Alert>
       )}
-      <FrontendPanels
-        service={service}
-        namespace={namespace}
-        environment={environment}
-        vitals={vitals}
-        hasLoki={hasLoki}
-        from={from}
-        to={to}
-      />
+      {clickStackOnly ? (
+        <ClickStackFrontendSummary vitals={vitals} />
+      ) : (
+        <FrontendPanels
+          service={service}
+          namespace={namespace}
+          environment={environment}
+          vitals={vitals}
+          hasLoki={hasLoki}
+          from={from}
+          to={to}
+        />
+      )}
       {(drawerLoading || (drawerHashes && drawerHashes.length > 0) || drawerSource === 'server') && (
         <ExceptionDrawer
           key={selectedIssueId || selectedHash}
@@ -138,6 +144,26 @@ export function FrontendTab({ service, namespace, environment }: FrontendTabProp
           onClose={closeDrawer}
         />
       )}
+    </div>
+  );
+}
+
+function ClickStackFrontendSummary({ vitals }: { vitals?: Record<string, number> }) {
+  const styles = useStyles2(getStyles);
+  return (
+    <div className={styles.container}>
+      {vitals && Object.keys(vitals).length > 0 ? (
+        <WebVitalsBullets vitals={vitals} />
+      ) : (
+        <Alert severity="info" title="Browser telemetry detected">
+          OpenTelemetry browser spans are present in ClickHouse, but no Web Vital measurements were found in the last 6
+          hours.
+        </Alert>
+      )}
+      <Alert severity="info" title="ClickStack mode">
+        Core Web Vitals are aggregated from <code>webvitals</code> spans in ClickHouse. Full trend / per-page panels need
+        a Prometheus metrics datasource with Faro histograms.
+      </Alert>
     </div>
   );
 }
@@ -313,20 +339,23 @@ function SetupPlaceholder({ namespace, service }: { namespace: string; service: 
       </div>
 
       <div className={styles.setupLinks}>
-        <LinkButton href={apmDocs.trackFrontendErrors()} target="_blank" variant="primary" icon="book" size="sm">
-          Track frontend errors with Nais APM
-        </LinkButton>
-        <LinkButton href={APM_SDK_REPO_URL} target="_blank" variant="secondary" icon="github" size="sm">
-          @nais/apm SDK
-        </LinkButton>
         <LinkButton
           href="https://grafana.com/docs/faro-web-sdk/latest/tutorials/quick-start-browser/"
+          target="_blank"
+          variant="primary"
+          icon="book"
+          size="sm"
+        >
+          Faro Quick Start Guide
+        </LinkButton>
+        <LinkButton
+          href="https://opentelemetry.io/docs/languages/js/getting-started/browser/"
           target="_blank"
           variant="secondary"
           icon="external-link-alt"
           size="sm"
         >
-          Faro Quick Start Guide
+          OpenTelemetry Browser SDK
         </LinkButton>
       </div>
     </div>

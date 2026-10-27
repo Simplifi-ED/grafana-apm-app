@@ -260,7 +260,7 @@ function JobsInventory() {
           emptyTitle="Job metrics not available"
           emptyMessage={
             data?.note ??
-            'kube-state-metrics job families are not exposed on the metrics datasource. The platform must scrape kube_cronjob_* and kube_job_* series for this view to work.'
+            'CronJob / Job monitoring needs kube-state-metrics (kube_cronjob_*, kube_job_*) on a Prometheus datasource. ClickStack OpenTelemetry metrics in ClickHouse do not include those series.'
           }
         >
           <>

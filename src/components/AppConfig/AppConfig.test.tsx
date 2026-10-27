@@ -46,7 +46,7 @@ describe('Components/AppConfig', () => {
       plugin: {
         meta: {
           id: 'nais-apm-app',
-          name: 'Nais APM',
+          name: 'ClickStack APM',
           type: PluginType.app,
           enabled: true,
           jsonData: {
@@ -90,54 +90,6 @@ describe('Components/AppConfig', () => {
     expect(input.value).toBe('cluster');
   });
 
-  test('renders the nais API fieldset and round-trips the URL into jsonData on submit', async () => {
-    const plugin = { meta: { ...props.plugin.meta, enabled: true } };
-
-    await act(async () => {
-      // @ts-ignore
-      render(<AppConfig plugin={plugin} query={props.query} />);
-    });
-
-    expect(screen.queryByRole('group', { name: /nais api/i })).toBeInTheDocument();
-
-    const urlInput = screen.getByPlaceholderText(/graphql/i) as HTMLInputElement;
-    await act(async () => {
-      fireEvent.change(urlInput, { target: { value: 'https://console.example/graphql' } });
-    });
-
-    await act(async () => {
-      fireEvent.click(screen.getByTestId(testIds.appConfig.submit));
-    });
-
-    const payload = submittedPayload();
-    expect(payload.jsonData.naisApiUrl).toBe('https://console.example/graphql');
-    // No secret was typed, so nothing secure should be sent.
-    expect(payload.secureJsonData).toBeUndefined();
-  });
-
-  test('sends the nais API token via secureJsonData only when a new value is entered', async () => {
-    const plugin = { meta: { ...props.plugin.meta, enabled: true } };
-
-    await act(async () => {
-      // @ts-ignore
-      render(<AppConfig plugin={plugin} query={props.query} />);
-    });
-
-    const tokenInput = screen.getByPlaceholderText('nais API token') as HTMLInputElement;
-    await act(async () => {
-      fireEvent.change(tokenInput, { target: { value: 'secret-token' } });
-    });
-
-    await act(async () => {
-      fireEvent.click(screen.getByTestId(testIds.appConfig.submit));
-    });
-
-    const payload = submittedPayload();
-    expect(payload.secureJsonData?.naisApiToken).toBe('secret-token');
-    // The unrelated service-account token must not be sent.
-    expect(payload.secureJsonData?.serviceAccountToken).toBeUndefined();
-  });
-
   test('clears a configured service account token via reset + save (sends empty string)', async () => {
     const plugin = {
       meta: {
@@ -166,8 +118,6 @@ describe('Components/AppConfig', () => {
     const payload = submittedPayload();
     // Explicit reset must send an empty string so Grafana overwrites/clears it.
     expect(payload.secureJsonData?.serviceAccountToken).toBe('');
-    // The untouched nais token must not be sent at all.
-    expect(payload.secureJsonData?.naisApiToken).toBeUndefined();
   });
 
   test('does not send a configured secret that was left untouched', async () => {
@@ -175,7 +125,7 @@ describe('Components/AppConfig', () => {
       meta: {
         ...props.plugin.meta,
         enabled: true,
-        secureJsonFields: { serviceAccountToken: true, naisApiToken: true },
+        secureJsonFields: { serviceAccountToken: true },
       },
     };
 
@@ -191,26 +141,5 @@ describe('Components/AppConfig', () => {
     const payload = submittedPayload();
     // Nothing was touched, so no secure payload should be sent (secrets preserved).
     expect(payload.secureJsonData).toBeUndefined();
-  });
-
-  test('shows the nais API token as configured and round-trips a provisioned URL', async () => {
-    const plugin = {
-      meta: {
-        ...props.plugin.meta,
-        enabled: true,
-        jsonData: { ...props.plugin.meta.jsonData, naisApiUrl: 'https://console.provisioned/graphql' },
-        secureJsonFields: { naisApiToken: true },
-      },
-    };
-
-    await act(async () => {
-      // @ts-ignore
-      render(<AppConfig plugin={plugin} query={props.query} />);
-    });
-
-    // SecretInput in its configured state renders a disabled "configured" field.
-    expect(screen.getByDisplayValue('configured')).toBeInTheDocument();
-    // The provisioned URL is read back from jsonData.
-    expect(screen.getByDisplayValue('https://console.provisioned/graphql')).toBeInTheDocument();
   });
 });

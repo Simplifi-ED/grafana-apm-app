@@ -91,9 +91,13 @@ function getPluginDatasources(env?: string): PluginDatasources {
   const tracesDs: EnvAwareDs = jsonData.tracesDataSource ?? {};
   const logsDs: EnvAwareDs = jsonData.logsDataSource ?? {};
 
-  const metricsUid = resolveUid(metricsDs, env, 'mimir');
-  const tracesUid = resolveUid(tracesDs, env, 'tempo');
-  const logsUid = resolveUid(logsDs, env, 'loki');
+  // ClickStack-primary: do NOT invent mimir/tempo/loki UIDs. Scenes that query
+  // those fall back to getDataSourceSrv().get('mimir') → Grafana toast
+  // "Unable to load datasource meta data" and panel errors.
+  const clickStackPrimary = Boolean(jsonData.clickHouseDataSource?.uid);
+  const metricsUid = resolveUid(metricsDs, env, clickStackPrimary ? '' : 'mimir');
+  const tracesUid = resolveUid(tracesDs, env, clickStackPrimary ? '' : 'tempo');
+  const logsUid = resolveUid(logsDs, env, clickStackPrimary ? '' : 'loki');
 
   const isEnvSpecific =
     !!env &&

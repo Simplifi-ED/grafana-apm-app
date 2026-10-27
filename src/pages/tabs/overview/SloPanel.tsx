@@ -95,6 +95,12 @@ export function SloPanel({ namespace, service, environment }: SloPanelProps) {
     [namespace, service, environment, target]
   );
 
+  // ClickStack-primary with no Prometheus UID: skip the panel entirely (avoid
+  // "Unable to load datasource meta data" toasts from getDataSourceSrv).
+  if (!metricsUid) {
+    return null;
+  }
+
   return (
     <div className={styles.panel}>
       <div className={styles.header}>

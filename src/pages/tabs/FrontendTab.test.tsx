@@ -1,7 +1,6 @@
 /**
- * FrontendTab — the no-telemetry SetupPlaceholder is where teams without
- * instrumentation land, so it must surface the Nais APM onboarding links
- * (track-frontend-errors tutorial + the @nais/apm SDK repo).
+ * FrontendTab — the no-telemetry SetupPlaceholder must point at public Faro /
+ * OpenTelemetry docs (not nais-specific SDK links).
  */
 import React from 'react';
 import { render, screen } from '@testing-library/react';
@@ -37,14 +36,23 @@ function renderTab() {
 describe('FrontendTab setup placeholder links', () => {
   beforeEach(() => getFrontendMetrics.mockReset());
 
-  it('links to the track-frontend-errors tutorial and the @nais/apm SDK repo when no telemetry is found', async () => {
+  it('links to Faro and OpenTelemetry browser docs when no telemetry is found', async () => {
     getFrontendMetrics.mockResolvedValue({ available: false });
     renderTab();
 
-    const tutorial = await screen.findByRole('link', { name: /Track frontend errors with Nais APM/ });
-    expect(tutorial).toHaveAttribute('href', 'https://doc.nais.io/observability/apm/tutorials/track-frontend-errors/');
+    const faro = await screen.findByRole('link', { name: /Faro Quick Start Guide/ });
+    expect(faro).toHaveAttribute(
+      'href',
+      'https://grafana.com/docs/faro-web-sdk/latest/tutorials/quick-start-browser/'
+    );
 
-    const sdk = screen.getByRole('link', { name: /@nais\/apm SDK/ });
-    expect(sdk).toHaveAttribute('href', 'https://github.com/nais/apm');
+    const otelLinks = screen.getAllByRole('link', { name: /OpenTelemetry Browser SDK/ });
+    expect(otelLinks.length).toBeGreaterThanOrEqual(1);
+    expect(otelLinks[0]).toHaveAttribute(
+      'href',
+      'https://opentelemetry.io/docs/languages/js/getting-started/browser/'
+    );
+
+    expect(screen.queryByRole('link', { name: /@nais\/apm/ })).not.toBeInTheDocument();
   });
 });

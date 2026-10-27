@@ -112,6 +112,9 @@ func (a *App) fetchOperationsClickHouse(
 	from, to time.Time,
 ) []queries.OperationSummary {
 	logger := log.DefaultLogger.With("handler", "operations-clickhouse")
+	if ch == nil {
+		return nil
+	}
 	window := chquery.WindowSeconds(from, to)
 	opts := queries.ClickHouseQueryOptions{From: from, To: to, Limit: 200}
 
@@ -126,6 +129,156 @@ func (a *App) fetchOperationsClickHouse(
 		latRes = &queries.ClickHouseResult{}
 	}
 	return chquery.ParseOperations(callRes.Maps(), latRes.Maps(), window)
+}
+
+func (a *App) fetchEndpointsClickHouse(
+	ctx context.Context,
+	ch *queries.ClickHouseClient,
+	service, environment string,
+	from, to time.Time,
+) queries.EndpointGroups {
+	ops := a.fetchOperationsClickHouse(ctx, ch, service, environment, from, to)
+	if len(ops) == 0 {
+		return emptyEndpointGroups()
+	}
+	return chquery.OperationsToEndpointGroups(ops)
+}
+
+func (a *App) fetchFrontendMetricsClickHouse(
+	ctx context.Context,
+	ch *queries.ClickHouseClient,
+	service, environment string,
+	from, to time.Time,
+) FrontendMetricsResponse {
+	logger := log.DefaultLogger.With("handler", "frontend-clickhouse")
+	if ch == nil {
+		return FrontendMetricsResponse{Available: false, Source: "clickhouse"}
+	}
+	opts := queries.ClickHouseQueryOptions{From: from, To: to, Limit: 1, SkipLimitEnforcement: true}
+
+	probe, err := ch.Query(ctx, chquery.BrowserTelemetryProbeSQL(service, environment, from, to), opts)
+	if err != nil {
+		logger.Warn("browser telemetry probe failed", "error", err)
+		return FrontendMetricsResponse{Available: false, Source: "clickhouse"}
+	}
+	if probe.RowCount() == 0 || chquery.ParseFloat(probe.Maps()[0]["c"]) < 1 {
+		return FrontendMetricsResponse{Available: false, Source: "clickhouse"}
+	}
+
+	vitalsRes, err := ch.Query(ctx, chquery.WebVitalsSQL(service, environment, from, to), opts)
+	if err != nil {
+		logger.Warn("web vitals query failed", "error", err)
+		return FrontendMetricsResponse{Available: true, Source: "clickhouse-traces"}
+	}
+	vitals, _ := chquery.ParseWebVitalsMaps(vitalsRes.Maps())
+	return FrontendMetricsResponse{
+		Available: true,
+		Source:    "clickhouse-traces",
+		Vitals:    vitals,
+	}
+}
+
+func (a *App) fetchHealthClickHouse(
+	ctx context.Context,
+	ch *queries.ClickHouseClient,
+	service, environment string,
+	from, to time.Time,
+) HealthSummary {
+	ops := a.fetchOperationsClickHouse(ctx, ch, service, environment, from, to)
+	summary := HealthSummary{DurationUnit: "ms"}
+	if len(ops) == 0 {
+		return summary
+	}
+	var calls, errors, maxP95 float64
+	for _, op := range ops {
+		// Reconstruct approximate call volume from rate × window.
+		window := chquery.WindowSeconds(from, to)
+		c := op.Rate * window
+		calls += c
+		errors += op.ErrorRate * c
+		if op.P95Duration > maxP95 {
+			maxP95 = op.P95Duration
+		}
+	}
+	if calls > 0 {
+		summary.Rate = calls / chquery.WindowSeconds(from, to)
+		summary.ErrorRate = errors / calls
+	}
+	summary.P95Duration = maxP95
+	return summary
+}
+
+func (a *App) fetchConnectedClickHouse(
+	ctx context.Context,
+	ch *queries.ClickHouseClient,
+	service, environment string,
+	from, to time.Time,
+) ConnectedServicesResponse {
+	edges := a.serviceGraphEdgesClickHouse(ctx, ch, environment, from, to)
+	out := ConnectedServicesResponse{
+		Inbound:  []ConnectedService{},
+		Outbound: []ConnectedService{},
+	}
+	for _, e := range edges {
+		cs := ConnectedService{
+			Name:         "",
+			Rate:         e.Rate,
+			ErrorRate:    e.ErrorRate,
+			DurationUnit: "ms",
+		}
+		switch {
+		case e.Client == service:
+			cs.Name = e.Server
+			out.Outbound = append(out.Outbound, cs)
+		case e.Server == service:
+			cs.Name = e.Client
+			out.Inbound = append(out.Inbound, cs)
+		}
+	}
+	return out
+}
+
+func (a *App) fetchDependenciesClickHouse(
+	ctx context.Context,
+	ch *queries.ClickHouseClient,
+	service, environment string,
+	from, to time.Time,
+) []DependencySummary {
+	edges := a.serviceGraphEdgesClickHouse(ctx, ch, environment, from, to)
+	out := make([]DependencySummary, 0)
+	for _, e := range edges {
+		if e.Client != service {
+			continue
+		}
+		out = append(out, DependencySummary{
+			Name:         e.Server,
+			Type:         "service",
+			Rate:         e.Rate,
+			ErrorRate:    e.ErrorRate,
+			DurationUnit: "ms",
+			Impact:       e.Rate * e.ErrorRate,
+		})
+	}
+	return out
+}
+
+func (a *App) serviceGraphEdgesClickHouse(
+	ctx context.Context,
+	ch *queries.ClickHouseClient,
+	environment string,
+	from, to time.Time,
+) []chquery.ServiceGraphEdge {
+	if ch == nil {
+		return nil
+	}
+	window := chquery.WindowSeconds(from, to)
+	opts := queries.ClickHouseQueryOptions{From: from, To: to, Limit: 500}
+	res, err := ch.Query(ctx, chquery.ServiceGraphSQL(from, to, environment), opts)
+	if err != nil {
+		log.DefaultLogger.Warn("service graph CH query failed", "error", err)
+		return nil
+	}
+	return chquery.ParseServiceGraphMaps(res.Maps(), window)
 }
 
 func (a *App) fetchServiceMapClickHouse(

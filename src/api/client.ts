@@ -1017,10 +1017,20 @@ export async function getEndpoints(
   if (environment) {
     params.environment = environment;
   }
-  return fetchResource<EndpointGroups>(
+  const groups = await fetchResource<EndpointGroups>(
     `/services/${nsParam(namespace)}/${encodeURIComponent(service)}/endpoints`,
     params
   );
+  // Go nil slices encode as JSON null — normalize so UI can safely use .length.
+  return {
+    http: groups.http ?? [],
+    grpc: groups.grpc ?? [],
+    database: groups.database ?? [],
+    messaging: groups.messaging ?? [],
+    internal: groups.internal ?? [],
+    client: groups.client ?? [],
+    durationUnit: groups.durationUnit || 'ms',
+  };
 }
 
 // ---- Frontend / Faro metrics ----

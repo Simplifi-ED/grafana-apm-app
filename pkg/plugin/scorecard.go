@@ -163,7 +163,7 @@ func (a *App) computeReadiness(ctx context.Context, headers http.Header, namespa
 		{Key: "runtimeMetrics", Label: "Runtime metrics",
 			Hint: "Runtime metrics (JVM/Node.js/Go/process) arrive with the OTel agent — enable auto-instrumentation for your runtime."},
 		{Key: "browserTelemetry", Label: "Browser telemetry (Faro)",
-			Hint: "Instrument your frontend with @nais/apm (Faro) to get web vitals, errors and sessions."},
+			Hint: "Instrument your frontend with Grafana Faro or the OpenTelemetry Browser SDK to get web vitals, errors and sessions."},
 		{Key: "alertRules", Label: "Alert rules",
 			Hint: "No alert rule mentions this service — start with 'Alert on error rate' in the service actions menu."},
 	}
@@ -190,7 +190,7 @@ func (a *App) computeReadiness(ctx context.Context, headers http.Header, namespa
 			if langs := a.serviceSDKLanguages(ctx, namespace, service, env, now); len(langs) > 0 && allBackendOnlyLanguages(langs) {
 				checks[4].NotApplicable = true
 				checks[4].Hint = fmt.Sprintf(
-					"Not applicable — %s backend with no browser frontend. If this service gets a frontend, instrument it with @nais/apm.",
+					"Not applicable — %s backend with no browser frontend. If this service gets a frontend, instrument it with Faro or the OpenTelemetry Browser SDK.",
 					strings.Join(langs, "/"))
 			}
 		}

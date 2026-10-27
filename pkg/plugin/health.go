@@ -110,6 +110,9 @@ func (a *App) handleHealth(w http.ResponseWriter, req *http.Request) {
 	}
 	ck := cacheKey("health", orgID, roundedUnix(from), roundedUnix(to), namespace, service, environment, serverStr)
 	a.writeCached(w, ck, "querying health failed", func() (any, error) {
+		if a.clickStackMode() {
+			return a.fetchHealthClickHouse(ctx, a.chForRequest(req), service, environment, from, to), nil
+		}
 		caps := a.cachedOrDetectCapabilities(ctx)
 		if !caps.SpanMetrics.Detected {
 			return HealthSummary{DurationUnit: "ms"}, nil

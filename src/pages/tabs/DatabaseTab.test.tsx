@@ -118,7 +118,7 @@ describe('DatabaseTab', () => {
     expect(screen.getByText('Connection-pool metrics (only for the pool panels).')).toBeInTheDocument();
     expect(screen.getAllByText('db_client_connections_*').length).toBeGreaterThanOrEqual(1);
     // Docs link at the end of the checklist → database-queries how-to
-    const docsLink = screen.getByRole('link', { name: /Instrument database queries with Nais APM/ });
+    const docsLink = screen.getByRole('link', { name: /Instrument database queries with ClickStack APM/ });
     expect(docsLink).toHaveAttribute('href', 'https://doc.nais.io/observability/apm/how-to/database-queries/');
   });
 

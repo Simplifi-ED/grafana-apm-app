@@ -169,6 +169,15 @@ description = "Start only Grafana and frontend watch for external datasources"
 depends = ["build"]
 run = ["docker compose up -d --no-deps grafana", "pnpm run dev"]
 
+[tasks."clickstack:tunnel"]
+description = "SSH LocalForward prod ClickHouse (8123/9000) to localhost — needs YubiKey FIDO2"
+run = "bash scripts/clickstack-tunnel.sh"
+
+[tasks."deploy:up:clickstack"]
+description = "Build + start Grafana only (expects CH tunnel on localhost:8123 + *.local.yaml)"
+depends = ["build"]
+run = "docker compose up -d --no-deps --force-recreate grafana"
+
 [tasks."dev:debug"]
 description = "Start the full stack with Delve debugging and frontend watch mode"
 depends = ["build"]

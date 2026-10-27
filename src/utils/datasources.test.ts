@@ -155,6 +155,26 @@ describe('usePluginDatasources', () => {
     expect(result.current.isEnvSpecific).toBe(false);
   });
 
+  it('does not invent mimir/tempo/loki UIDs in ClickStack-primary mode', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        jsonData: {
+          clickHouseDataSource: { uid: 'clickhouse', type: 'grafana-clickhouse-datasource' },
+        },
+      }),
+    });
+
+    initDatasourceConfig();
+
+    const { result } = renderHook(() => usePluginDatasources());
+    await waitFor(() => {
+      expect(result.current.metricsUid).toBe('');
+    });
+    expect(result.current.tracesUid).toBe('');
+    expect(result.current.logsUid).toBe('');
+  });
+
   it('returns configured UIDs after fetch completes', async () => {
     mockFetch.mockResolvedValue({
       ok: true,

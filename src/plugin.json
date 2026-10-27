@@ -1,17 +1,18 @@
 {
   "$schema": "https://raw.githubusercontent.com/grafana/grafana/main/docs/sources/developers/plugins/plugin.schema.json",
   "type": "app",
-  "name": "Nais APM",
+  "name": "ClickStack APM",
   "id": "nais-apm-app",
   "backend": true,
   "executable": "gpx_apm",
   "info": {
-    "keywords": ["app", "observability", "apm", "otel", "opentelemetry"],
-    "description": "Application Performance Monitoring powered by OpenTelemetry data from Mimir, Loki, and Tempo",
+    "keywords": ["app", "observability", "apm", "otel", "opentelemetry", "clickstack", "clickhouse"],
+    "description": "Application Performance Monitoring on ClickStack — OpenTelemetry logs, traces, metrics, and session replay in ClickHouse",
     "author": {
-      "name": "Nais",
-      "url": "https://nais.io"
+      "name": "Simplifi-ED",
+      "url": "https://github.com/Simplifi-ED"
     },
+
     "logos": {
       "small": "img/logo.svg",
       "large": "img/logo.svg"
@@ -122,6 +123,11 @@
         "targets": ["grafana/commandpalette/action"],
         "title": "APM: My Apps",
         "description": "View your favorite services"
+      },
+      {
+        "targets": ["grafana/explore/toolbar/action"],
+        "title": "Open in ClickStack APM",
+        "description": "View this service's health, traces, logs and errors in ClickStack APM"
       }
     ]
   }

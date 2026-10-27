@@ -8,6 +8,37 @@ interface FetchState<T> {
   stale: boolean;
 }
 
+/** Turn getBackendSrv / fetch rejection values into a readable string. */
+export function formatFetchError(error: unknown): string {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message.trim();
+  }
+  if (typeof error === 'string' && error.trim()) {
+    return error.trim();
+  }
+  if (typeof error === 'object' && error !== null) {
+    const data = (error as { data?: unknown }).data;
+    if (typeof data === 'string' && data.trim()) {
+      return data.trim();
+    }
+    if (typeof data === 'object' && data !== null) {
+      const msg = (data as { message?: unknown }).message;
+      if (typeof msg === 'string' && msg.trim()) {
+        return msg.trim();
+      }
+    }
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === 'string' && message.trim()) {
+      return message.trim();
+    }
+    const statusText = (error as { statusText?: unknown }).statusText;
+    if (typeof statusText === 'string' && statusText.trim()) {
+      return statusText.trim();
+    }
+  }
+  return 'Request failed';
+}
+
 /**
  * Generic data-fetching hook with stale-while-revalidate semantics.
  *
@@ -69,11 +100,13 @@ export function useFetch<T>(
       })
       .catch((e) => {
         if (!cancelled) {
-          // On error, keep stale data if available
+          // On error, keep stale data if available.
+          // getBackendSrv() rejects with plain objects ({ data, status, … }),
+          // not Error — String(obj) → "[object Object]" in the UI Alert.
           setState((s) => ({
             data: s.data,
             loading: false,
-            error: e instanceof Error ? e.message : String(e),
+            error: formatFetchError(e),
             stale: false,
           }));
         }

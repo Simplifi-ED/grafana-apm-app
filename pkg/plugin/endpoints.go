@@ -53,12 +53,28 @@ func (a *App) handleEndpoints(w http.ResponseWriter, req *http.Request) {
 	orgID := req.Header.Get("X-Grafana-Org-Id")
 	ck := cacheKey("endpoints", orgID, roundedUnix(from), roundedUnix(to), computeRangeStr(from, to), namespace, service, environment)
 	a.writeCached(w, ck, "querying endpoints failed", func() (any, error) {
+		if a.clickStackMode() {
+			return a.fetchEndpointsClickHouse(ctx, a.chForRequest(req), service, environment, from, to), nil
+		}
 		caps := a.cachedOrDetectCapabilities(ctx)
 		if !caps.SpanMetrics.Detected {
-			return queries.EndpointGroups{}, nil
+			return emptyEndpointGroups(), nil
 		}
 		return a.queryEndpoints(ctx, caps, namespace, service, environment, from, to), nil
 	})
+}
+
+// emptyEndpointGroups returns non-nil slices so JSON encodes [] not null
+// (the React ServerTab reads .length unconditionally).
+func emptyEndpointGroups() queries.EndpointGroups {
+	return queries.EndpointGroups{
+		HTTP:      []queries.EndpointSummary{},
+		GRPC:      []queries.EndpointSummary{},
+		Database:  []queries.EndpointSummary{},
+		Messaging: []queries.EndpointSummary{},
+		Internal:  []queries.EndpointSummary{},
+		Client:    []queries.EndpointSummary{},
+	}
 }
 
 func (a *App) queryEndpoints(

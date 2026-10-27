@@ -26,7 +26,7 @@ describe('Components/App', () => {
       basename: 'a/nais-apm-app',
       meta: {
         id: 'nais-apm-app',
-        name: 'Nais APM',
+        name: 'ClickStack APM',
         type: PluginType.app,
         enabled: true,
         jsonData: {},

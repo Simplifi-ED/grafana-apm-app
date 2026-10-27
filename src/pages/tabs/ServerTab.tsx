@@ -63,13 +63,20 @@ export function ServerTab({ service, namespace, fromMs, toMs, environment, onVie
   }
 
   const { endpoints, graphql } = data;
+  // Backend may JSON-encode unset Go slices as null — never assume arrays.
+  const http = endpoints.http ?? [];
+  const grpc = endpoints.grpc ?? [];
+  const database = endpoints.database ?? [];
+  const messaging = endpoints.messaging ?? [];
+  const internal = endpoints.internal ?? [];
+  const client = endpoints.client ?? [];
 
-  const hasHTTP = endpoints.http.length > 0;
-  const hasGRPC = endpoints.grpc.length > 0;
-  const hasDB = endpoints.database.length > 0;
-  const hasMessaging = endpoints.messaging?.length > 0;
-  const hasInternal = endpoints.internal.length > 0;
-  const hasClient = endpoints.client?.length > 0;
+  const hasHTTP = http.length > 0;
+  const hasGRPC = grpc.length > 0;
+  const hasDB = database.length > 0;
+  const hasMessaging = messaging.length > 0;
+  const hasInternal = internal.length > 0;
+  const hasClient = client.length > 0;
   const hasGraphQL = graphql?.detected === true;
   const hasAny = hasHTTP || hasGRPC || hasDB || hasMessaging || hasInternal || hasClient || hasGraphQL;
 
@@ -106,7 +113,7 @@ export function ServerTab({ service, namespace, fromMs, toMs, environment, onVie
           subtitle="Inbound"
           icon="cloud"
           color="blue"
-          endpoints={endpoints.http}
+          endpoints={http}
           durationUnit={endpoints.durationUnit}
           onViewTraces={onViewTraces}
           urlPrefix="ep"
@@ -125,7 +132,7 @@ export function ServerTab({ service, namespace, fromMs, toMs, environment, onVie
           subtitle="Client"
           icon="arrow-right"
           color="blue"
-          endpoints={endpoints.client}
+          endpoints={client}
           durationUnit={endpoints.durationUnit}
           onViewTraces={onViewTraces}
           renderName={(ep) => (
@@ -143,7 +150,7 @@ export function ServerTab({ service, namespace, fromMs, toMs, environment, onVie
           subtitle="Outbound"
           icon="exchange-alt"
           color="purple"
-          endpoints={endpoints.grpc}
+          endpoints={grpc}
           durationUnit={endpoints.durationUnit}
           onViewTraces={onViewTraces}
           renderName={(ep) => (
@@ -162,7 +169,7 @@ export function ServerTab({ service, namespace, fromMs, toMs, environment, onVie
           subtitle="Outbound"
           icon="database"
           color="orange"
-          endpoints={endpoints.database}
+          endpoints={database}
           durationUnit={endpoints.durationUnit}
           onViewTraces={onViewTraces}
           renderName={(ep) => (
@@ -180,7 +187,7 @@ export function ServerTab({ service, namespace, fromMs, toMs, environment, onVie
           subtitle=""
           icon="envelope"
           color="purple"
-          endpoints={endpoints.messaging}
+          endpoints={messaging}
           durationUnit={endpoints.durationUnit}
           onViewTraces={onViewTraces}
           renderName={(ep) => (
@@ -198,7 +205,7 @@ export function ServerTab({ service, namespace, fromMs, toMs, environment, onVie
           subtitle=""
           icon="process"
           color="green"
-          endpoints={endpoints.internal}
+          endpoints={internal}
           durationUnit={endpoints.durationUnit}
           onViewTraces={onViewTraces}
           renderName={(ep) => <span>{ep.spanName}</span>}

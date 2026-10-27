@@ -22,3 +22,7 @@ services:
       GF_LOG_LEVEL: debug
       GF_DATAPROXY_LOGGING: 1
       GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS: nais-apm-app
+      # ClickStack local-against-prod: grafana-clickhouse-datasource + host tunnel
+      GF_INSTALL_PLUGINS: grafana-clickhouse-datasource
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'

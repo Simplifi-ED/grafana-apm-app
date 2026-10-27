@@ -34,6 +34,11 @@ func (a *App) handleServiceDependencies(w http.ResponseWriter, req *http.Request
 	orgID := req.Header.Get("X-Grafana-Org-Id")
 	ck := cacheKey("svcdeps", orgID, roundedUnix(from), roundedUnix(to), namespace, service, filterEnv)
 	a.writeCached(w, ck, "querying dependencies failed", func() (any, error) {
+		if a.clickStackMode() {
+			return DependenciesResponse{
+				Dependencies: a.fetchDependenciesClickHouse(ctx, a.chForRequest(req), service, filterEnv, from, to),
+			}, nil
+		}
 		caps := a.cachedOrDetectCapabilities(ctx)
 		if !caps.ServiceGraph.Detected {
 			return DependenciesResponse{Dependencies: []DependencySummary{}}, nil

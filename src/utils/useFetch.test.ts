@@ -1,5 +1,15 @@
 import { renderHook, waitFor, act } from '@testing-library/react';
-import { useFetch } from './useFetch';
+import { formatFetchError, useFetch } from './useFetch';
+
+describe('formatFetchError', () => {
+  it('reads message from getBackendSrv-style rejection objects', () => {
+    expect(formatFetchError({ data: { message: 'datasource not found' }, status: 404 })).toBe('datasource not found');
+  });
+
+  it('does not stringify plain objects as [object Object]', () => {
+    expect(formatFetchError({})).toBe('Request failed');
+  });
+});
 
 describe('useFetch', () => {
   it('fetches data successfully', async () => {
@@ -24,6 +34,14 @@ describe('useFetch', () => {
 
     expect(result.current.data).toBeNull();
     expect(result.current.error).toBe('Network error');
+  });
+
+  it('stringifies backendSrv object rejections without [object Object]', async () => {
+    const fetcher = jest.fn().mockRejectedValue({ data: { message: 'boom' }, status: 500 });
+    const { result } = renderHook(() => useFetch(fetcher, []));
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.error).toBe('boom');
   });
 
   it('discards stale results when deps change', async () => {

@@ -300,7 +300,7 @@ function EmptyStateBody() {
       </ol>
       <p className={styles.docsLink}>
         <TextLink href={apmDocs.databaseQueries()} external variant="bodySmall">
-          Instrument database queries with Nais APM
+          Instrument database queries with ClickStack APM
         </TextLink>
       </p>
     </div>
@@ -325,7 +325,7 @@ function MissingPoolMetricsNote() {
         </p>
         <p className={styles.docsLink}>
           <TextLink href={apmDocs.databaseQueries()} external variant="bodySmall">
-            Instrument database queries with Nais APM
+            Instrument database queries with ClickStack APM
           </TextLink>
         </p>
       </div>
@@ -351,7 +351,7 @@ function MissingSpansNote() {
         </p>
         <p className={styles.docsLink}>
           <TextLink href={apmDocs.databaseQueries()} external variant="bodySmall">
-            Instrument database queries with Nais APM
+            Instrument database queries with ClickStack APM
           </TextLink>
         </p>
       </div>

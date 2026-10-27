@@ -95,15 +95,24 @@ func (a *App) handleJobs(w http.ResponseWriter, req *http.Request) {
 	if !requireGET(w, req) {
 		return
 	}
-	if a.promClient == nil {
-		http.Error(w, "metrics datasource not configured", http.StatusServiceUnavailable)
-		return
-	}
 	ctx := a.requestContext(req)
 	// KSM series are current-state gauges; the range only scopes caching. Query
 	// the snapshot at `to`.
 	_, to := parseTimeRange(req)
 	namespace := queries.MustSanitizeLabel(req.URL.Query().Get("namespace"))
+
+	// Jobs need kube-state-metrics on Prometheus/Mimir — not present in
+	// ClickStack OTel tables. Return a soft unavailable payload so the UI
+	// shows the empty state instead of a 503.
+	if a.prom(ctx) == nil {
+		writeJSON(w, JobsResponse{
+			Available: false,
+			Jobs:      []JobEntry{},
+			Note: "CronJob / Job monitoring needs kube-state-metrics (kube_cronjob_*, kube_job_*) on a Prometheus datasource. " +
+				"ClickStack OpenTelemetry metrics in ClickHouse do not include those series.",
+		})
+		return
+	}
 
 	orgID := req.Header.Get("X-Grafana-Org-Id")
 	ck := cacheKey("jobs", orgID, roundedUnix(to), namespace)

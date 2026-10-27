@@ -35,12 +35,10 @@ func (a *App) handleFrontendMetrics(w http.ResponseWriter, req *http.Request) {
 
 	data, err := a.respCache.getOrCompute(ck, func() (any, error) {
 		if a.clickStackMode() {
-			// Alloy Faro histogram vitals are not present in this ClickStack
-			// deployment. Session replay uses hyperdx_sessions separately.
-			return FrontendMetricsResponse{
-				Available: false,
-				Source:    "unsupported",
-			}, nil
+			// HyperDX webvitals spans are sparse; match Alloy's 6h idle probe
+			// but aggregate p75 over 7d so bullet charts aren't empty.
+			now := time.Now()
+			return a.fetchFrontendMetricsClickHouse(ctx, a.chForRequest(req), service, env, now.Add(-7*24*time.Hour), now), nil
 		}
 		return a.queryFrontendMetrics(ctx, service, env, time.Now(), req.Header), nil
 	})

@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/nais/grafana-otel-plugin/pkg/plugin/queries"
 )
 
 func TestInventorySQL_ContainsVerifiedMetric(t *testing.T) {
@@ -68,6 +70,52 @@ func TestFilterClause_EscapesQuotes(t *testing.T) {
 	got := FilterClause("", "", "O'Reilly", "ResourceAttributes")
 	if !strings.Contains(got, "O''Reilly") {
 		t.Fatalf("expected escaped quote: %s", got)
+	}
+}
+
+func TestWebVitalsSQL_TargetsHyperDXSpans(t *testing.T) {
+	sql := WebVitalsSQL("nova-frontend", "prod-k3s-omnivya", time.Now().Add(-6*time.Hour), time.Now())
+	for _, want := range []string{"webvitals", "nova-frontend", "quantileIf(0.75)", "SpanAttributes['lcp']", "prod-k3s-omnivya"} {
+		if !strings.Contains(sql, want) {
+			t.Errorf("WebVitalsSQL missing %q\n%s", want, sql)
+		}
+	}
+}
+
+func TestParseWebVitalsMaps(t *testing.T) {
+	vitals, samples := ParseWebVitalsMaps([]map[string]any{
+		{"lcp": 1200.0, "fcp": 800.0, "cls": 0.0, "inp": 50.0, "ttfb": 100.0, "samples": 12.0},
+	})
+	if samples != 12 {
+		t.Fatalf("samples=%v", samples)
+	}
+	if vitals["lcp"] != 1200 || vitals["inp"] != 50 {
+		t.Fatalf("%+v", vitals)
+	}
+	if _, ok := vitals["cls"]; ok {
+		t.Fatal("zero cls should be omitted")
+	}
+}
+
+func TestOperationsToEndpointGroups(t *testing.T) {
+	ops := []queries.OperationSummary{
+		{SpanName: "GET /api/x", SpanKindRaw: SpanKindServer, Rate: 1, DurationUnit: "ms"},
+		{SpanName: "query SELECT", SpanKindRaw: SpanKindClient, Rate: 2, DurationUnit: "ms"},
+		{SpanName: "HTTP GET", SpanKindRaw: SpanKindClient, Rate: 3, DurationUnit: "ms"},
+		{SpanName: "click", SpanKindRaw: "SPAN_KIND_INTERNAL", Rate: 4, DurationUnit: "ms"},
+	}
+	g := OperationsToEndpointGroups(ops)
+	if len(g.HTTP) != 1 || g.HTTP[0].HTTPMethod != "GET" {
+		t.Fatalf("http=%+v", g.HTTP)
+	}
+	if len(g.Database) != 1 || g.Database[0].SpanName != "query SELECT" {
+		t.Fatalf("db=%+v", g.Database)
+	}
+	if len(g.Client) != 1 || g.Client[0].HTTPMethod != "GET" {
+		t.Fatalf("client=%+v", g.Client)
+	}
+	if len(g.Internal) != 1 {
+		t.Fatalf("internal=%+v", g.Internal)
 	}
 }
 
