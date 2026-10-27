@@ -361,7 +361,7 @@ func (a *App) pruneDeployAnnotations(ctx context.Context) (int, int, error) {
 	keep := make(map[string]bool)
 	deleted, failed := 0, 0
 
-	for page := 0; page < maxDeployPrunePages; page++ {
+	for range maxDeployPrunePages {
 		q := url.Values{}
 		q.Add("tags", deployAnnotationTag)
 		q.Set("limit", strconv.Itoa(deployPruneLimit))

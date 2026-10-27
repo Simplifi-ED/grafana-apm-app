@@ -46,18 +46,14 @@ func (a *App) handleNamespaceAlerts(w http.ResponseWriter, req *http.Request) {
 		grafanaErr  error
 	)
 	if prom != nil {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			mimirRules, mimirErr = prom.GetAlertRules(req.Context())
-		}()
+		})
 	}
 	if grafanaRules != nil {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			grafanaResp, grafanaErr = grafanaRules.GetAlertRules(req.Context())
-		}()
+		})
 	}
 	wg.Wait()
 
@@ -145,18 +141,14 @@ func (a *App) computeServiceAlerts(req *http.Request, service string) ServiceAle
 		grafanaErr  error
 	)
 	if prom != nil {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			mimirRules, mimirErr = prom.GetAlertRules(req.Context())
-		}()
+		})
 	}
 	if grafanaRules != nil {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			grafanaResp, grafanaErr = grafanaRules.GetAlertRules(req.Context())
-		}()
+		})
 	}
 	wg.Wait()
 

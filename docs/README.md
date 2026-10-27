@@ -13,7 +13,9 @@ Contracts and reference material — keep these current with the product.
 
 | Document | Contents |
 |----------|----------|
-| [configuration.md](configuration.md) | Datasource setup, per-environment overrides, authentication, auto-detection, framework-detection troubleshooting, deploy annotations, metrics pipeline |
+| [configuration.md](configuration.md) | Datasource setup (LGTM + ClickHouse/ClickStack), per-environment overrides, authentication, auto-detection, framework-detection troubleshooting, deploy annotations, metrics pipeline |
+| [clickstack-migration/audit.md](clickstack-migration/audit.md) | Architecture audit for adapting the plugin to ClickStack / ClickHouse |
+| [clickstack-migration/schema.md](clickstack-migration/schema.md) | Sanitized ClickHouse schema inventory (verified vs inferred) |
 | [metrics-reference.md](metrics-reference.md) | Complete metrics, labels, dimensions, query patterns, collector configuration, and endpoint classification |
 | [url-contract.md](url-contract.md) | Stable URL/query-param API — tab routes (incl. legacy `tab=server`/`tab=runtime` → `tab=backend` aliases), fleet routes, Exception Drawer deep links, issue facets |
 | [security-model.md](security-model.md) | Authorization model, hardening notes, and the accepted-design decisions from the resource-endpoint security audit |

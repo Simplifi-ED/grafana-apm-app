@@ -23,7 +23,7 @@ func TestServiceMapNodeJSON(t *testing.T) {
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
-	var m map[string]interface{}
+	var m map[string]any
 	if err := json.Unmarshal(data, &m); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
@@ -85,7 +85,7 @@ func TestGraphQLOperationNullableErrorRate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
-	var m map[string]interface{}
+	var m map[string]any
 	if err := json.Unmarshal(data, &m); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
@@ -115,7 +115,7 @@ func TestFrontendMetricsResponseOmitempty(t *testing.T) {
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
-	var m map[string]interface{}
+	var m map[string]any
 	if err := json.Unmarshal(data, &m); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
@@ -170,7 +170,7 @@ func TestConnectedServicesResponseJSON(t *testing.T) {
 	// connectionType should be omitted when empty
 	svc := ConnectedService{Name: "svc", Rate: 1}
 	svcData, _ := json.Marshal(svc)
-	var m map[string]interface{}
+	var m map[string]any
 	_ = json.Unmarshal(svcData, &m)
 	if _, ok := m["connectionType"]; ok {
 		t.Error("expected connectionType to be omitted when empty")

@@ -114,8 +114,9 @@ const (
 // ruleFormValuesV1 until a real incompatible major ships, then add its case
 // here together with the alternate builder and a new golden snapshot.
 //
-//nolint:unparam // Intentionally returns the one shipped shape today; the
 // parameter and switch are the forward-looking version-branch seam (#77).
+//
+//nolint:unparam // Intentionally returns the one shipped shape today; the
 func selectRuleFormValuesSchema(grafanaMajor int) ruleFormValuesSchema {
 	switch {
 	case grafanaMajor >= 13:
@@ -861,7 +862,7 @@ func parseAlertHashes(raw string) []string {
 		return nil
 	}
 	var hashes []string
-	for _, part := range strings.Split(raw, ",") {
+	for part := range strings.SplitSeq(raw, ",") {
 		h := strings.TrimSpace(part)
 		if h != "" && alertHashPattern.MatchString(h) {
 			hashes = append(hashes, h)

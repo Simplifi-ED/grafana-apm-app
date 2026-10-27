@@ -59,7 +59,7 @@ func TestAggregateTopQueries(t *testing.T) {
 
 func TestAggregateTopQueries_Limit(t *testing.T) {
 	var spans []dbSpan
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		spans = append(spans, dbSpan{system: "postgresql", statement: "select " + string(rune('a'+i)) + " from t", durationMs: 1})
 	}
 	got := aggregateTopQueries(spans, 3)

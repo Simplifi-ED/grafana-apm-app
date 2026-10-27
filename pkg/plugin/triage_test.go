@@ -69,12 +69,12 @@ func (m *mockAnnotationsAPI) server(t *testing.T) *httptest.Server {
 				limit = 100
 			}
 			var out []grafanaAnnotation
-			for i := len(m.anns) - 1; i >= 0; i-- {
-				if m.anns[i].Time < from || m.anns[i].Time > to {
+			for _, v := range slices.Backward(m.anns) {
+				if v.Time < from || v.Time > to {
 					continue
 				}
-				tags := make(map[string]bool, len(m.anns[i].Tags))
-				for _, tg := range m.anns[i].Tags {
+				tags := make(map[string]bool, len(v.Tags))
+				for _, tg := range v.Tags {
 					tags[tg] = true
 				}
 				all := true
@@ -85,7 +85,7 @@ func (m *mockAnnotationsAPI) server(t *testing.T) *httptest.Server {
 					}
 				}
 				if all {
-					out = append(out, m.anns[i])
+					out = append(out, v)
 				}
 			}
 			// Grafana sorts by epoch descending; do the same rather than
@@ -227,16 +227,16 @@ func TestTriageFetchOmitsCommonTagAndFiltersClientSide(t *testing.T) {
 		gotTags = append(gotTags, r.URL.Query()["tags"])
 		var out []grafanaAnnotation
 		want := r.URL.Query()["tags"]
-		for i := len(mock.anns) - 1; i >= 0; i-- {
+		for _, v := range slices.Backward(mock.anns) {
 			match := true
 			for _, tg := range want {
-				if !hasTag(mock.anns[i].Tags, tg) {
+				if !hasTag(v.Tags, tg) {
 					match = false
 					break
 				}
 			}
 			if match {
-				out = append(out, mock.anns[i])
+				out = append(out, v)
 			}
 		}
 		w.Header().Set("Content-Type", "application/json")

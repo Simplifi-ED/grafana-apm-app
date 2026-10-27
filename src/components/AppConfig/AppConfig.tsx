@@ -31,6 +31,7 @@ type State = {
   metricsUid: string;
   tracesUid: string;
   logsUid: string;
+  clickHouseUid: string;
   metricNamespace: string;
   durationUnit: string;
   labelOverrides: LabelOverrides;
@@ -74,6 +75,7 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
     metricsUid: jsonData?.metricsDataSource?.uid || '',
     tracesUid: jsonData?.tracesDataSource?.uid || '',
     logsUid: jsonData?.logsDataSource?.uid || '',
+    clickHouseUid: jsonData?.clickHouseDataSource?.uid || '',
     metricNamespace: jsonData?.metricNamespace || '',
     durationUnit: jsonData?.durationUnit || '',
     labelOverrides: jsonData?.labelOverrides ?? {},
@@ -98,6 +100,9 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
   const [promOptions, setPromOptions] = useState<Array<{ label: string; value: string; description?: string }>>([]);
   const [tempoOptions, setTempoOptions] = useState<Array<{ label: string; value: string; description?: string }>>([]);
   const [lokiOptions, setLokiOptions] = useState<Array<{ label: string; value: string; description?: string }>>([]);
+  const [clickHouseOptions, setClickHouseOptions] = useState<
+    Array<{ label: string; value: string; description?: string }>
+  >([]);
   const [dsLoaded, setDsLoaded] = useState(false);
   const [envOptions, setEnvOptions] = useState<Array<{ label: string; value: string }>>([]);
 
@@ -126,10 +131,12 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
         const prom = datasources.filter((ds) => ds.type === 'prometheus').map(toOption);
         const tempo = datasources.filter((ds) => ds.type === 'tempo').map(toOption);
         const loki = datasources.filter((ds) => ds.type === 'loki').map(toOption);
+        const clickhouse = datasources.filter((ds) => ds.type === 'grafana-clickhouse-datasource').map(toOption);
 
         setPromOptions(prom);
         setTempoOptions(tempo);
         setLokiOptions(loki);
+        setClickHouseOptions(clickhouse);
         setDsLoaded(true);
 
         // Auto-fill empty fields: prefer isDefault, then sole datasource
@@ -146,6 +153,10 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
           if (!prev.logsUid) {
             const def = datasources.find((d) => d.type === 'loki' && d.isDefault);
             updates.logsUid = def?.uid || (loki.length === 1 ? loki[0].value! : '');
+          }
+          if (!prev.clickHouseUid) {
+            const def = datasources.find((d) => d.type === 'grafana-clickhouse-datasource' && d.isDefault);
+            updates.clickHouseUid = def?.uid || (clickhouse.length === 1 ? clickhouse[0].value! : '');
           }
 
           // Auto-detect environment overrides from naming patterns
@@ -358,6 +369,9 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
           type: 'loki',
           ...(Object.keys(logsByEnv).length > 0 ? { byEnvironment: logsByEnv } : {}),
         },
+        clickHouseDataSource: state.clickHouseUid
+          ? { uid: state.clickHouseUid, type: 'grafana-clickhouse-datasource' }
+          : undefined,
         metricNamespace: state.metricNamespace || undefined,
         durationUnit: state.durationUnit || undefined,
         labelOverrides: Object.values(state.labelOverrides).some(Boolean) ? state.labelOverrides : undefined,
@@ -459,6 +473,28 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
             />
           ) : (
             <Input width={40} value={state.logsUid} placeholder="e.g., loki" onChange={onChange('logsUid')} />
+          )}
+        </Field>
+        <Field
+          label="ClickHouse (ClickStack)"
+          description="Optional. grafana-clickhouse-datasource UID for querying the existing ClickStack / OpenTelemetry tables. Credentials stay on the Grafana datasource — do not paste secrets here."
+        >
+          {dsLoaded && clickHouseOptions.length > 0 ? (
+            <Combobox
+              options={clickHouseOptions}
+              value={state.clickHouseUid || null}
+              onChange={(v) => setState((prev) => ({ ...prev, clickHouseUid: v?.value ?? '' }))}
+              width={40}
+              placeholder="Select ClickHouse datasource..."
+              isClearable
+            />
+          ) : (
+            <Input
+              width={40}
+              value={state.clickHouseUid}
+              placeholder="e.g., clickhouse"
+              onChange={onChange('clickHouseUid')}
+            />
           )}
         </Field>
       </FieldSet>

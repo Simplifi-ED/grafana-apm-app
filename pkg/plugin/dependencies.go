@@ -3,6 +3,7 @@ package plugin
 import (
 	"context"
 	"fmt"
+	"maps"
 	"net/http"
 	"sort"
 	"strings"
@@ -277,12 +278,12 @@ func (a *App) queryDependencies(
 		filters = append(filters, envMatcher(a.otelCfg.Labels.DeploymentEnv, filterEnvironment))
 	}
 
-	labelFilter := ""
+	var labelFilter strings.Builder
 	for i, f := range filters {
 		if i > 0 {
-			labelFilter += ", "
+			labelFilter.WriteString(", ")
 		}
-		labelFilter += f
+		labelFilter.WriteString(f)
 	}
 
 	// Include connection_type, db_system, and messaging_system in group-by.
@@ -292,17 +293,17 @@ func (a *App) queryDependencies(
 		`sum by (%s, %s, %s, %s, %s) (rate(%s%s{%s}%s))`,
 		a.otelCfg.Labels.Client, a.otelCfg.Labels.Server, ct,
 		a.otelCfg.Labels.DBSystem, a.otelCfg.Labels.MessagingSystem,
-		sgp, a.otelCfg.ServiceGraph.RequestTotal, labelFilter, rangeStr,
+		sgp, a.otelCfg.ServiceGraph.RequestTotal, labelFilter.String(), rangeStr,
 	)
 	errorQuery := fmt.Sprintf(
 		`sum by (%s, %s, %s) (rate(%s%s{%s}%s))`,
 		a.otelCfg.Labels.Client, a.otelCfg.Labels.Server, ct,
-		sgp, a.otelCfg.ServiceGraph.RequestFailedTotal, labelFilter, rangeStr,
+		sgp, a.otelCfg.ServiceGraph.RequestFailedTotal, labelFilter.String(), rangeStr,
 	)
 	p95Query := fmt.Sprintf(
 		`histogram_quantile(0.95, sum by (%s, %s, %s) (rate(%s%s{%s}%s)))`,
 		a.otelCfg.Labels.Server, ct, a.otelCfg.Labels.Le,
-		sgp, a.otelCfg.ServiceGraph.RequestServerBucket, labelFilter, rangeStr,
+		sgp, a.otelCfg.ServiceGraph.RequestServerBucket, labelFilter.String(), rangeStr,
 	)
 
 	// Spanmetrics supplement: discover downstream dependencies from CLIENT/CONSUMER
@@ -382,9 +383,7 @@ func (a *App) queryDependencies(
 		sgNames[strings.ToLower(k.server)] = true
 	}
 	smDeps := a.mergeSpanmetricsDeps(resultMap, dbSystemMap, messagingSystemMap, sgNames)
-	for k, d := range smDeps {
-		deps[k] = d
-	}
+	maps.Copy(deps, smDeps)
 
 	// Calculate total impact denominator
 	totalImpact := 0.0

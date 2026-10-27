@@ -194,26 +194,21 @@ func (a *App) queryIssues(ctx context.Context, ds *queries.DsQueryClient, lokiUI
 	faceted := facets.active()
 	// Facet-value discovery always runs (cheap topk queries) so the UI can
 	// populate the facet dropdowns even before any facet is picked.
-	wg.Add(1)
-	go func() { defer wg.Done(); facetVals = a.queryIssueFacets(ctx, ds, lokiUID, service, env, from, to) }()
+	wg.Go(func() { ; facetVals = a.queryIssueFacets(ctx, ds, lokiUID, service, env, from, to) })
 	// A browser facet scopes the list to Faro telemetry (facet fields are Faro
 	// logfmt fields), so the server side is skipped — its counts can't be
 	// narrowed by a browser facet and would misrepresent the filtered view.
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		if faceted {
 			browser = a.queryBrowserExceptionGroupsFaceted(ctx, ds, lokiUID, service, env, from, to, facets)
 		} else {
 			browser = a.queryExceptionGroups(ctx, ds, lokiUID, service, env, from, to)
 		}
-	}()
+	})
 	if !faceted {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			server, serverOK = a.queryServerExceptionGroups(ctx, ds, lokiUID, service, env, from, to)
-		}()
+		})
 	}
 	wg.Wait()
 

@@ -8,7 +8,7 @@ the Nais APM app. For the full list of expected metrics and labels, see
 
 ## Datasources
 
-The plugin needs three Grafana datasources:
+The plugin historically needs three Grafana datasources (LGTM path):
 
 | Signal  | Type       | Default UID | Purpose                                                       |
 | ------- | ---------- | ----------- | ------------------------------------------------------------- |
@@ -16,7 +16,61 @@ The plugin needs three Grafana datasources:
 | Traces  | Tempo      | `tempo`     | Trace detail, exemplar links                                  |
 | Logs    | Loki       | `loki`      | Faro browser telemetry, application logs                      |
 
-### Setup
+### ClickStack / ClickHouse (optional foundation)
+
+For deployments that store OTel telemetry in ClickHouse (ClickStack), configure
+the official Grafana ClickHouse datasource and point the plugin at its UID:
+
+| Signal     | Type                              | Example UID   | Purpose                                      |
+| ---------- | --------------------------------- | ------------- | -------------------------------------------- |
+| ClickHouse | `grafana-clickhouse-datasource`   | `clickhouse`  | SQL access to `otel_*` / `hyperdx_sessions`  |
+
+1. Install **grafana-clickhouse-datasource** in Grafana (if not already present).
+2. Create a datasource that reaches your existing ClickHouse (host, port, database
+   `default`, TLS/user as required). Store credentials only in the datasource's
+   `secureJsonData` — never in this plugin's settings or git.
+3. On the plugin **Configuration** page, set **ClickHouse (ClickStack)** to that
+   datasource UID (or provision `jsonData.clickHouseDataSource`).
+4. Save. Plugin health (`CheckHealth`) runs `SELECT 1` through `/api/ds/query`
+   when the UID is set.
+
+Provisioning sketch (adapt host/auth; do not commit secrets):
+
+```yaml
+apiVersion: 1
+datasources:
+  - name: ClickHouse
+    type: grafana-clickhouse-datasource
+    uid: clickhouse
+    access: proxy
+    jsonData:
+      host: clickhouse.example.svc
+      port: 9000
+      protocol: native
+      defaultDatabase: default
+      username: readonly
+    secureJsonData:
+      password: ${CLICKHOUSE_PASSWORD}
+```
+
+Plugin app settings:
+
+```yaml
+jsonData:
+  clickHouseDataSource:
+    uid: clickhouse
+    type: grafana-clickhouse-datasource
+```
+
+Schema notes for this fork's ClickStack instance:
+[docs/clickstack-migration/schema.md](clickstack-migration/schema.md).
+Architecture audit:
+[docs/clickstack-migration/audit.md](clickstack-migration/audit.md).
+
+APM page queries are still on the LGTM path until later migration steps; the
+ClickHouse client is the reusable foundation (`pkg/plugin/queries/clickhouse.go`).
+
+### Setup (LGTM)
 
 1. Go to the plugin's **Configuration** page
 2. Enter datasource UIDs for Mimir, Tempo, and Loki

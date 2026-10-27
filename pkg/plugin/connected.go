@@ -99,7 +99,8 @@ func (a *App) queryConnectedServices(ctx context.Context, from, to time.Time, se
 	// Pattern: server_address=~"appname[.:].*" catches both
 	// "appname.namespace.svc" and "appname:8080" style addresses.
 	escapedSvc := promQLEscape(service)
-	smInRateQ := fmt.Sprintf(
+	var smInRateQ, smInErrQ strings.Builder
+	fmt.Fprintf(&smInRateQ,
 		`sum by (%s, %s) (rate(%s{%s="%s", %s=~"%s[.:].*"%s}%s)) or sum by (%s, %s) (rate(%s{%s="%s", %s=~"%s[.:].*"%s}%s))`,
 		cfg.Labels.ServiceName, cfg.Labels.ServiceNamespace,
 		a.callsMetric(ctx), cfg.Labels.SpanKind, cfg.SpanKinds.Client,
@@ -108,7 +109,7 @@ func (a *App) queryConnectedServices(ctx context.Context, from, to time.Time, se
 		a.callsMetric(ctx), cfg.Labels.SpanKind, cfg.SpanKinds.Client,
 		cfg.Labels.HTTPHost, escapedSvc, envLabelFilter, rangeStr,
 	)
-	smInErrQ := fmt.Sprintf(
+	fmt.Fprintf(&smInErrQ,
 		`sum by (%s, %s) (rate(%s{%s="%s", %s="%s", %s=~"%s[.:].*"%s}%s)) or sum by (%s, %s) (rate(%s{%s="%s", %s="%s", %s=~"%s[.:].*"%s}%s))`,
 		cfg.Labels.ServiceName, cfg.Labels.ServiceNamespace,
 		a.callsMetric(ctx), cfg.Labels.SpanKind, cfg.SpanKinds.Client,
@@ -124,26 +125,26 @@ func (a *App) queryConnectedServices(ctx context.Context, from, to time.Time, se
 	// as aliases for this service (e.g., on-prem callers using nais ingress).
 	for _, hostname := range a.ingressHostnames(service) {
 		escapedHost := promQLEscape(hostname)
-		smInRateQ += fmt.Sprintf(
+		fmt.Fprintf(&smInRateQ,
 			` or sum by (%s, %s) (rate(%s{%s="%s", %s=~"%s(:[0-9]+)?"%s}%s))`,
 			cfg.Labels.ServiceName, cfg.Labels.ServiceNamespace,
 			a.callsMetric(ctx), cfg.Labels.SpanKind, cfg.SpanKinds.Client,
 			cfg.Labels.ServerAddress, escapedHost, envLabelFilter, rangeStr,
 		)
-		smInRateQ += fmt.Sprintf(
+		fmt.Fprintf(&smInRateQ,
 			` or sum by (%s, %s) (rate(%s{%s="%s", %s=~"%s(:[0-9]+)?"%s}%s))`,
 			cfg.Labels.ServiceName, cfg.Labels.ServiceNamespace,
 			a.callsMetric(ctx), cfg.Labels.SpanKind, cfg.SpanKinds.Client,
 			cfg.Labels.HTTPHost, escapedHost, envLabelFilter, rangeStr,
 		)
-		smInErrQ += fmt.Sprintf(
+		fmt.Fprintf(&smInErrQ,
 			` or sum by (%s, %s) (rate(%s{%s="%s", %s="%s", %s=~"%s(:[0-9]+)?"%s}%s))`,
 			cfg.Labels.ServiceName, cfg.Labels.ServiceNamespace,
 			a.callsMetric(ctx), cfg.Labels.SpanKind, cfg.SpanKinds.Client,
 			cfg.Labels.StatusCode, cfg.StatusCodes.Error,
 			cfg.Labels.ServerAddress, escapedHost, envLabelFilter, rangeStr,
 		)
-		smInErrQ += fmt.Sprintf(
+		fmt.Fprintf(&smInErrQ,
 			` or sum by (%s, %s) (rate(%s{%s="%s", %s="%s", %s=~"%s(:[0-9]+)?"%s}%s))`,
 			cfg.Labels.ServiceName, cfg.Labels.ServiceNamespace,
 			a.callsMetric(ctx), cfg.Labels.SpanKind, cfg.SpanKinds.Client,
@@ -173,7 +174,7 @@ func (a *App) queryConnectedServices(ctx context.Context, from, to time.Time, se
 	jobs := []QueryJob{
 		{"outRate", outRateQ}, {"outErr", outErrQ}, {"outP95", outP95Q},
 		{"inRate", inRateQ}, {"inErr", inErrQ}, {"inP95", inP95Q},
-		{"smInRate", smInRateQ}, {"smInErr", smInErrQ},
+		{"smInRate", smInRateQ.String()}, {"smInErr", smInErrQ.String()},
 		{"smOutRate", smOutRateQ}, {"smOutErr", smOutErrQ},
 	}
 

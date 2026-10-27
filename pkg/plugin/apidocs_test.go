@@ -78,7 +78,7 @@ func openAPIPaths(path string) (map[string]bool, error) {
 
 	paths := make(map[string]bool)
 	inPaths := false
-	for _, line := range strings.Split(string(data), "\n") {
+	for line := range strings.SplitSeq(string(data), "\n") {
 		if strings.HasPrefix(line, "#") {
 			continue
 		}

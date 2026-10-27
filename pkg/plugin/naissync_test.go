@@ -241,11 +241,11 @@ func TestPruneDeploysPagesPastTheFirstPage(t *testing.T) {
 	recent := time.Now().AddDate(0, 0, -1).UnixMilli()
 	var anns []grafanaAnnotation
 	var id int64
-	for i := 0; i < 600; i++ { // oldest first: stale tail
+	for i := range 600 { // oldest first: stale tail
 		id++
 		anns = append(anns, deployMarkerAt(id, "team-a", "app-a", "prod", old+int64(i)*60_000))
 	}
-	for i := 0; i < deployPruneLimit+200; i++ { // a full page of in-window markers
+	for i := range deployPruneLimit + 200 { // a full page of in-window markers
 		id++
 		anns = append(anns, deployMarkerAt(id, "team-a", "app-a", "prod", recent+int64(i)*60_000))
 	}

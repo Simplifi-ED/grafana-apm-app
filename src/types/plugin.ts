@@ -34,6 +34,11 @@ export interface AppPluginSettings {
   metricsDataSource?: EnvAwareDs;
   tracesDataSource?: EnvAwareDs;
   logsDataSource?: EnvAwareDs;
+  /**
+   * Grafana ClickHouse datasource (grafana-clickhouse-datasource) for ClickStack.
+   * Optional while the LGTM path remains; required for ClickHouse-backed queries.
+   */
+  clickHouseDataSource?: DsRef;
   metricNamespace?: string;
   durationUnit?: string;
   labelOverrides?: LabelOverrides;

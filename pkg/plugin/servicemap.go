@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net"
 	"net/http"
 	"sort"
@@ -270,13 +271,7 @@ func aggregateByNamespace(edges map[sgEdgeKey]*sgEdgeData, nsMap map[string]stri
 // jobs, cron-driven dependencies) vanish from wide time ranges (#36). Edge
 // rates consequently read as averages over the selected range.
 func computeRangeStr(from, to time.Time) string {
-	d := to.Sub(from)
-	if d < 5*time.Minute {
-		d = 5 * time.Minute
-	}
-	if d > 24*time.Hour {
-		d = 24 * time.Hour
-	}
+	d := min(max(to.Sub(from), 5*time.Minute), 24*time.Hour)
 	d = d.Round(time.Minute)
 	if m := int(d.Minutes()); m%60 != 0 {
 		return fmt.Sprintf("[%dm]", m)
@@ -1262,26 +1257,29 @@ func (a *App) querySpanmetricsTopologyFallback(
 	if needInbound {
 		// Inbound: other services calling us, found via their CLIENT spans
 		// targeting our service by server_address or http_host
-		inRateQ := fmt.Sprintf(
+		var inRateQ strings.Builder
+		fmt.Fprintf(&inRateQ,
 			`sum by (%s, %s) (rate(%s{%s="%s", %s=~"%s($|[.:].*?)"%s}%s))`,
 			cfg.Labels.ServiceName, cfg.Labels.ServiceNamespace,
 			callsMetric, cfg.Labels.SpanKind, cfg.SpanKinds.Client,
 			cfg.Labels.ServerAddress, escapedSvc, envFilter, rangeStr,
 		)
-		inRateHostQ := fmt.Sprintf(
+		var inRateHostQ strings.Builder
+		fmt.Fprintf(&inRateHostQ,
 			`sum by (%s, %s) (rate(%s{%s="%s", %s=~"%s($|[.:].*?)"%s}%s))`,
 			cfg.Labels.ServiceName, cfg.Labels.ServiceNamespace,
 			callsMetric, cfg.Labels.SpanKind, cfg.SpanKinds.Client,
 			cfg.Labels.HTTPHost, escapedSvc, envFilter, rangeStr,
 		)
-		inErrQ := fmt.Sprintf(
+		var inErrQ, inErrHostQ strings.Builder
+		fmt.Fprintf(&inErrQ,
 			`sum by (%s, %s) (rate(%s{%s="%s", %s=~"%s($|[.:].*?)", %s="%s"%s}%s))`,
 			cfg.Labels.ServiceName, cfg.Labels.ServiceNamespace,
 			callsMetric, cfg.Labels.SpanKind, cfg.SpanKinds.Client,
 			cfg.Labels.ServerAddress, escapedSvc,
 			cfg.Labels.StatusCode, cfg.StatusCodes.Error, envFilter, rangeStr,
 		)
-		inErrHostQ := fmt.Sprintf(
+		fmt.Fprintf(&inErrHostQ,
 			`sum by (%s, %s) (rate(%s{%s="%s", %s=~"%s($|[.:].*?)", %s="%s"%s}%s))`,
 			cfg.Labels.ServiceName, cfg.Labels.ServiceNamespace,
 			callsMetric, cfg.Labels.SpanKind, cfg.SpanKinds.Client,
@@ -1292,26 +1290,26 @@ func (a *App) querySpanmetricsTopologyFallback(
 		// Ingress alias supplement: also find callers via configured ingress hostnames.
 		for _, hostname := range a.ingressHostnames(service) {
 			escapedHost := promQLEscape(hostname)
-			inRateQ += fmt.Sprintf(
+			fmt.Fprintf(&inRateQ,
 				` or sum by (%s, %s) (rate(%s{%s="%s", %s=~"%s(:[0-9]+)?"%s}%s))`,
 				cfg.Labels.ServiceName, cfg.Labels.ServiceNamespace,
 				callsMetric, cfg.Labels.SpanKind, cfg.SpanKinds.Client,
 				cfg.Labels.ServerAddress, escapedHost, envFilter, rangeStr,
 			)
-			inRateHostQ += fmt.Sprintf(
+			fmt.Fprintf(&inRateHostQ,
 				` or sum by (%s, %s) (rate(%s{%s="%s", %s=~"%s(:[0-9]+)?"%s}%s))`,
 				cfg.Labels.ServiceName, cfg.Labels.ServiceNamespace,
 				callsMetric, cfg.Labels.SpanKind, cfg.SpanKinds.Client,
 				cfg.Labels.HTTPHost, escapedHost, envFilter, rangeStr,
 			)
-			inErrQ += fmt.Sprintf(
+			fmt.Fprintf(&inErrQ,
 				` or sum by (%s, %s) (rate(%s{%s="%s", %s=~"%s(:[0-9]+)?", %s="%s"%s}%s))`,
 				cfg.Labels.ServiceName, cfg.Labels.ServiceNamespace,
 				callsMetric, cfg.Labels.SpanKind, cfg.SpanKinds.Client,
 				cfg.Labels.ServerAddress, escapedHost,
 				cfg.Labels.StatusCode, cfg.StatusCodes.Error, envFilter, rangeStr,
 			)
-			inErrHostQ += fmt.Sprintf(
+			fmt.Fprintf(&inErrHostQ,
 				` or sum by (%s, %s) (rate(%s{%s="%s", %s=~"%s(:[0-9]+)?", %s="%s"%s}%s))`,
 				cfg.Labels.ServiceName, cfg.Labels.ServiceNamespace,
 				callsMetric, cfg.Labels.SpanKind, cfg.SpanKinds.Client,
@@ -1321,10 +1319,10 @@ func (a *App) querySpanmetricsTopologyFallback(
 		}
 
 		jobs = append(jobs,
-			QueryJob{"smInRate", inRateQ},
-			QueryJob{"smInRateHost", inRateHostQ},
-			QueryJob{"smInErr", inErrQ},
-			QueryJob{"smInErrHost", inErrHostQ},
+			QueryJob{"smInRate", inRateQ.String()},
+			QueryJob{"smInRateHost", inRateHostQ.String()},
+			QueryJob{"smInErr", inErrQ.String()},
+			QueryJob{"smInErrHost", inErrHostQ.String()},
 		)
 	}
 
@@ -1553,9 +1551,7 @@ func preprocessServiceMapEdges(edges map[sgEdgeKey]*sgEdgeData) map[sgEdgeKey]*s
 	for _, k := range selfLoopKeys {
 		delete(edges, k)
 	}
-	for k, e := range selfLoopSplits {
-		edges[k] = e
-	}
+	maps.Copy(edges, selfLoopSplits)
 
 	// Normalize K8s FQDN names to short service names
 	normalized := make(map[sgEdgeKey]*sgEdgeData, len(edges))
@@ -1693,8 +1689,8 @@ func assembleServiceMapResponse(edges map[sgEdgeKey]*sgEdgeData) ServiceMapRespo
 
 		// For synthetic infra nodes (kiss__postgresql), use the original name as title
 		title := name
-		if idx := strings.Index(name, "__"); idx != -1 && (nType == "database" || nType == "messaging") {
-			title = name[:idx]
+		if before, _, ok := strings.Cut(name, "__"); ok && (nType == "database" || nType == "messaging") {
+			title = before
 		}
 
 		nodes = append(nodes, ServiceMapNode{
@@ -1831,7 +1827,7 @@ func formatDepDisplayName(name, dbSystem, messagingSystem string) string {
 func (a *App) debugServiceMapMultiHop(
 	ctx context.Context, from, to time.Time,
 	filterService, filterEnvironment string, depth int,
-) interface{} {
+) any {
 	baseLabelFilter := envMatcher(a.otelCfg.Labels.DeploymentEnv, filterEnvironment)
 	allEdges := a.queryServiceGraphEdgesScoped(ctx, from, to, baseLabelFilter, filterService)
 
@@ -1917,7 +1913,7 @@ func (a *App) debugServiceMapMultiHop(
 		})
 	}
 
-	return map[string]interface{}{
+	return map[string]any{
 		"service":         filterService,
 		"environment":     filterEnvironment,
 		"baseLabelFilter": baseLabelFilter,

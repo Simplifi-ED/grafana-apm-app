@@ -199,7 +199,7 @@ func TestQueryFrontendVersionsAnnotationFailureDegrades(t *testing.T) {
 
 func TestQueryFrontendVersionsCap(t *testing.T) {
 	sessions := make([]queries.PromResult, 0, maxVersions+5)
-	for i := 0; i < maxVersions+5; i++ {
+	for i := range maxVersions + 5 {
 		sessions = append(sessions, queries.PromResult{
 			Metric: map[string]string{"app_version": string(rune('a'+i%26)) + "version"},
 			Value:  queries.NewPromValue(0, "1"),

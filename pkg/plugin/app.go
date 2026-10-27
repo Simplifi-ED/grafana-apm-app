@@ -36,9 +36,10 @@ type App struct {
 	otelCfg      otelconfig.Config
 	settings     queries.PluginSettings
 	promClient   *queries.PrometheusClient
-	healthClient *http.Client // shared client for health checks
-	grafanaURL   string       // base URL for datasource proxy resolution
-	serviceToken string       // Grafana service account token for internal API calls
+	chClient     *queries.ClickHouseClient // optional ClickStack / ClickHouse path
+	healthClient *http.Client              // shared client for health checks
+	grafanaURL   string                    // base URL for datasource proxy resolution
+	serviceToken string                    // Grafana service account token for internal API calls
 
 	capMu    sync.RWMutex
 	capCache *cachedCapabilities
@@ -146,13 +147,19 @@ func NewApp(_ context.Context, settings backend.AppInstanceSettings) (instancemg
 		logger.Info("Metrics datasource configured via proxy", "uid", uid)
 	} else {
 		// Fallback for unconfigured plugin (e.g., first install before config is saved)
-		logger.Warn("No metrics datasource configured — plugin will not function until configured")
+		logger.Warn("No metrics datasource configured — LGTM path inactive until configured")
+	}
+
+	if uid := app.settings.ClickHouseDataSource.UID; uid != "" {
+		app.chClient = queries.NewClickHouseClient(app.grafanaURL, app.serviceToken, uid)
+		logger.Info("ClickHouse datasource configured via /api/ds/query", "uid", uid)
 	}
 
 	logger.Info("Plugin initialized",
 		"metricsDS", app.settings.MetricsDataSource.UID,
 		"tracesDS", app.settings.TracesDataSource.UID,
 		"logsDS", app.settings.LogsDataSource.UID,
+		"clickHouseDS", app.settings.ClickHouseDataSource.UID,
 		"envOverrides", len(app.settings.TracesDataSource.ByEnvironment)+len(app.settings.LogsDataSource.ByEnvironment)+len(app.settings.MetricsDataSource.ByEnvironment),
 		"grafanaURL", app.grafanaURL,
 	)
@@ -317,6 +324,11 @@ func (a *App) prom(ctx context.Context) *queries.PrometheusClient {
 }
 
 // CheckHealth validates datasource connectivity.
+//
+// When a ClickHouse datasource UID is configured, connectivity is verified with
+// SELECT 1 via /api/ds/query. The legacy LGTM (Mimir/Tempo) checks still run
+// when a metrics datasource is configured so existing installs keep working
+// during the ClickStack migration.
 func (a *App) CheckHealth(ctx context.Context, req *backend.CheckHealthRequest) (*backend.CheckHealthResult, error) {
 	// Forward auth headers from the health check request for datasource proxy calls
 	h := make(http.Header)
@@ -335,33 +347,90 @@ func (a *App) CheckHealth(ctx context.Context, req *backend.CheckHealthRequest) 
 		ctx = withAuthContext(ctx, client)
 	}
 
-	caps := a.detectCapabilities(ctx, h, token)
+	type healthDetails struct {
+		ClickHouse *clickHouseHealthStatus `json:"clickHouse,omitempty"`
+		Legacy     *queries.Capabilities   `json:"legacy,omitempty"`
+	}
+	details := healthDetails{}
+	var parts []string
 
-	if !caps.SpanMetrics.Detected {
+	if a.chClient != nil {
+		ch := a.chClient.WithAuthHeaders(h)
+		if token != "" {
+			ch = ch.WithServiceToken(token)
+		}
+		st := &clickHouseHealthStatus{UID: ch.DatasourceUID(), Available: true}
+		if err := ch.Ping(ctx); err != nil {
+			st.Available = false
+			st.Error = err.Error()
+			details.ClickHouse = st
+			raw, _ := json.Marshal(details)
+			return &backend.CheckHealthResult{
+				Status:      backend.HealthStatusError,
+				Message:     "ClickHouse is not reachable via datasource UID " + ch.DatasourceUID() + ": " + err.Error(),
+				JSONDetails: raw,
+			}, nil
+		}
+		details.ClickHouse = st
+		parts = append(parts, "ClickHouse OK ("+ch.DatasourceUID()+")")
+	}
+
+	if a.promClient != nil {
+		caps := a.detectCapabilities(ctx, h, token)
+		details.Legacy = &caps
+
+		if !caps.SpanMetrics.Detected {
+			// ClickHouse-only mode is healthy without Mimir span metrics.
+			if a.chClient == nil {
+				raw, _ := json.Marshal(details)
+				return &backend.CheckHealthResult{
+					Status:      backend.HealthStatusError,
+					Message:     "No span metrics detected in Mimir. Ensure the OTel Collector spanmetrics connector is configured, or configure a ClickHouse datasource for ClickStack.",
+					JSONDetails: raw,
+				}, nil
+			}
+			parts = append(parts, "LGTM span metrics not detected")
+		} else {
+			if !caps.Tempo.Available && len(caps.TempoByEnv) == 0 {
+				raw, _ := json.Marshal(details)
+				return &backend.CheckHealthResult{
+					Status:      backend.HealthStatusError,
+					Message:     "Tempo is not reachable: " + caps.Tempo.Error,
+					JSONDetails: raw,
+				}, nil
+			}
+			parts = append(parts, fmt.Sprintf("%s metrics, %d services", caps.SpanMetrics.Namespace, len(caps.Services)))
+		}
+	}
+
+	if a.promClient == nil && a.chClient == nil {
 		return &backend.CheckHealthResult{
 			Status:  backend.HealthStatusError,
-			Message: "No span metrics detected in Mimir. Ensure the OTel Collector spanmetrics connector is configured.",
+			Message: "No datasources configured. Set metricsDataSource (LGTM) and/or clickHouseDataSource (ClickStack) in plugin settings.",
 		}, nil
 	}
 
-	if !caps.Tempo.Available && len(caps.TempoByEnv) == 0 {
-		return &backend.CheckHealthResult{
-			Status:  backend.HealthStatusError,
-			Message: "Tempo is not reachable: " + caps.Tempo.Error,
-		}, nil
-	}
-
-	details, err := json.Marshal(caps)
+	raw, err := json.Marshal(details)
 	if err != nil {
-		log.DefaultLogger.Warn("Failed to marshal capabilities", "error", err)
-		details = []byte("{}")
+		log.DefaultLogger.Warn("Failed to marshal health details", "error", err)
+		raw = []byte("{}")
 	}
-	msg := fmt.Sprintf("OK — %s metrics detected, %d services found", caps.SpanMetrics.Namespace, len(caps.Services))
+	msg := "OK"
+	if len(parts) > 0 {
+		msg = "OK — " + strings.Join(parts, "; ")
+	}
 	return &backend.CheckHealthResult{
 		Status:      backend.HealthStatusOk,
 		Message:     msg,
-		JSONDetails: details,
+		JSONDetails: raw,
 	}, nil
+}
+
+// clickHouseHealthStatus is embedded in CheckHealth JSONDetails.
+type clickHouseHealthStatus struct {
+	UID       string `json:"uid"`
+	Available bool   `json:"available"`
+	Error     string `json:"error,omitempty"`
 }
 
 // appRoute pairs a net/http mux pattern with its handler. The pattern syntax is

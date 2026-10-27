@@ -198,10 +198,7 @@ func (a *App) detectTraceDimensions(ctx context.Context, tc *tempoQueryClient, u
 		allFail = true
 	)
 	for _, d := range traceDimensions {
-		d := d
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			sem <- struct{}{}
 			defer func() { <-sem }()
 			query := fmt.Sprintf(`{%s="%s"} | rate() by (%s)`, a.otelCfg.TraceQL.ServiceName, service, d.traceAttr)
@@ -219,7 +216,7 @@ func (a *App) detectTraceDimensions(ctx context.Context, tc *tempoQueryClient, u
 					break
 				}
 			}
-		}()
+		})
 	}
 	wg.Wait()
 
@@ -343,17 +340,8 @@ func (a *App) traceQLBreakdown(ctx context.Context, tc *tempoQueryClient, uid, s
 // are returned and averaged (Tempo has no instant mode). Bounded to keep the
 // bucket count sane on very wide windows.
 func breakdownStep(from, to time.Time) string {
-	span := to.Sub(from)
-	if span < time.Minute {
-		span = time.Minute
-	}
-	step := span / 2
-	if step > 30*time.Minute {
-		step = 30 * time.Minute
-	}
-	if step < 15*time.Second {
-		step = 15 * time.Second
-	}
+	span := max(to.Sub(from), time.Minute)
+	step := max(min(span/2, 30*time.Minute), 15*time.Second)
 	return strconv.FormatInt(int64(step.Seconds()), 10) + "s"
 }
 

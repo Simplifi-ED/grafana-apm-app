@@ -1,0 +1,16 @@
+# Example plugin settings for ClickStack / ClickHouse foundation.
+# Use alongside a grafana-clickhouse-datasource with uid: clickhouse.
+
+apiVersion: 1
+
+apps:
+  - type: 'nais-apm-app'
+    org_id: 1
+    disabled: false
+    jsonData:
+      clickHouseDataSource:
+        uid: clickhouse
+        type: grafana-clickhouse-datasource
+      # LGTM UIDs may remain empty while porting pages to ClickHouse.
+      # metricsDataSource / tracesDataSource / logsDataSource are still used
+      # by existing handlers until those routes are migrated.

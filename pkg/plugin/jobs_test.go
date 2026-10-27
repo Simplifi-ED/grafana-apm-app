@@ -3,6 +3,7 @@ package plugin
 import (
 	"context"
 	"encoding/json"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -22,9 +23,7 @@ func pv(labels map[string]string, value string) queries.PromResult {
 // pvSchedule clones labels and adds a cron schedule (for kube_cronjob_info).
 func pvSchedule(labels map[string]string, schedule string) queries.PromResult {
 	m := make(map[string]string, len(labels)+1)
-	for k, v := range labels {
-		m[k] = v
-	}
+	maps.Copy(m, labels)
 	m[ksmLabelSchedule] = schedule
 	return pv(m, "1")
 }
@@ -33,9 +32,7 @@ func pvSchedule(labels map[string]string, schedule string) queries.PromResult {
 func pvReason(labels map[string]string, reason string) queries.PromResult {
 	const value = "1"
 	m := make(map[string]string, len(labels)+1)
-	for k, v := range labels {
-		m[k] = v
-	}
+	maps.Copy(m, labels)
 	m[ksmLabelReason] = reason
 	return pv(m, value)
 }

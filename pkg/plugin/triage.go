@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -135,7 +136,7 @@ func (s *annotationTriageStore) fetch(ctx context.Context, tags []string) ([]gra
 
 	var out []grafanaAnnotation
 	to := time.Now().UnixMilli()
-	for page := 0; page < maxTriagePages; page++ {
+	for range maxTriagePages {
 		q := url.Values{}
 		for _, tg := range queryTags {
 			q.Add("tags", tg)
@@ -180,12 +181,7 @@ func (s *annotationTriageStore) fetch(ctx context.Context, tags []string) ([]gra
 }
 
 func hasTag(tags []string, want string) bool {
-	for _, tg := range tags {
-		if tg == want {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(tags, want)
 }
 
 func parseTriageEvent(ann grafanaAnnotation) (fp string, ev TriageEvent, ok bool) {

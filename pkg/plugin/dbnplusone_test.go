@@ -14,7 +14,7 @@ import (
 func TestDetectNPlusOne(t *testing.T) {
 	var offenders []dbSpan
 	// 12 SELECTs with differing IN-arity → one normalized group, 12 repeats.
-	for i := 0; i < 12; i++ {
+	for range 12 {
 		offenders = append(offenders, dbSpan{system: "postgresql", statement: "select * from person where id in (?, ?)", table: "person"})
 	}
 	// A couple of unrelated one-off queries in the same trace → below threshold.
@@ -66,10 +66,10 @@ func TestDetectNPlusOne(t *testing.T) {
 // finding, and findings are ordered worst-first (by repeat count).
 func TestDetectNPlusOne_MultipleOffendersOrdered(t *testing.T) {
 	var spans []dbSpan
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		spans = append(spans, dbSpan{system: "postgresql", statement: "select a from t1 where id = 1"})
 	}
-	for i := 0; i < 30; i++ {
+	for i := range 30 {
 		spans = append(spans, dbSpan{system: "redis", statement: "GET user:" + string(rune('a'+i))})
 	}
 	traces := []nplusTrace{{traceID: "t1", endpoint: "POST /submit", spans: spans}}
@@ -97,7 +97,7 @@ func TestDetectNPlusOne_MultipleOffendersOrdered(t *testing.T) {
 // Just-below-threshold repetition must not be flagged.
 func TestDetectNPlusOne_BelowThreshold(t *testing.T) {
 	var spans []dbSpan
-	for i := 0; i < 9; i++ {
+	for range 9 {
 		spans = append(spans, dbSpan{system: "postgresql", statement: "select * from t where id = 1"})
 	}
 	got := detectNPlusOne([]nplusTrace{{traceID: "t1", endpoint: "GET /x", spans: spans}}, 10, 50)
@@ -108,9 +108,9 @@ func TestDetectNPlusOne_BelowThreshold(t *testing.T) {
 
 func TestDetectNPlusOne_Limit(t *testing.T) {
 	var traces []nplusTrace
-	for tI := 0; tI < 5; tI++ {
+	for tI := range 5 {
 		var spans []dbSpan
-		for i := 0; i < 10; i++ {
+		for range 10 {
 			spans = append(spans, dbSpan{system: "postgresql", statement: "select x from t where id = 1"})
 		}
 		traces = append(traces, nplusTrace{traceID: "t" + strconv.Itoa(tI), endpoint: "GET /x", spans: spans})

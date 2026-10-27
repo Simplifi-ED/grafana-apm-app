@@ -131,7 +131,7 @@ type PromData struct {
 // PromResult is a single result from a Prometheus query.
 type PromResult struct {
 	Metric map[string]string `json:"metric"`
-	Value  PromValue         `json:"value,omitempty"`  // instant query
+	Value  PromValue         `json:"value"`            // instant query
 	Values []PromValue       `json:"values,omitempty"` // range query
 }
 
@@ -169,7 +169,7 @@ func (v *PromValue) UnmarshalJSON(data []byte) error {
 
 // MarshalJSON encodes as a [timestamp, "value"] pair for symmetry.
 func (v PromValue) MarshalJSON() ([]byte, error) {
-	return json.Marshal([2]interface{}{v.ts, v.val})
+	return json.Marshal([2]any{v.ts, v.val})
 }
 
 // Timestamp returns the unix timestamp.

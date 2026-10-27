@@ -1,0 +1,20 @@
+# Example Grafana ClickHouse datasource for ClickStack.
+# Copy to datasources.yaml (or merge) and fill host/auth from your environment.
+# Never commit real passwords — use env substitution or Grafana secrets.
+
+apiVersion: 1
+
+datasources:
+  - name: ClickHouse
+    type: grafana-clickhouse-datasource
+    uid: clickhouse
+    access: proxy
+    jsonData:
+      host: clickhouse
+      port: 9000
+      protocol: native
+      defaultDatabase: default
+      username: default
+      # tlsSkipVerify: false
+    secureJsonData:
+      password: ${CLICKHOUSE_PASSWORD}

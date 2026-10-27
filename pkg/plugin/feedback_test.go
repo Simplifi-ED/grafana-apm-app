@@ -151,7 +151,7 @@ func TestFeedbackQueryUnavailableOnError(t *testing.T) {
 
 func TestFeedbackQueryTruncatesTo200(t *testing.T) {
 	logLines := make([]queries.LogEntry, 0, maxFeedback+10)
-	for i := 0; i < maxFeedback+10; i++ {
+	for i := range maxFeedback + 10 {
 		logLines = append(logLines, queries.LogEntry{
 			TimeMs: int64(i),
 			Line:   `kind=event event_name=faro.feedback event_data_message="x" event_data_category=other`,

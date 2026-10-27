@@ -132,22 +132,13 @@ func (a *App) queryHealth(
 
 	// Use the selected time range to determine the rate window.
 	// Cap at a reasonable minimum (1m) and maximum (1h).
-	rangeDuration := to.Sub(from)
-	if rangeDuration < time.Minute {
-		rangeDuration = time.Minute
-	}
-	if rangeDuration > time.Hour {
-		rangeDuration = time.Hour
-	}
+	rangeDuration := min(max(to.Sub(from), time.Minute), time.Hour)
 	rangeStr := fmt.Sprintf("[%ds]", int(rangeDuration.Seconds()))
 
 	// Offset for comparison: same window shifted back by 1x the range.
 	// E.g., if viewing last 15m, compare to the 15m before that.
 	// Minimum offset is the window itself; for very short windows use 1h.
-	offsetDuration := rangeDuration
-	if offsetDuration < time.Hour {
-		offsetDuration = time.Hour
-	}
+	offsetDuration := max(rangeDuration, time.Hour)
 	offsetStr := fmt.Sprintf(" offset %ds", int(offsetDuration.Seconds()))
 
 	// Build label filters — match the scope used by RED panels.

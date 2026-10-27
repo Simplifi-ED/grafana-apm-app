@@ -122,9 +122,7 @@ func (a *App) queryFrontendFromAlloyHistogram(ctx context.Context, service, envi
 	}
 
 	// Error rate from counter
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		errQ := fmt.Sprintf(`sum(rate(%s{%s}[6h]))`, h.Errors, filter)
 		r, err := a.prom(ctx).InstantQuery(ctx, errQ, at)
 		if err == nil && len(r) > 0 && isValidMetricValue(r[0].Value.Float()) {
@@ -132,7 +130,7 @@ func (a *App) queryFrontendFromAlloyHistogram(ctx context.Context, service, envi
 			resp.ErrorRate = roundTo(r[0].Value.Float(), 4)
 			mu.Unlock()
 		}
-	}()
+	})
 
 	wg.Wait()
 

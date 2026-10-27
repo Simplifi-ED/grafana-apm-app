@@ -599,12 +599,10 @@ func TestCapabilitiesProbeSingleflight(t *testing.T) {
 	app.capCache = nil // force a re-probe
 
 	var wg sync.WaitGroup
-	for i := 0; i < 8; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range 8 {
+		wg.Go(func() {
 			app.cachedOrDetectCapabilities(context.Background())
-		}()
+		})
 	}
 	wg.Wait()
 

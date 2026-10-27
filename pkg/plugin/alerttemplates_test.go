@@ -865,7 +865,7 @@ func TestK8sName(t *testing.T) {
 // annotationLine returns the single manifest line for an annotation key.
 func annotationLine(t *testing.T, manifest, key string) string {
 	t.Helper()
-	for _, line := range strings.Split(manifest, "\n") {
+	for line := range strings.SplitSeq(manifest, "\n") {
 		if strings.HasPrefix(strings.TrimSpace(line), key+":") {
 			return line
 		}

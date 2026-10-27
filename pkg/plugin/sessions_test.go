@@ -286,7 +286,7 @@ func TestQueryFrontendSessionsDegradesWithoutMetadata(t *testing.T) {
 
 func TestQueryFrontendSessionsTruncates(t *testing.T) {
 	events := make([]queries.PromResult, 0, maxSessions+10)
-	for i := 0; i < maxSessions+10; i++ {
+	for i := range maxSessions + 10 {
 		events = append(events, queries.PromResult{
 			Metric: map[string]string{"session_id": strings.Repeat("x", 3) + string(rune('a'+i%26)) + string(rune('a'+i/26))},
 			Value:  queries.NewPromValue(0, "1"),

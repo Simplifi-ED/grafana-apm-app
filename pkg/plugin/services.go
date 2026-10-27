@@ -210,9 +210,7 @@ func (a *App) fetchServiceSummaries(
 	lokiURL := a.lokiURL(filterEnvironment)
 	if lokiURL != "" {
 		resolvedToken := a.resolveServiceToken(ctx)
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			lokiClient := queries.NewLokiMetricClient(lokiURL, resolvedToken)
 			if headers != nil {
 				lokiClient = lokiClient.WithAuthHeaders(headers)
@@ -228,7 +226,7 @@ func (a *App) fetchServiceSummaries(
 				faroApps[name] = true
 			}
 			faroMu.Unlock()
-		}()
+		})
 	}
 
 	instantQueries := map[string]string{

@@ -220,10 +220,7 @@ func percentile95(vals []float64) float64 {
 	sorted := make([]float64, len(vals))
 	copy(sorted, vals)
 	sort.Float64s(sorted)
-	rank := int(float64(len(sorted)-1) * 0.95)
-	if rank < 0 {
-		rank = 0
-	}
+	rank := max(int(float64(len(sorted)-1)*0.95), 0)
 	if rank >= len(sorted) {
 		rank = len(sorted) - 1
 	}

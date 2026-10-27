@@ -30,11 +30,11 @@ type tempoFake struct {
 
 // extractByAttr returns the first attribute inside a `by (attr[, ...])` clause.
 func extractByAttr(q string) string {
-	i := strings.Index(q, "by (")
-	if i < 0 {
+	_, after, ok := strings.Cut(q, "by (")
+	if !ok {
 		return ""
 	}
-	rest := q[i+len("by ("):]
+	rest := after
 	for j, r := range rest {
 		if r == ',' || r == ')' {
 			return strings.TrimSpace(rest[:j])

@@ -191,8 +191,8 @@ func isKnownBrokerName(name string) bool {
 func normalizeServiceName(name string) string {
 	// Strip port if present
 	host := name
-	if idx := strings.IndexByte(name, ':'); idx != -1 {
-		host = name[:idx]
+	if before, _, ok := strings.Cut(name, ":"); ok {
+		host = before
 	}
 
 	parts := strings.Split(host, ".")
@@ -235,8 +235,8 @@ func stripHexSuffix(name string) string {
 // extractK8sNamespace returns the namespace portion of a K8s service name, or "".
 func extractK8sNamespace(name string) string { //nolint:unused
 	host := name
-	if idx := strings.IndexByte(name, ':'); idx != -1 {
-		host = name[:idx]
+	if before, _, ok := strings.Cut(name, ":"); ok {
+		host = before
 	}
 
 	parts := strings.Split(host, ".")

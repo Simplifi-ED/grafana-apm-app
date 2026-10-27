@@ -697,7 +697,7 @@ func TestHandleServiceAlerts_InstancesCapped(t *testing.T) {
 	// flag it, while activeCount still reflects the full total.
 	total := alertInstanceCap + 5
 	alerts := make([]queries.Alert, 0, total)
-	for i := 0; i < total; i++ {
+	for i := range total {
 		alerts = append(alerts, queries.Alert{
 			State:    "firing",
 			Value:    fmt.Sprintf("%d", i),

@@ -178,9 +178,7 @@ func (a *App) detectCapabilities(ctx context.Context, headers http.Header, servi
 	var mu sync.Mutex
 
 	// Service graph detection
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		for _, sg := range serviceGraphCandidates {
 			sgExists, err := a.prom(ctx).SeriesExists(ctx, sg.probe)
 			if err != nil {
@@ -196,65 +194,52 @@ func (a *App) detectCapabilities(ctx context.Context, headers http.Header, servi
 				break
 			}
 		}
-	}()
+	})
 
 	// Service list + environment list
 	if caps.SpanMetrics.Detected {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			svcs := a.detectServices(ctx, caps.SpanMetrics.CallsMetric)
 			mu.Lock()
 			caps.Services = svcs
 			mu.Unlock()
-		}()
+		})
 
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			envs := a.detectEnvironments(ctx, caps.SpanMetrics.CallsMetric)
 			mu.Lock()
 			caps.Environments = envs
 			mu.Unlock()
-		}()
+		})
 	}
 
 	// Tempo + Loki health checks (with auth)
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		result := a.checkHTTPHealth(ctx, a.tempoURL(""), "/api/status/buildinfo", headers, serviceToken)
 		mu.Lock()
 		caps.Tempo = result
 		mu.Unlock()
-	}()
+	})
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		result := a.checkHTTPHealth(ctx, a.lokiURL(""), "/loki/api/v1/labels", headers, serviceToken)
 		mu.Lock()
 		caps.Loki = result
 		mu.Unlock()
-	}()
+	})
 
 	// Pyroscope profiling datasource detection (M7). Lists Grafana datasources
 	// and matches on the Pyroscope/Phlare type — no configured UID needed.
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		result := a.detectPyroscope(ctx, headers, serviceToken)
 		mu.Lock()
 		caps.Pyroscope = result
 		mu.Unlock()
-	}()
+	})
 
 	// Per-environment Tempo/Loki health checks
 	for env := range a.settings.TracesDataSource.ByEnvironment {
-		env := env
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			result := a.checkHTTPHealth(ctx, a.tempoURL(env), "/api/status/buildinfo", headers, serviceToken)
 			mu.Lock()
 			if caps.TempoByEnv == nil {
@@ -262,14 +247,11 @@ func (a *App) detectCapabilities(ctx context.Context, headers http.Header, servi
 			}
 			caps.TempoByEnv[env] = result
 			mu.Unlock()
-		}()
+		})
 	}
 
 	for env := range a.settings.LogsDataSource.ByEnvironment {
-		env := env
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			result := a.checkHTTPHealth(ctx, a.lokiURL(env), "/loki/api/v1/labels", headers, serviceToken)
 			mu.Lock()
 			if caps.LokiByEnv == nil {
@@ -277,7 +259,7 @@ func (a *App) detectCapabilities(ctx context.Context, headers http.Header, servi
 			}
 			caps.LokiByEnv[env] = result
 			mu.Unlock()
-		}()
+		})
 	}
 
 	wg.Wait()
@@ -437,7 +419,7 @@ func (a *App) detectPyroscope(ctx context.Context, headers http.Header, serviceT
 
 // capMu and capCache are initialized in App struct
 
-func writeJSON(w http.ResponseWriter, v interface{}) {
+func writeJSON(w http.ResponseWriter, v any) {
 	data, err := json.Marshal(v)
 	if err != nil {
 		http.Error(w, `{"error":"internal server error"}`, http.StatusInternalServerError)

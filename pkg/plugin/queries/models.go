@@ -77,12 +77,17 @@ type PluginSettings struct {
 	TracesDataSource  EnvAwareDataSource `json:"tracesDataSource"`
 	LogsDataSource    EnvAwareDataSource `json:"logsDataSource"`
 
+	// ClickHouseDataSource is the Grafana ClickHouse datasource used for
+	// ClickStack-backed queries (grafana-clickhouse-datasource). Optional while
+	// the plugin still supports the LGTM path; required for ClickStack mode.
+	ClickHouseDataSource DataSourceRef `json:"clickHouseDataSource"`
+
 	// Optional overrides (auto-detected if empty)
 	MetricNamespace string `json:"metricNamespace,omitempty"`
 	DurationUnit    string `json:"durationUnit,omitempty"`
 
 	// LabelOverrides allows customising Prometheus label names for non-standard OTel pipelines.
-	LabelOverrides LabelOverrides `json:"labelOverrides,omitempty"`
+	LabelOverrides LabelOverrides `json:"labelOverrides"`
 
 	// IngressAliases maps ingress hostnames to the service_name they route to.
 	// This allows the plugin to discover callers that reach a service via its
