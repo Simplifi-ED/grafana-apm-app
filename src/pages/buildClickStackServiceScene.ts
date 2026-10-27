@@ -73,7 +73,8 @@ export function buildClickStackServiceScene(params: BuildClickStackServiceSceneP
 
   const metricFilt = serviceFilterSql(service, envFilter);
   const spanKind = hasServerSpans ? ` AND Attributes['span.kind'] = 'SPAN_KIND_SERVER'` : '';
-  const traceKind = hasServerSpans ? ` AND SpanKind = 'SPAN_KIND_SERVER'` : '';
+  // otel_traces uses short labels (Server); some pipelines emit SPAN_KIND_SERVER.
+  const traceKind = hasServerSpans ? ` AND SpanKind IN ('Server', 'SPAN_KIND_SERVER')` : '';
   const traceFilt = tracesServiceFilterSql(service, envFilter);
 
   const q = Number.parseFloat(percentile);

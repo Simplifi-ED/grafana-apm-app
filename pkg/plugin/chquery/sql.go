@@ -13,22 +13,30 @@ import (
 // Verified metric / attribute names for this deployment's ClickStack schema
 // (docs/clickstack-migration/schema.md, inspected 2026-10-27).
 const (
-	MetricSpanCalls     = "traces.spanmetrics.calls"
-	MetricSpanDuration  = "traces.spanmetrics.duration"
-	MetricSGRequest     = "traces_service_graph_request_total"
-	MetricSGFailed      = "traces_service_graph_request_failed_total"
-	AttrServiceName     = "service.name"
-	AttrSpanKind        = "span.kind"
-	AttrSpanName        = "span.name"
-	AttrStatusCode      = "status.code"
-	AttrHTTPMethod      = "http.method"
-	AttrHTTPRoute       = "http.route"
-	StatusError         = "STATUS_CODE_ERROR"
-	SpanKindServer      = "SPAN_KIND_SERVER"
-	SpanKindClient      = "SPAN_KIND_CLIENT"
+	MetricSpanCalls    = "traces.spanmetrics.calls"
+	MetricSpanDuration = "traces.spanmetrics.duration"
+	MetricSGRequest    = "traces_service_graph_request_total"
+	MetricSGFailed     = "traces_service_graph_request_failed_total"
+	AttrServiceName    = "service.name"
+	AttrSpanKind       = "span.kind"
+	AttrSpanName       = "span.name"
+	AttrStatusCode     = "status.code"
+	AttrHTTPMethod     = "http.method"
+	AttrHTTPRoute      = "http.route"
+	StatusError        = "STATUS_CODE_ERROR"
+	SpanKindServer     = "SPAN_KIND_SERVER" // spanmetrics Attributes['span.kind']
+	SpanKindClient     = "SPAN_KIND_CLIENT"
+	// otel_traces.SpanKind uses short enum labels (Server/Client), not SPAN_KIND_*.
+	TraceSpanKindServer = "Server"
+	TraceSpanKindClient = "Client"
 	ResCluster          = "cluster"
 	ResServiceNamespace = "service.namespace"
 )
+
+// TraceServerKindFilter matches SERVER spans in otel_traces across both label styles.
+func TraceServerKindFilter() string {
+	return fmt.Sprintf("SpanKind IN (%s, %s)", q(TraceSpanKindServer), q(SpanKindServer))
+}
 
 // TimeBounds returns epoch-ms bounds for SQL literals.
 func TimeBounds(from, to time.Time) (fromMs, toMs int64) {

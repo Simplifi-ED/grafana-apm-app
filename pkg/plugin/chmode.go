@@ -100,7 +100,9 @@ func (a *App) fetchServiceSummariesClickHouse(
 	ctx context.Context,
 	ch *queries.ClickHouseClient,
 	from, to time.Time,
-	filterNamespace, filterEnvironment string,
+	step time.Duration,
+	withSeries bool,
+	filterNamespace, filterEnvironment, filterServices string,
 ) []queries.ServiceSummary {
 	logger := log.DefaultLogger.With("handler", "services-clickhouse")
 	window := chquery.WindowSeconds(from, to)
@@ -116,7 +118,31 @@ func (a *App) fetchServiceSummariesClickHouse(
 		logger.Warn("inventory latency query failed", "error", err)
 		latRes = &queries.ClickHouseResult{}
 	}
-	return chquery.ParseInventoryMaps(callRes.Maps(), latRes.Maps(), window)
+	summaries := chquery.ParseInventoryMaps(callRes.Maps(), latRes.Maps(), window)
+	if !withSeries || len(summaries) == 0 || ch == nil {
+		return summaries
+	}
+
+	seriesFrom, seriesTo := chquery.SparklineBounds(from, to)
+	stepSec := int64(step.Seconds())
+	if stepSec < 1 {
+		stepSec = 60
+	}
+	// When the UI asks for sparklines for the visible page only, restrict series
+	// SQL to those service names (avoids fleet-wide range scans).
+	seriesOpts := queries.ClickHouseQueryOptions{From: seriesFrom, To: seriesTo, Limit: 5000}
+	callSeries, err := ch.Query(ctx, chquery.InventoryCallsSeriesSQL(seriesFrom, seriesTo, stepSec, filterNamespace, filterEnvironment, filterServices), seriesOpts)
+	if err != nil {
+		logger.Warn("inventory rate/error series query failed", "error", err)
+		return summaries
+	}
+	durSeries, err := ch.Query(ctx, chquery.InventoryDurationSeriesSQL(seriesFrom, seriesTo, stepSec, filterNamespace, filterEnvironment, filterServices), seriesOpts)
+	if err != nil {
+		logger.Warn("inventory duration series query failed", "error", err)
+		durSeries = &queries.ClickHouseResult{}
+	}
+	chquery.AttachInventorySeries(summaries, callSeries.Maps(), durSeries.Maps())
+	return summaries
 }
 
 func (a *App) fetchOperationsClickHouse(

@@ -32,12 +32,12 @@ func OperationsToEndpointGroups(ops []queries.OperationSummary) queries.Endpoint
 			ep.DurationUnit = "ms"
 		}
 		switch op.SpanKindRaw {
-		case SpanKindServer:
+		case SpanKindServer, TraceSpanKindServer:
 			method, route := splitHTTPName(op.SpanName)
 			ep.HTTPMethod = method
 			ep.HTTPRoute = route
 			groups.HTTP = append(groups.HTTP, ep)
-		case SpanKindClient:
+		case SpanKindClient, TraceSpanKindClient:
 			if looksLikeDBSpan(op.SpanName) {
 				groups.Database = append(groups.Database, ep)
 			} else {
@@ -46,12 +46,12 @@ func OperationsToEndpointGroups(ops []queries.OperationSummary) queries.Endpoint
 				ep.HTTPRoute = route
 				groups.Client = append(groups.Client, ep)
 			}
-		case "SPAN_KIND_INTERNAL":
+		case "SPAN_KIND_INTERNAL", "Internal":
 			groups.Internal = append(groups.Internal, ep)
-		case "SPAN_KIND_CONSUMER":
+		case "SPAN_KIND_CONSUMER", "Consumer":
 			ep.MessagingKind = "Consumer"
 			groups.Messaging = append(groups.Messaging, ep)
-		case "SPAN_KIND_PRODUCER":
+		case "SPAN_KIND_PRODUCER", "Producer":
 			ep.MessagingKind = "Producer"
 			groups.Messaging = append(groups.Messaging, ep)
 		default:

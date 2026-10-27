@@ -35,6 +35,9 @@ func TestLatencySQL_UsesTraces(t *testing.T) {
 	if !strings.Contains(sql, "quantile(0.95)") {
 		t.Fatal("expected p95 quantile")
 	}
+	if !strings.Contains(sql, "Server") || !strings.Contains(sql, "SPAN_KIND_SERVER") {
+		t.Fatalf("expected dual SpanKind match: %s", sql)
+	}
 }
 
 func TestServiceGraphSQL_BothMetrics(t *testing.T) {
@@ -63,6 +66,57 @@ func TestParseInventoryMaps_RateAndError(t *testing.T) {
 	}
 	if got[0].P95Duration != 3.5 || got[0].DurationUnit != "ms" {
 		t.Errorf("p95=%v unit=%s", got[0].P95Duration, got[0].DurationUnit)
+	}
+}
+
+func TestParseServiceNames(t *testing.T) {
+	got := ParseServiceNames("sanad/nova-api,/envoy-gateway,_/admin-api,sanad/nova-api")
+	if len(got) != 3 {
+		t.Fatalf("got %v", got)
+	}
+	want := map[string]bool{"nova-api": true, "envoy-gateway": true, "admin-api": true}
+	for _, n := range got {
+		if !want[n] {
+			t.Errorf("unexpected %q", n)
+		}
+	}
+}
+
+func TestInventoryCallsSeriesSQL(t *testing.T) {
+	sql := InventoryCallsSeriesSQL(time.Now().Add(-time.Hour), time.Now(), 60, "sanad", "prod", "sanad/nova-api")
+	for _, want := range []string{
+		"toStartOfInterval",
+		"toUnixTimestamp",
+		"SPAN_KIND_SERVER",
+		"nova-api",
+		"error_rate",
+		MetricSpanCalls,
+	} {
+		if !strings.Contains(sql, want) {
+			t.Errorf("missing %q\n%s", want, sql)
+		}
+	}
+}
+
+func TestAttachInventorySeries(t *testing.T) {
+	sums := []queries.ServiceSummary{{Name: "nova-api", Rate: 1}}
+	calls := []map[string]any{
+		{"service": "nova-api", "t": int64(1000), "rate": 1.5, "error_rate": 0.02},
+		{"service": "nova-api", "t": int64(2000), "rate": 2.0, "error_rate": 0.0},
+	}
+	durs := []map[string]any{
+		{"service": "nova-api", "t": int64(1000), "p95_ms": 3.0},
+		{"service": "nova-api", "t": int64(2000), "p95_ms": 4.0},
+	}
+	AttachInventorySeries(sums, calls, durs)
+	if len(sums[0].RateSeries) != 2 || sums[0].RateSeries[1].Value != 2.0 {
+		t.Fatalf("rateSeries=%v", sums[0].RateSeries)
+	}
+	if len(sums[0].ErrorSeries) != 2 || sums[0].ErrorSeries[0].Value != 0.02 {
+		t.Fatalf("errorSeries=%v", sums[0].ErrorSeries)
+	}
+	if len(sums[0].DurationSeries) != 2 || sums[0].DurationSeries[1].Value != 4.0 {
+		t.Fatalf("durationSeries=%v", sums[0].DurationSeries)
 	}
 }
 

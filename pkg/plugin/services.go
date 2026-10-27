@@ -64,7 +64,7 @@ func (a *App) handleServices(w http.ResponseWriter, req *http.Request) {
 	data, err := a.respCache.getOrCompute(ck, func() (any, error) {
 		if a.clickStackMode() {
 			ch := a.chForRequest(req)
-			return a.fetchServiceSummariesClickHouse(ctx, ch, from, to, filterNamespace, filterEnvironment), nil
+			return a.fetchServiceSummariesClickHouse(ctx, ch, from, to, step, withSeries, filterNamespace, filterEnvironment, filterServices), nil
 		}
 		// Get capability info for metric names
 		caps := a.cachedOrDetectCapabilities(ctx)
