@@ -1,10 +1,11 @@
 # graphql-demo — ticket 16 live OTel GraphQL spans via Sanad OTLP path.
-# Apply: kubectl apply -k scripts/graphql-demo/k8s
+# Apply: kubectl apply -k scripts/graphql-demo
+# Namespace must be prod-nova (collector filter/namespace allowlist).
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: graphql-demo
-  namespace: demo
+  namespace: prod-nova
   labels:
     app.kubernetes.io/name: graphql-demo
     app.kubernetes.io/part-of: clickstack-nais-parity
@@ -29,7 +30,7 @@ spec:
             - name: SERVICE_NAME
               value: graphql-demo
             - name: SERVICE_NS
-              value: demo
+              value: prod-nova
             - name: ENVIRONMENT
               value: prod-k3s-omnivya
             - name: INTERVAL_SEC

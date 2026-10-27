@@ -102,6 +102,9 @@ def build_payload(ops: list[dict[str, Any]]) -> dict[str, Any]:
         attrs = [
             _attr("graphql.operation.name", op["name"]),
             _attr("graphql.operation.type", op["type"]),
+            # Survive otel-collector-logs tail_sampling keep-api-paths policy.
+            _attr("url.path", "/api/graphql"),
+            _attr("http.method", "POST"),
         ]
         if op.get("document"):
             attrs.append(_attr("graphql.document", op["document"]))

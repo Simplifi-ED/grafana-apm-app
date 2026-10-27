@@ -1,8 +1,8 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-namespace: demo
+# Must be prod-nova: otel-collector-logs filter/namespace drops other k8s namespaces.
+namespace: prod-nova
 resources:
-  - k8s/namespace.yaml
   - k8s/deployment.yaml
 configMapGenerator:
   - name: graphql-demo-emitter

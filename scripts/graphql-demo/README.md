@@ -38,11 +38,13 @@ Set `OTLP_AUTH` in the environment when targeting ClickStack `:4318` (returns **
 
 ## Kubernetes (deploy remaining)
 
-Kustomize root: [`kustomization.yaml`](kustomization.yaml) (ConfigMap from `emit_graphql_spans.py`). Apply into `demo` with the same in-cluster OTLP as Sanad Nova, or fold into `platforms-flux` / `sanad/deploy`.
+Kustomize root: [`kustomization.yaml`](kustomization.yaml) (ConfigMap from `emit_graphql_spans.py`).
+
+**Must deploy in `prod-nova`:** `otel-collector-logs` `filter/namespace` drops every other `k8s.namespace.name`.
 
 ```bash
 kubectl apply -k scripts/graphql-demo
-# after pods Running:
+# after pods Running — wait ~30–60s then:
 # SELECT … mapContains(SpanAttributes,'graphql.operation.name') … ServiceName='graphql-demo'
 ```
 
