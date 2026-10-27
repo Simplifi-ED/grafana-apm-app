@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/grafana/grafana-plugin-sdk-go/backend/log"
+	"github.com/nais/grafana-otel-plugin/pkg/plugin/chquery"
 	"github.com/nais/grafana-otel-plugin/pkg/plugin/queries"
 )
 
@@ -27,15 +28,15 @@ func (a *App) handleRuntime(w http.ResponseWriter, req *http.Request) {
 	from, to := parseTimeRange(req)
 
 	// ClickStack: non-spanmetrics scrapes use serviceAliases (inventory → scrape).
-	// Missing → empty + hint (no silent -api↔-app query). Letter C wires CH queries.
+	// Missing → empty + hint (no silent -api↔-app query).
 	if a.clickStackMode() {
 		scrape, ok := a.ResolveServiceAlias(service)
 		if !ok {
 			writeJSON(w, queries.RuntimeResponse{Hint: AliasMissingHint(service)})
 			return
 		}
-		_ = scrape // letter C: query otel_metrics_* with scrape ServiceName
-		writeJSON(w, queries.RuntimeResponse{})
+		ch := a.chForRequest(req)
+		writeJSON(w, a.queryRuntimeMetricsClickHouse(ctx, ch, namespace, scrape, from, to))
 		return
 	}
 
@@ -44,6 +45,100 @@ func (a *App) handleRuntime(w http.ResponseWriter, req *http.Request) {
 	a.writeCached(w, ck, "querying runtime metrics failed", func() (any, error) {
 		return a.queryRuntimeMetrics(ctx, namespace, service, environment, to), nil
 	})
+}
+
+// queryRuntimeMetricsClickHouse loads go_*/process_* for the resolved scrape
+// ServiceName. JVM/Node/DB/Kafka/Container families are absent in Sanad CH
+// (research 06) and stay omitted until collectors emit them.
+func (a *App) queryRuntimeMetricsClickHouse(
+	ctx context.Context,
+	ch *queries.ClickHouseClient,
+	namespace, scrapeService string,
+	from, to time.Time,
+) queries.RuntimeResponse {
+	logger := log.DefaultLogger.With("handler", "runtime-clickhouse")
+	if ch == nil || scrapeService == "" {
+		return queries.RuntimeResponse{}
+	}
+	// Prefer a short lookback ending at `to` (parity with Prom [5m] avgs).
+	lookbackFrom := to.Add(-5 * time.Minute)
+	if lookbackFrom.Before(from) {
+		lookbackFrom = from
+	}
+	opts := queries.ClickHouseQueryOptions{From: lookbackFrom, To: to, Limit: 200}
+
+	disc, err := ch.Query(ctx, chquery.RuntimeDiscoverSQL(scrapeService, namespace, lookbackFrom, to), opts)
+	if err != nil {
+		logger.Warn("runtime discovery failed", "error", err, "service", scrapeService)
+		return queries.RuntimeResponse{}
+	}
+	discovered := chquery.ParseRuntimeDiscovered(disc.Maps())
+	rt := a.otelCfg.Runtime.Go
+	if !discovered[rt.Goroutines] && !discovered[rt.MemAlloc] && !discovered[rt.Info] &&
+		!discovered[rt.CPUTotal] && !discovered[rt.OpenFDs] {
+		return queries.RuntimeResponse{}
+	}
+
+	gaugeNames := []string{
+		rt.Goroutines, rt.Threads, rt.MemAlloc, rt.MemSys, rt.OpenFDs, rt.MaxFDs,
+	}
+	var (
+		gaugeRows, infoRows, cpuRows, gcRows []map[string]any
+		wg                                   sync.WaitGroup
+	)
+	wg.Add(4)
+	go func() {
+		defer wg.Done()
+		res, qerr := ch.Query(ctx, chquery.RuntimeGaugeAvgsSQL(scrapeService, namespace, gaugeNames, lookbackFrom, to), opts)
+		if qerr != nil {
+			logger.Debug("runtime gauges failed", "error", qerr)
+			return
+		}
+		gaugeRows = res.Maps()
+	}()
+	go func() {
+		defer wg.Done()
+		res, qerr := ch.Query(ctx, chquery.RuntimeGoInfoSQL(scrapeService, namespace, lookbackFrom, to), opts)
+		if qerr != nil {
+			logger.Debug("runtime go_info failed", "error", qerr)
+			return
+		}
+		infoRows = res.Maps()
+	}()
+	go func() {
+		defer wg.Done()
+		res, qerr := ch.Query(ctx, chquery.RuntimeProcessCPURateSQL(scrapeService, namespace, lookbackFrom, to), opts)
+		if qerr != nil {
+			logger.Debug("runtime cpu failed", "error", qerr)
+			return
+		}
+		cpuRows = res.Maps()
+	}()
+	go func() {
+		defer wg.Done()
+		res, qerr := ch.Query(ctx, chquery.RuntimeGCSummarySQL(scrapeService, namespace, lookbackFrom, to), opts)
+		if qerr != nil {
+			logger.Debug("runtime gc failed", "error", qerr)
+			return
+		}
+		gcRows = res.Maps()
+	}()
+	wg.Wait()
+
+	goRt := chquery.ParseGoRuntimeMaps(gaugeRows, infoRows, cpuRows, gcRows)
+	if goRt == nil {
+		return queries.RuntimeResponse{}
+	}
+	goRt.Goroutines = roundTo(goRt.Goroutines, 0)
+	goRt.Threads = roundTo(goRt.Threads, 0)
+	goRt.MemAlloc = roundTo(goRt.MemAlloc, 0)
+	goRt.MemSys = roundTo(goRt.MemSys, 0)
+	goRt.CPUUsage = roundTo(goRt.CPUUsage, 4)
+	goRt.OpenFDs = roundTo(goRt.OpenFDs, 0)
+	goRt.MaxFDs = roundTo(goRt.MaxFDs, 0)
+	goRt.GCRate = roundTo(goRt.GCRate, 3)
+	goRt.GCPauseAvg = roundTo(goRt.GCPauseAvg, 6)
+	return queries.RuntimeResponse{Go: goRt}
 }
 
 // queryRuntimeMetrics runs a single discovery query to find available runtime

@@ -27,16 +27,41 @@ func TestInventorySQL_ContainsVerifiedMetric(t *testing.T) {
 	}
 }
 
-func TestLatencySQL_UsesTraces(t *testing.T) {
-	sql := LatencySQL(time.Now().Add(-time.Hour), time.Now(), "", "")
-	if !strings.Contains(sql, "otel_traces") {
-		t.Fatalf("expected otel_traces: %s", sql)
+func TestInventoryHistogramLatencySQL(t *testing.T) {
+	sql := InventoryHistogramLatencySQL(time.Now().Add(-time.Hour), time.Now(), "", "", "", SpanKindServer)
+	for _, want := range []string{
+		MetricSpanDuration,
+		"otel_metrics_histogram",
+		"quantilePrometheusHistogram",
+		"SPAN_KIND_SERVER",
+		"arrayCumSum",
+	} {
+		if !strings.Contains(sql, want) {
+			t.Errorf("missing %q\n%s", want, sql)
+		}
 	}
-	if !strings.Contains(sql, "quantile(0.95)") {
-		t.Fatal("expected p95 quantile")
+	if strings.Contains(sql, "otel_traces") {
+		t.Fatal("inventory p95 must be histogram-primary, not otel_traces")
 	}
-	if !strings.Contains(sql, "Server") || !strings.Contains(sql, "SPAN_KIND_SERVER") {
-		t.Fatalf("expected dual SpanKind match: %s", sql)
+}
+
+func TestDiscoverInventorySQL_NoSpanKindFilter(t *testing.T) {
+	sql := DiscoverInventorySQL(time.Now().Add(-time.Hour), time.Now(), "sanad", "")
+	if strings.Contains(sql, "SPAN_KIND_SERVER") || strings.Contains(sql, "SPAN_KIND_CLIENT") {
+		t.Fatalf("discover must include all kinds: %s", sql)
+	}
+	if !strings.Contains(sql, ResSDKLanguage) {
+		t.Fatalf("expected sdk language attr: %s", sql)
+	}
+}
+
+func TestInventoryClientSQL_ClientKind(t *testing.T) {
+	sql := InventoryClientSQL(time.Now().Add(-time.Hour), time.Now(), "", "")
+	if !strings.Contains(sql, SpanKindClient) {
+		t.Fatalf("expected CLIENT filter: %s", sql)
+	}
+	if strings.Contains(sql, SpanKindServer) {
+		t.Fatalf("CLIENT SQL must not filter SERVER: %s", sql)
 	}
 }
 
@@ -67,6 +92,49 @@ func TestParseInventoryMaps_RateAndError(t *testing.T) {
 	if got[0].P95Duration != 3.5 || got[0].DurationUnit != "ms" {
 		t.Errorf("p95=%v unit=%s", got[0].P95Duration, got[0].DurationUnit)
 	}
+	if !got[0].HasServerSpans {
+		t.Fatal("SERVER call rows must set HasServerSpans")
+	}
+}
+
+func TestMergeInventory_ClientFallbackAndFrontend(t *testing.T) {
+	discover := []map[string]any{
+		{"service": "nova-api", "namespace": "sanad", "environment": "prod", "sdk_language": "go", "calls": 1.0},
+		{"service": "frontend", "namespace": "sanad", "environment": "prod", "calls": 1.0},
+	}
+	server := []map[string]any{
+		{"service": "nova-api", "namespace": "sanad", "environment": "prod", "calls": 120.0, "errors": 12.0},
+	}
+	client := []map[string]any{
+		{"service": "frontend", "namespace": "sanad", "environment": "prod", "calls": 60.0, "errors": 0.0},
+	}
+	serverLat := []map[string]any{{"service": "nova-api", "p95_ms": 10.0}}
+	clientLat := []map[string]any{{"service": "frontend", "p95_ms": 5.0}}
+	got := MergeInventory(discover, server, client, serverLat, clientLat, nil, 60)
+	byName := map[string]queries.ServiceSummary{}
+	for _, s := range got {
+		byName[s.Name] = s
+	}
+	api := byName["nova-api"]
+	if !api.HasServerSpans || api.Rate != 2.0 || api.P95Duration != 10.0 || api.SDKLanguage != "go" {
+		t.Fatalf("nova-api=%+v", api)
+	}
+	fe := byName["frontend"]
+	if fe.HasServerSpans || fe.Rate != 1.0 || fe.P95Duration != 5.0 {
+		t.Fatalf("frontend CLIENT fallback=%+v", fe)
+	}
+
+	MarkHasFrontend(got, map[string]bool{"nova-frontend": true}, func(inv string) string {
+		if inv == "frontend" {
+			return "nova-frontend"
+		}
+		return ""
+	})
+	for _, s := range got {
+		if s.Name == "frontend" && !s.HasFrontend {
+			t.Fatal("expected hasFrontend via alias")
+		}
+	}
 }
 
 func TestParseServiceNames(t *testing.T) {
@@ -92,6 +160,32 @@ func TestInventoryCallsSeriesSQL(t *testing.T) {
 		"error_rate",
 		MetricSpanCalls,
 	} {
+		if !strings.Contains(sql, want) {
+			t.Errorf("missing %q\n%s", want, sql)
+		}
+	}
+}
+
+func TestInventoryDurationSeriesSQL_HistogramPrimary(t *testing.T) {
+	sql := InventoryDurationSeriesSQL(time.Now().Add(-time.Hour), time.Now(), 60, "sanad", "prod", "sanad/nova-api")
+	for _, want := range []string{
+		MetricSpanDuration,
+		"quantilePrometheusHistogram",
+		"otel_metrics_histogram",
+		"SPAN_KIND_SERVER",
+	} {
+		if !strings.Contains(sql, want) {
+			t.Errorf("missing %q\n%s", want, sql)
+		}
+	}
+	if strings.Contains(sql, "otel_traces") {
+		t.Fatal("duration sparklines must not use otel_traces")
+	}
+}
+
+func TestFrontendServiceNamesSQL(t *testing.T) {
+	sql := FrontendServiceNamesSQL(time.Now().Add(-time.Hour), time.Now(), "prod-k3s-omnivya")
+	for _, want := range []string{"webvitals", "hyperdx_sessions", "rum.sessionId", "prod-k3s-omnivya"} {
 		if !strings.Contains(sql, want) {
 			t.Errorf("missing %q\n%s", want, sql)
 		}
@@ -248,5 +342,74 @@ func TestTraceDetailSQL_BindsTraceID(t *testing.T) {
 	sql := TraceDetailSQL("abc123", time.Now().Add(-time.Hour), time.Now(), 100)
 	if !strings.Contains(sql, "'abc123'") {
 		t.Fatal(sql)
+	}
+}
+
+func TestRuntimeSQL_UsesScrapeName(t *testing.T) {
+	from, to := time.Now().Add(-time.Hour), time.Now()
+	disc := RuntimeDiscoverSQL("nova-app", "prod-nova", from, to)
+	for _, want := range []string{"nova-app", "go_", "process_", "otel_metrics_gauge"} {
+		if !strings.Contains(disc, want) {
+			t.Errorf("discover missing %q\n%s", want, disc)
+		}
+	}
+	if strings.Contains(disc, "nova-api") {
+		t.Fatal("must not query inventory name")
+	}
+	gauges := RuntimeGaugeAvgsSQL("nova-app", "prod-nova", []string{"go_goroutines"}, from, to)
+	if !strings.Contains(gauges, "go_goroutines") || !strings.Contains(gauges, "nova-app") {
+		t.Fatalf("gauges: %s", gauges)
+	}
+	cpu := RuntimeProcessCPURateSQL("admin-app", "", from, to)
+	if !strings.Contains(cpu, "process_cpu_seconds_total") || !strings.Contains(cpu, "admin-app") {
+		t.Fatalf("cpu: %s", cpu)
+	}
+}
+
+func TestParseGoRuntimeMaps(t *testing.T) {
+	got := ParseGoRuntimeMaps(
+		[]map[string]any{
+			{"MetricName": "go_goroutines", "value": 73.0, "pods": 2.0},
+			{"MetricName": "go_memstats_alloc_bytes", "value": 1.6e7, "pods": 2.0},
+		},
+		[]map[string]any{{"version": "go1.27.0", "c": 2.0}},
+		[]map[string]any{{"cpu_rate": 0.012}},
+		[]map[string]any{{"gc_pause_avg": 0.0001, "gc_rate": 0.5}},
+	)
+	if got == nil || got.Goroutines != 73 || got.PodCount != 2 || len(got.Versions) != 1 {
+		t.Fatalf("%+v", got)
+	}
+}
+
+func TestCustomMetricsDiscoverSQL_DenylistAndScrape(t *testing.T) {
+	deny := `jvm_.*|go_.*|process_.*|up|promhttp_.*`
+	sql := CustomMetricsDiscoverSQL("nova-app", "prod-nova", deny, time.Now().Add(-time.Hour), time.Now(), 50)
+	for _, want := range []string{"nova-app", "NOT match", "otel_metrics_sum", "otel_metrics_histogram", "^(jvm_.*"} {
+		if !strings.Contains(sql, want) {
+			t.Errorf("missing %q\n%s", want, sql)
+		}
+	}
+	if strings.Contains(sql, "nova-api") {
+		t.Fatal("must not use inventory name")
+	}
+	pat := DenylistMatchPattern(deny)
+	if !strings.HasPrefix(pat, "^(") || !strings.HasSuffix(pat, ")$") {
+		t.Fatalf("pattern=%q", pat)
+	}
+}
+
+func TestChartHintForKind(t *testing.T) {
+	if ChartHintForKind("sum") != "rate" || ChartHintForKind("histogram") != "p95" || ChartHintForKind("gauge") != "gauge" {
+		t.Fatal("chart hints")
+	}
+	if TypeForKind("sum") != "counter" || TypeForKind("gauge") != "gauge" {
+		t.Fatal("types")
+	}
+}
+
+func TestScrapeServiceFilter_EmitsAliasName(t *testing.T) {
+	got := ScrapeServiceFilter("nova-app", "prod-nova")
+	if !strings.Contains(got, "nova-app") || !strings.Contains(got, "prod-nova") {
+		t.Fatal(got)
 	}
 }

@@ -8,10 +8,47 @@ import (
 	"github.com/nais/grafana-otel-plugin/pkg/plugin/queries"
 )
 
+// DiscoverInventorySQL lists services from spanmetrics without requiring SERVER
+// (all SpanKinds). Optional sdk_language comes from ResourceAttributes when set.
+func DiscoverInventorySQL(from, to time.Time, namespace, environment string) string {
+	filt := FilterClause(namespace, environment, "", "ResourceAttributes")
+	return fmt.Sprintf(`
+SELECT
+  %s AS service,
+  any(ResourceAttributes['%s']) AS namespace,
+  any(ResourceAttributes['%s']) AS environment,
+  any(nullIf(ResourceAttributes['%s'], '')) AS sdk_language,
+  sum(Value) AS calls
+FROM %s
+WHERE MetricName = %s
+  AND %s
+  AND (%s)
+GROUP BY service
+HAVING calls > 0
+ORDER BY calls DESC
+LIMIT 500`,
+		ServiceExpr("Attributes"),
+		ResServiceNamespace, ResCluster, ResSDKLanguage,
+		table(queries.CHTableMetricsSum),
+		q(MetricSpanCalls),
+		MetricTimeFilter(from, to),
+		filt,
+	)
+}
+
 // InventorySQL returns rate/error aggregates from spanmetrics calls (SERVER spans).
-// Latency is filled separately via LatencySQL (otel_traces quantiles) because
-// histogram Sum/Count on this cluster is not a reliable p95 source.
+// Latency is filled separately via InventoryHistogramLatencySQL.
 func InventorySQL(from, to time.Time, namespace, environment string) string {
+	return inventoryCallsSQL(from, to, namespace, environment, SpanKindServer)
+}
+
+// InventoryClientSQL returns CLIENT-filtered rate/error aggregates for services
+// that have no SERVER spans (ticket 03 CLIENT RED fallback).
+func InventoryClientSQL(from, to time.Time, namespace, environment string) string {
+	return inventoryCallsSQL(from, to, namespace, environment, SpanKindClient)
+}
+
+func inventoryCallsSQL(from, to time.Time, namespace, environment, spanKind string) string {
 	filt := FilterClause(namespace, environment, "", "ResourceAttributes")
 	return fmt.Sprintf(`
 SELECT
@@ -35,30 +72,77 @@ LIMIT 500`,
 		table(queries.CHTableMetricsSum),
 		q(MetricSpanCalls),
 		MetricTimeFilter(from, to),
-		MetricSpanKindServerFilter(),
+		MetricSpanKindFilter(spanKind),
 		filt,
 	)
 }
 
-// LatencySQL returns p95 duration in milliseconds from raw SERVER spans.
+// LatencySQL is kept as a thin wrapper for callers that still expect the name;
+// inventory uses histogram-primary InventoryHistogramLatencySQL instead.
 func LatencySQL(from, to time.Time, namespace, environment string) string {
-	var parts []string
-	parts = append(parts, TimestampFilter(from, to))
-	parts = append(parts, TraceServerKindFilter())
-	if namespace != "" {
-		parts = append(parts, fmt.Sprintf("ResourceAttributes['%s'] = %s", ResServiceNamespace, q(namespace)))
+	return InventoryHistogramLatencySQL(from, to, namespace, environment, "", SpanKindServer)
+}
+
+// InventoryHistogramLatencySQL returns p95 duration (ms) from
+// traces.spanmetrics.duration via quantilePrometheusHistogram (ADR 0003).
+func InventoryHistogramLatencySQL(from, to time.Time, namespace, environment, servicesCSV, spanKind string) string {
+	if spanKind == "" {
+		spanKind = SpanKindServer
 	}
-	if environment != "" {
-		parts = append(parts, fmt.Sprintf("ResourceAttributes['%s'] = %s", ResCluster, q(environment)))
-	}
+	filt := FilterClause(namespace, environment, "", "ResourceAttributes")
+	svcFilt := ServiceNamesFilter(servicesCSV)
 	return fmt.Sprintf(`
+WITH latest AS (
+  SELECT
+    %s AS service,
+    Attributes['%s'] AS span_name,
+    Attributes['%s'] AS status_code,
+    Attributes['%s'] AS http_method,
+    Attributes['collector.instance.id'] AS collector,
+    ResourceAttributes['service.instance.id'] AS instance,
+    argMax(BucketCounts, TimeUnix) AS bc,
+    anyLast(ExplicitBounds) AS bounds
+  FROM %s
+  WHERE MetricName = %s
+    AND %s
+    AND %s
+    AND (%s)
+    AND (%s)
+  GROUP BY service, span_name, status_code, http_method, collector, instance
+),
+merged AS (
+  SELECT
+    service,
+    any(bounds) AS bounds,
+    sumForEach(arrayMap(x -> toFloat64(x), bc)) AS bc_sum
+  FROM latest
+  GROUP BY service
+),
+exploded AS (
+  SELECT
+    service,
+    arrayJoin(arrayZip(
+      arrayConcat(bounds, [CAST('+Inf' AS Float64)]),
+      arrayCumSum(bc_sum)
+    )) AS pair
+  FROM merged
+)
 SELECT
-  ServiceName AS service,
-  quantile(0.95)(Duration) / 1e6 AS p95_ms
-FROM %s
-WHERE %s
+  service,
+  quantilePrometheusHistogram(0.95)(pair.1, pair.2) AS p95_ms
+FROM exploded
 GROUP BY service
-LIMIT 500`, table(queries.CHTableTraces), strings.Join(parts, " AND "))
+ORDER BY service
+LIMIT 500`,
+		ServiceExpr("Attributes"),
+		AttrSpanName, AttrStatusCode, AttrHTTPMethod,
+		table(queries.CHTableMetricsHistogram),
+		q(MetricSpanDuration),
+		MetricTimeFilter(from, to),
+		MetricSpanKindFilter(spanKind),
+		filt,
+		svcFilt,
+	)
 }
 
 // InventoryRow is one parsed inventory aggregate.
@@ -71,37 +155,146 @@ type InventoryRow struct {
 	P95Ms       float64
 }
 
-// ParseInventoryMaps converts ClickHouse result maps into inventory rows.
+// ParseInventoryMaps converts SERVER call + latency rows into summaries.
+// Prefer MergeInventory for the full discover + CLIENT fallback path.
 func ParseInventoryMaps(callRows, latencyRows []map[string]any, windowSec float64) []queries.ServiceSummary {
-	lat := make(map[string]float64, len(latencyRows))
-	for _, r := range latencyRows {
-		lat[ParseString(r["service"])] = ParseFloat(r["p95_ms"])
+	return MergeInventory(nil, callRows, nil, latencyRows, nil, nil, windowSec)
+}
+
+// MergeInventory builds inventory summaries:
+// discover (all kinds) → SERVER RED primary → CLIENT RED fallback → histogram p95.
+// frontendNames marks hasFrontend (webvitals ∪ sessions ServiceNames).
+func MergeInventory(
+	discoverRows, serverCallRows, clientCallRows, serverLatRows, clientLatRows []map[string]any,
+	frontendNames map[string]bool,
+	windowSec float64,
+) []queries.ServiceSummary {
+	if windowSec < 1 {
+		windowSec = 1
 	}
-	out := make([]queries.ServiceSummary, 0, len(callRows))
-	for _, r := range callRows {
+	type agg struct {
+		ns, env, sdk string
+		serverCalls  float64
+		serverErrors float64
+		clientCalls  float64
+		clientErrors float64
+		hasServer    bool
+		seen         bool
+	}
+	bySvc := make(map[string]*agg)
+
+	ensure := func(svc string) *agg {
+		if a, ok := bySvc[svc]; ok {
+			return a
+		}
+		a := &agg{}
+		bySvc[svc] = a
+		return a
+	}
+	applyMeta := func(a *agg, r map[string]any) {
+		if a.ns == "" {
+			a.ns = ParseString(r["namespace"])
+		}
+		if a.env == "" {
+			a.env = ParseString(r["environment"])
+		}
+		if a.sdk == "" {
+			a.sdk = ParseString(r["sdk_language"])
+		}
+	}
+
+	for _, r := range discoverRows {
 		svc := ParseString(r["service"])
 		if svc == "" {
 			continue
 		}
-		calls := ParseFloat(r["calls"])
-		errors := ParseFloat(r["errors"])
-		rate := calls / windowSec
+		a := ensure(svc)
+		a.seen = true
+		applyMeta(a, r)
+	}
+	for _, r := range serverCallRows {
+		svc := ParseString(r["service"])
+		if svc == "" {
+			continue
+		}
+		a := ensure(svc)
+		a.seen = true
+		a.hasServer = true
+		a.serverCalls = ParseFloat(r["calls"])
+		a.serverErrors = ParseFloat(r["errors"])
+		applyMeta(a, r)
+	}
+	for _, r := range clientCallRows {
+		svc := ParseString(r["service"])
+		if svc == "" {
+			continue
+		}
+		a := ensure(svc)
+		a.seen = true
+		a.clientCalls = ParseFloat(r["calls"])
+		a.clientErrors = ParseFloat(r["errors"])
+		applyMeta(a, r)
+	}
+
+	serverLat := make(map[string]float64, len(serverLatRows))
+	for _, r := range serverLatRows {
+		serverLat[ParseString(r["service"])] = ParseFloat(r["p95_ms"])
+	}
+	clientLat := make(map[string]float64, len(clientLatRows))
+	for _, r := range clientLatRows {
+		clientLat[ParseString(r["service"])] = ParseFloat(r["p95_ms"])
+	}
+
+	out := make([]queries.ServiceSummary, 0, len(bySvc))
+	for svc, a := range bySvc {
+		if !a.seen || svc == "" {
+			continue
+		}
+		calls, errors := a.serverCalls, a.serverErrors
+		p95 := serverLat[svc]
+		if !a.hasServer {
+			calls, errors = a.clientCalls, a.clientErrors
+			p95 = clientLat[svc]
+		}
 		errRate := 0.0
 		if calls > 0 {
 			errRate = errors / calls
 		}
-		out = append(out, queries.ServiceSummary{
+		s := queries.ServiceSummary{
 			Name:           svc,
-			Namespace:      ParseString(r["namespace"]),
-			Environment:    ParseString(r["environment"]),
-			HasServerSpans: true,
-			Rate:           rate,
+			Namespace:      a.ns,
+			Environment:    a.env,
+			SDKLanguage:    a.sdk,
+			HasServerSpans: a.hasServer,
+			Rate:           calls / windowSec,
 			ErrorRate:      errRate,
-			P95Duration:    lat[svc],
+			P95Duration:    p95,
 			DurationUnit:   "ms",
-		})
+			HasFrontend:    frontendNames != nil && frontendNames[svc],
+		}
+		out = append(out, s)
 	}
 	return out
+}
+
+// MarkHasFrontend sets HasFrontend when the inventory name or an alternate
+// (resolved alias) appears in frontendNames.
+func MarkHasFrontend(summaries []queries.ServiceSummary, frontendNames map[string]bool, aliasFor func(inventory string) string) {
+	if len(frontendNames) == 0 {
+		return
+	}
+	for i := range summaries {
+		name := summaries[i].Name
+		if frontendNames[name] {
+			summaries[i].HasFrontend = true
+			continue
+		}
+		if aliasFor != nil {
+			if alt := aliasFor(name); alt != "" && alt != name && frontendNames[alt] {
+				summaries[i].HasFrontend = true
+			}
+		}
+	}
 }
 
 // sparklineWindow is the fixed lookback used for inventory mini-charts,
@@ -166,8 +359,17 @@ func ParseServiceNames(servicesCSV string) []string {
 	return out
 }
 
-// InventoryCallsSeriesSQL returns per-service rate/error buckets for sparklines.
+// InventoryCallsSeriesSQL returns per-service rate/error buckets for sparklines (SERVER).
 func InventoryCallsSeriesSQL(from, to time.Time, stepSec int64, namespace, environment, servicesCSV string) string {
+	return inventoryCallsSeriesSQL(from, to, stepSec, namespace, environment, servicesCSV, SpanKindServer)
+}
+
+// InventoryClientCallsSeriesSQL returns CLIENT-filtered rate/error sparkline buckets.
+func InventoryClientCallsSeriesSQL(from, to time.Time, stepSec int64, namespace, environment, servicesCSV string) string {
+	return inventoryCallsSeriesSQL(from, to, stepSec, namespace, environment, servicesCSV, SpanKindClient)
+}
+
+func inventoryCallsSeriesSQL(from, to time.Time, stepSec int64, namespace, environment, servicesCSV, spanKind string) string {
 	if stepSec < 1 {
 		stepSec = 60
 	}
@@ -195,55 +397,99 @@ LIMIT 5000`,
 		table(queries.CHTableMetricsSum),
 		q(MetricSpanCalls),
 		MetricTimeFilter(from, to),
-		MetricSpanKindServerFilter(),
+		MetricSpanKindFilter(spanKind),
 		filt,
 		svcFilt,
 	)
 }
 
-// InventoryDurationSeriesSQL returns per-service p95 duration buckets (ms).
+// InventoryDurationSeriesSQL returns per-service p95 duration buckets (ms) from
+// the spanmetrics histogram (SERVER).
 func InventoryDurationSeriesSQL(from, to time.Time, stepSec int64, namespace, environment, servicesCSV string) string {
+	return inventoryHistogramSeriesSQL(from, to, stepSec, namespace, environment, servicesCSV, SpanKindServer)
+}
+
+// InventoryClientDurationSeriesSQL returns CLIENT-filtered histogram p95 sparklines.
+func InventoryClientDurationSeriesSQL(from, to time.Time, stepSec int64, namespace, environment, servicesCSV string) string {
+	return inventoryHistogramSeriesSQL(from, to, stepSec, namespace, environment, servicesCSV, SpanKindClient)
+}
+
+func inventoryHistogramSeriesSQL(from, to time.Time, stepSec int64, namespace, environment, servicesCSV, spanKind string) string {
 	if stepSec < 1 {
 		stepSec = 60
 	}
-	var parts []string
-	parts = append(parts, TimestampFilter(from, to))
-	parts = append(parts, TraceServerKindFilter())
-	if namespace != "" {
-		parts = append(parts, fmt.Sprintf("ResourceAttributes['%s'] = %s", ResServiceNamespace, q(namespace)))
-	}
-	if environment != "" {
-		parts = append(parts, fmt.Sprintf("ResourceAttributes['%s'] = %s", ResCluster, q(environment)))
-	}
-	names := ParseServiceNames(servicesCSV)
-	if len(names) > 0 {
-		quoted := make([]string, 0, len(names))
-		for _, n := range names {
-			quoted = append(quoted, q(n))
-		}
-		parts = append(parts, fmt.Sprintf("ServiceName IN (%s)", strings.Join(quoted, ", ")))
-	}
+	filt := FilterClause(namespace, environment, "", "ResourceAttributes")
+	svcFilt := ServiceNamesFilter(servicesCSV)
+	bucket := BucketMsExpr(ColTimeUnix, int(stepSec))
 	return fmt.Sprintf(`
+WITH latest AS (
+  SELECT
+    %s AS service,
+    %s AS t,
+    Attributes['%s'] AS span_name,
+    Attributes['%s'] AS status_code,
+    Attributes['%s'] AS http_method,
+    Attributes['collector.instance.id'] AS collector,
+    ResourceAttributes['service.instance.id'] AS instance,
+    argMax(BucketCounts, TimeUnix) AS bc,
+    anyLast(ExplicitBounds) AS bounds
+  FROM %s
+  WHERE MetricName = %s
+    AND %s
+    AND %s
+    AND (%s)
+    AND (%s)
+  GROUP BY service, t, span_name, status_code, http_method, collector, instance
+),
+merged AS (
+  SELECT
+    service,
+    t,
+    any(bounds) AS bounds,
+    sumForEach(arrayMap(x -> toFloat64(x), bc)) AS bc_sum
+  FROM latest
+  GROUP BY service, t
+),
+exploded AS (
+  SELECT
+    service,
+    t,
+    arrayJoin(arrayZip(
+      arrayConcat(bounds, [CAST('+Inf' AS Float64)]),
+      arrayCumSum(bc_sum)
+    )) AS pair
+  FROM merged
+)
 SELECT
-  ServiceName AS service,
-  %s AS t,
-  quantile(0.95)(Duration) / 1e6 AS p95_ms
-FROM %s
-WHERE %s
+  service,
+  t,
+  quantilePrometheusHistogram(0.95)(pair.1, pair.2) AS p95_ms
+FROM exploded
 GROUP BY service, t
 ORDER BY service, t
 LIMIT 5000`,
-		BucketMsExpr(ColTimestamp, int(stepSec)),
-		table(queries.CHTableTraces),
-		strings.Join(parts, " AND "),
+		ServiceExpr("Attributes"),
+		bucket,
+		AttrSpanName, AttrStatusCode, AttrHTTPMethod,
+		table(queries.CHTableMetricsHistogram),
+		q(MetricSpanDuration),
+		MetricTimeFilter(from, to),
+		MetricSpanKindFilter(spanKind),
+		filt,
+		svcFilt,
 	)
 }
 
 // AttachInventorySeries merges sparkline rows onto inventory summaries (matched by service name).
 func AttachInventorySeries(summaries []queries.ServiceSummary, callRows, durationRows []map[string]any) {
+	AttachInventorySeriesSelective(summaries, callRows, durationRows, true)
+}
+
+// AttachInventorySeriesSelective merges series. When onlyMissing is true, only
+// fills services that still lack series (CLIENT fallback path).
+func AttachInventorySeriesSelective(summaries []queries.ServiceSummary, callRows, durationRows []map[string]any, overwrite bool) {
 	rates := make(map[string][]queries.DataPoint)
 	errs := make(map[string][]queries.DataPoint)
-	// Keep call rows ordered by t within each service (SQL ORDER BY service, t).
 	lastT := make(map[string]int64)
 	for _, r := range callRows {
 		svc := ParseString(r["service"])
@@ -274,16 +520,61 @@ func AttachInventorySeries(summaries []queries.ServiceSummary, callRows, duratio
 	}
 	for i := range summaries {
 		name := summaries[i].Name
-		if s := rates[name]; len(s) > 0 {
+		if s := rates[name]; len(s) > 0 && (overwrite || len(summaries[i].RateSeries) == 0) {
 			summaries[i].RateSeries = s
 		}
-		if s := errs[name]; len(s) > 0 {
+		if s := errs[name]; len(s) > 0 && (overwrite || len(summaries[i].ErrorSeries) == 0) {
 			summaries[i].ErrorSeries = s
 		}
-		if s := durs[name]; len(s) > 0 {
+		if s := durs[name]; len(s) > 0 && (overwrite || len(summaries[i].DurationSeries) == 0) {
 			summaries[i].DurationSeries = s
 		}
 	}
+}
+
+// FrontendServiceNamesSQL returns ServiceNames with webvitals spans or
+// hyperdx_sessions rows in the window (ticket 03 hasFrontend).
+func FrontendServiceNamesSQL(from, to time.Time, environment string) string {
+	envFilt := "1"
+	if environment != "" {
+		envFilt = fmt.Sprintf("ResourceAttributes['%s'] = %s", ResCluster, q(environment))
+	}
+	return fmt.Sprintf(`
+SELECT DISTINCT service FROM (
+  SELECT ServiceName AS service
+  FROM %s
+  WHERE SpanName = %s
+    AND %s
+    AND (%s)
+  UNION ALL
+  SELECT ServiceName AS service
+  FROM %s
+  WHERE ResourceAttributes['rum.sessionId'] != ''
+    AND %s
+    AND (%s)
+)
+WHERE service != ''
+ORDER BY service
+LIMIT 500`,
+		table(queries.CHTableTraces),
+		q(SpanNameWebVitals),
+		TimestampFilter(from, to),
+		envFilt,
+		table(queries.CHTableSessions),
+		TimestampFilter(from, to),
+		envFilt,
+	)
+}
+
+// ParseFrontendServiceNames builds a set from FrontendServiceNamesSQL rows.
+func ParseFrontendServiceNames(rows []map[string]any) map[string]bool {
+	out := make(map[string]bool, len(rows))
+	for _, r := range rows {
+		if s := ParseString(r["service"]); s != "" {
+			out[s] = true
+		}
+	}
+	return out
 }
 
 // OperationsSQL returns per-span-name rate/error for one service, preserving

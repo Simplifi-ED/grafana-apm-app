@@ -41,6 +41,7 @@ const (
 	TraceStatusUnset    = "Unset"
 	ResCluster          = "cluster"
 	ResServiceNamespace = "service.namespace"
+	ResSDKLanguage      = "telemetry.sdk.language"
 	ColTimeUnix         = "TimeUnix"  // metrics tables
 	ColTimestamp        = "Timestamp" // traces / logs / sessions
 )
@@ -48,6 +49,16 @@ const (
 // MetricSpanKindServerFilter matches SERVER in spanmetrics Attributes.
 func MetricSpanKindServerFilter() string {
 	return fmt.Sprintf("Attributes['%s'] = %s", AttrSpanKind, q(SpanKindServer))
+}
+
+// MetricSpanKindClientFilter matches CLIENT in spanmetrics Attributes.
+func MetricSpanKindClientFilter() string {
+	return fmt.Sprintf("Attributes['%s'] = %s", AttrSpanKind, q(SpanKindClient))
+}
+
+// MetricSpanKindFilter matches a spanmetrics Attributes['span.kind'] value.
+func MetricSpanKindFilter(kind string) string {
+	return fmt.Sprintf("Attributes['%s'] = %s", AttrSpanKind, q(kind))
 }
 
 // MetricStatusErrorFilter matches ERROR in spanmetrics Attributes.

@@ -20,7 +20,7 @@
 
 | Feature | Endpoint / UI | CH tables | Status | Plan / notes |
 |---------|---------------|-----------|--------|--------------|
-| Service inventory | `GET /services` → ServiceInventory | `otel_metrics_sum` (`traces.spanmetrics.calls`) + hist duration | 🟨 | **B**; CLIENT-only + CLIENT RED fallback (**03**); sparklines via CH series |
+| Service inventory | `GET /services` → ServiceInventory | `otel_metrics_sum` (`traces.spanmetrics.calls`) + hist duration | 🟨 | **B** shipped: all-kind discover, SERVER RED + CLIENT fallback, histogram p95/sparklines, `hasFrontend`/`sdkLanguage` |
 | Capabilities | `GET /capabilities` | sum metrics probes | 🟨 | + browser Issues/Versions/Feedback probes (**13**) |
 | Operations RED | `GET .../operations` | spanmetrics + traces quantiles | 🟨 | ADR 0003 SpanKind/StatusCode |
 | Overview RED timeseries | Scenes panels | `otel_metrics_sum` + histogram | 🟨 | Histogram-primary duration (**04**) |
@@ -40,8 +40,8 @@
 | Service map | `GET /service-map` | `traces_service_graph_*` | 🟨 | |
 | Dependencies / connected | `GET .../dependencies`, `/connected` | service graph / CH | 🟧 | **D** finish CH path |
 | Database top queries / N+1 | DB tab | `otel_traces` db attrs | 🟧→🚧 | **D** wire `chquery` |
-| Runtime metrics | Runtime tab | `otel_metrics_*` `go_*`/`process_*` | 🟧→🚧 | **C** + **15** aliases (`nova-api`→`nova-app`) |
-| Custom metrics | Custom tab | `otel_metrics_*` | 🚧 | **C** denylist discovery |
+| Runtime metrics | Runtime tab | `otel_metrics_*` `go_*`/`process_*` | 🟨 | **C** shipped: alias → scrape `ServiceName`; Go/process CH queries; miss → hint |
+| Custom metrics | Custom tab | `otel_metrics_*` | 🟨 | **C** shipped: denylist discovery across gauge/sum/hist/summary |
 | GraphQL | GraphQL tab | TBD metrics/spans | 🚧 | **H** gated on **16** |
 | Alerts / templates | Alerts UI | Grafana unified alerting | 🟧→🚧 | **D** list/firing (**10**) + **full** create-from-template catalog (**26**/ **27**); eval DS TBD on first PR |
 | Scorecard | Scorecard | CH-expressible checks | 🟧→🚧 | **D**; exact check list TBD |
@@ -88,9 +88,9 @@ Plan tracker: `.scratch/clickstack-nais-parity/map.md`.
 
 | Letter | Work | Enablement |
 |--------|------|------------|
-| A | ADR helpers + `serviceAliases` | 🟨 foundation shipped; Runtime/Custom CH queries → **C** |
-| B | Inventory polish | — |
-| C | Runtime + Custom | — |
+| A | ADR helpers + `serviceAliases` | 🟨 foundation shipped |
+| B | Inventory polish | 🟨 unit-tested; live Grafana DS smoke pending |
+| C | Runtime + Custom | 🟨 unit-tested; Sanad smoke via aliases pending |
 | D | Alerts / Scorecard / DB / deps health | — |
 | E | Explore depth | — |
 | F | Issues + Sessions UX | — |

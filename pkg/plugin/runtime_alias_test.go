@@ -43,6 +43,7 @@ func TestHandleRuntime_ClickStackAliasHitNoWrongNameQuery(t *testing.T) {
 			ClickHouseDataSource: queries.DataSourceRef{UID: "clickhouse"},
 			ServiceAliases:       map[string]string{"nova-api": "nova-app"},
 		},
+		// Empty client (no grafana URL) → CH queries fail soft; must not hint and must not use inventory name.
 		chClient: &queries.ClickHouseClient{},
 	}
 	req := httptest.NewRequest(http.MethodGet, "/services/sanad/nova-api/runtime?from=1&to=2", nil)

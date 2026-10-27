@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/grafana/grafana-plugin-sdk-go/backend/log"
+	"github.com/nais/grafana-otel-plugin/pkg/plugin/chquery"
 	"github.com/nais/grafana-otel-plugin/pkg/plugin/queries"
 )
 
@@ -95,15 +96,14 @@ func (a *App) handleCustomMetrics(w http.ResponseWriter, req *http.Request) {
 	from, to := parseTimeRange(req)
 
 	// ClickStack: custom scrapes resolve via serviceAliases. Missing → empty + hint.
-	// Letter C wires CH discovery against the scrape ServiceName.
 	if a.clickStackMode() {
 		scrape, ok := a.ResolveServiceAlias(service)
 		if !ok {
 			writeJSON(w, CustomMetricsResponse{Metrics: []CustomMetric{}, Hint: AliasMissingHint(service)})
 			return
 		}
-		_ = scrape
-		writeJSON(w, CustomMetricsResponse{Metrics: []CustomMetric{}})
+		ch := a.chForRequest(req)
+		writeJSON(w, a.queryCustomMetricsClickHouse(ctx, ch, namespace, scrape, from, to))
 		return
 	}
 
@@ -116,6 +116,68 @@ func (a *App) handleCustomMetrics(w http.ResponseWriter, req *http.Request) {
 	a.writeCached(w, ck, "querying custom metrics failed", func() (any, error) {
 		return a.queryCustomMetrics(ctx, namespace, service, environment, to), nil
 	})
+}
+
+// queryCustomMetricsClickHouse discovers non-platform metrics for the resolved
+// scrape ServiceName (research 07). Table kind is authoritative for chart type;
+// Prom family collapse is skipped (OTel CH stores one MetricName per logical metric).
+func (a *App) queryCustomMetricsClickHouse(
+	ctx context.Context,
+	ch *queries.ClickHouseClient,
+	namespace, scrapeService string,
+	from, to time.Time,
+) CustomMetricsResponse {
+	logger := log.DefaultLogger.With("handler", "custom-metrics-clickhouse")
+	resp := CustomMetricsResponse{Metrics: []CustomMetric{}}
+	if ch == nil || scrapeService == "" {
+		return resp
+	}
+	opts := queries.ClickHouseQueryOptions{From: from, To: to, Limit: maxCustomMetricFamilies}
+	denylist := a.otelCfg.CustomMetrics.Denylist
+	disc, err := ch.Query(ctx, chquery.CustomMetricsDiscoverSQL(scrapeService, namespace, denylist, from, to, maxCustomMetricFamilies+1), opts)
+	if err != nil {
+		logger.Warn("custom metrics discovery failed", "error", err, "service", scrapeService)
+		return resp
+	}
+	families := chquery.ParseCustomMetricFamilies(disc.Maps())
+	if len(families) == 0 {
+		return resp
+	}
+	if len(families) > maxCustomMetricFamilies {
+		families = families[:maxCustomMetricFamilies]
+		resp.Truncated = true
+	}
+
+	metrics := make([]CustomMetric, len(families))
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, customMetricEnrichConcurrency)
+	for i, fam := range families {
+		wg.Add(1)
+		go func(i int, fam chquery.CustomMetricFamily) {
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			defer wg.Done()
+			m := CustomMetric{
+				Name:  fam.Name,
+				Type:  chquery.TypeForKind(fam.Kind),
+				Help:  fam.Description,
+				Unit:  fam.Unit,
+				Chart: chquery.ChartHintForKind(fam.Kind),
+			}
+			countRes, cerr := ch.Query(ctx, chquery.CustomMetricSeriesCountSQL(scrapeService, namespace, fam.Name, fam.Kind, from, to),
+				queries.ClickHouseQueryOptions{From: from, To: to, Limit: 1})
+			if cerr != nil {
+				logger.Debug("custom series count failed", "metric", fam.Name, "error", cerr)
+			} else if countRes.RowCount() > 0 {
+				m.Series = int(chquery.ParseFloat(countRes.Maps()[0]["series"]))
+			}
+			m.HighCardinality = m.Series > highCardinalityThreshold
+			metrics[i] = m
+		}(i, fam)
+	}
+	wg.Wait()
+	resp.Metrics = metrics
+	return resp
 }
 
 // queryCustomMetrics runs the denylist-inverted discovery query (the mirror

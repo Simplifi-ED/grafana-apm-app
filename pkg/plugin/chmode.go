@@ -107,21 +107,65 @@ func (a *App) fetchServiceSummariesClickHouse(
 	filterNamespace, filterEnvironment, filterServices string,
 ) []queries.ServiceSummary {
 	logger := log.DefaultLogger.With("handler", "services-clickhouse")
+	if ch == nil {
+		return nil
+	}
 	window := chquery.WindowSeconds(from, to)
 	opts := queries.ClickHouseQueryOptions{From: from, To: to, Limit: 500}
 
-	callRes, err := ch.Query(ctx, chquery.InventorySQL(from, to, filterNamespace, filterEnvironment), opts)
+	// All-kind discover (CLIENT-only rows included) + SERVER RED + CLIENT RED fallback.
+	discoverRes, err := ch.Query(ctx, chquery.DiscoverInventorySQL(from, to, filterNamespace, filterEnvironment), opts)
 	if err != nil {
-		logger.Warn("inventory calls query failed", "error", err)
+		logger.Warn("inventory discover query failed", "error", err)
 		return nil
 	}
-	latRes, err := ch.Query(ctx, chquery.LatencySQL(from, to, filterNamespace, filterEnvironment), opts)
+	serverCalls, err := ch.Query(ctx, chquery.InventorySQL(from, to, filterNamespace, filterEnvironment), opts)
 	if err != nil {
-		logger.Warn("inventory latency query failed", "error", err)
-		latRes = &queries.ClickHouseResult{}
+		logger.Warn("inventory SERVER calls query failed", "error", err)
+		serverCalls = &queries.ClickHouseResult{}
 	}
-	summaries := chquery.ParseInventoryMaps(callRes.Maps(), latRes.Maps(), window)
-	if !withSeries || len(summaries) == 0 || ch == nil {
+	clientCalls, err := ch.Query(ctx, chquery.InventoryClientSQL(from, to, filterNamespace, filterEnvironment), opts)
+	if err != nil {
+		logger.Warn("inventory CLIENT calls query failed", "error", err)
+		clientCalls = &queries.ClickHouseResult{}
+	}
+	serverLat, err := ch.Query(ctx, chquery.InventoryHistogramLatencySQL(from, to, filterNamespace, filterEnvironment, "", chquery.SpanKindServer), opts)
+	if err != nil {
+		logger.Warn("inventory SERVER histogram latency failed", "error", err)
+		serverLat = &queries.ClickHouseResult{}
+	}
+	clientLat, err := ch.Query(ctx, chquery.InventoryHistogramLatencySQL(from, to, filterNamespace, filterEnvironment, "", chquery.SpanKindClient), opts)
+	if err != nil {
+		logger.Warn("inventory CLIENT histogram latency failed", "error", err)
+		clientLat = &queries.ClickHouseResult{}
+	}
+
+	frontendNames := map[string]bool{}
+	if frontRes, ferr := ch.Query(ctx, chquery.FrontendServiceNamesSQL(from, to, filterEnvironment), opts); ferr != nil {
+		logger.Warn("inventory hasFrontend probe failed", "error", ferr)
+	} else {
+		frontendNames = chquery.ParseFrontendServiceNames(frontRes.Maps())
+	}
+
+	summaries := chquery.MergeInventory(
+		discoverRes.Maps(),
+		serverCalls.Maps(),
+		clientCalls.Maps(),
+		serverLat.Maps(),
+		clientLat.Maps(),
+		nil,
+		window,
+	)
+	chquery.MarkHasFrontend(summaries, frontendNames, func(inventory string) string {
+		if scrape, ok := a.ResolveServiceAlias(inventory); ok {
+			return scrape
+		}
+		return ""
+	})
+	for i := range summaries {
+		summaries[i].IsSidecar = isSidecar(summaries[i].Name)
+	}
+	if !withSeries || len(summaries) == 0 {
 		return summaries
 	}
 
@@ -135,15 +179,37 @@ func (a *App) fetchServiceSummariesClickHouse(
 	seriesOpts := queries.ClickHouseQueryOptions{From: seriesFrom, To: seriesTo, Limit: 5000}
 	callSeries, err := ch.Query(ctx, chquery.InventoryCallsSeriesSQL(seriesFrom, seriesTo, stepSec, filterNamespace, filterEnvironment, filterServices), seriesOpts)
 	if err != nil {
-		logger.Warn("inventory rate/error series query failed", "error", err)
+		logger.Warn("inventory SERVER rate/error series failed", "error", err)
 		return summaries
 	}
 	durSeries, err := ch.Query(ctx, chquery.InventoryDurationSeriesSQL(seriesFrom, seriesTo, stepSec, filterNamespace, filterEnvironment, filterServices), seriesOpts)
 	if err != nil {
-		logger.Warn("inventory duration series query failed", "error", err)
+		logger.Warn("inventory SERVER duration series failed", "error", err)
 		durSeries = &queries.ClickHouseResult{}
 	}
 	chquery.AttachInventorySeries(summaries, callSeries.Maps(), durSeries.Maps())
+
+	// CLIENT sparklines only for rows that still lack SERVER series.
+	needClient := false
+	for _, s := range summaries {
+		if !s.HasServerSpans {
+			needClient = true
+			break
+		}
+	}
+	if needClient {
+		clientCallSeries, cerr := ch.Query(ctx, chquery.InventoryClientCallsSeriesSQL(seriesFrom, seriesTo, stepSec, filterNamespace, filterEnvironment, filterServices), seriesOpts)
+		if cerr != nil {
+			logger.Warn("inventory CLIENT rate/error series failed", "error", cerr)
+		} else {
+			clientDurSeries, derr := ch.Query(ctx, chquery.InventoryClientDurationSeriesSQL(seriesFrom, seriesTo, stepSec, filterNamespace, filterEnvironment, filterServices), seriesOpts)
+			if derr != nil {
+				logger.Warn("inventory CLIENT duration series failed", "error", derr)
+				clientDurSeries = &queries.ClickHouseResult{}
+			}
+			chquery.AttachInventorySeriesSelective(summaries, clientCallSeries.Maps(), clientDurSeries.Maps(), false)
+		}
+	}
 	return summaries
 }
 
