@@ -639,13 +639,19 @@ The app detects application frameworks for display badges in the service invento
 | **Node.js** | `Node.js` (orange) | `nodejs_version_info` | `prom-client` or OTel Node.js SDK |
 | **Go** | `Go` (blue) | `go_info` | Default Go Prometheus client |
 
+**Fallback:** when no metric probe matches, the inventory Type badge is derived
+from `telemetry.sdk.language` (spanmetrics / ClickStack resource attrs), e.g.
+`go` → Go, `cpp` → C++ (Envoy), `rust` → Rust, `webjs` → Browser (HyperDX /
+Faro frontends), `java` → Java, `python` → Python, `dotnet` → .NET.
+
 **Priority:** If multiple detection metrics match (e.g., a Ktor app also has
 Spring Boot metrics), the most specific framework wins:
-Ktor > Spring Boot > Go > Node.js.
+Ktor > Spring Boot > Node.js > Go, then SDK-language fallback.
 
-These metrics must be scraped by Prometheus and stored in Mimir for detection
-to work. The `app` label on your Prometheus metrics must match the
-`service_name` on your OTel span metrics.
+These metrics must be scraped by Prometheus (or ClickStack) for metric probes
+to work. The `app` label on Prometheus scrapes should match inventory
+`service_name` (Sanad: scrape `app=nova-api` while OTel `service.name` stays
+`nova-api`; `serviceAliases` still maps runtime scrapes `nova-api` → `nova-app`).
 
 ---
 

@@ -15,7 +15,7 @@ import {
 } from '@grafana/scenes';
 import { DashboardCursorSync } from '@grafana/schema';
 import { getFrontendMetrics } from '../../api/client';
-import { usePluginDatasources, usePluginLabelOverrides } from '../../utils/datasources';
+import { usePluginDatasources, usePluginLabelOverrides, useServiceAlias } from '../../utils/datasources';
 import { useTimeRange } from '../../utils/timeRange';
 import { useSceneTimeSync } from '../../utils/useSceneTimeSync';
 import { sanitizeLabelValue } from '../../utils/sanitize';
@@ -50,6 +50,7 @@ export function FrontendTab({ service, namespace, environment }: FrontendTabProp
   const [hasLoki, setHasLoki] = useState<boolean>(false);
   const [vitals, setVitals] = useState<Record<string, number> | undefined>();
   const ds = usePluginDatasources(environment || undefined);
+  const browserService = useServiceAlias(service);
   const { from, to } = useTimeRange();
   // Shared with the Issues tab (#69 P1/P10) — an issueId deep link opens the
   // drawer identically on both tabs.
@@ -117,7 +118,7 @@ export function FrontendTab({ service, namespace, environment }: FrontendTabProp
       )}
       {clickStackOnly ? (
         <ClickStackFrontendSummary
-          service={service}
+          service={browserService}
           environment={environment}
           clickHouseUid={ds.clickHouseUid}
           from={from}
@@ -197,10 +198,6 @@ function ClickStackFrontendSummary({
         </Alert>
       )}
       {scene && <scene.Component model={scene} />}
-      <Alert severity="info" title="ClickStack mode">
-        Core Web Vitals and trends are aggregated from <code>webvitals</code> spans in ClickHouse. Faro-only browser
-        exception facets and per-page attribution require the Prometheus/Loki frontend pipeline.
-      </Alert>
     </div>
   );
 }

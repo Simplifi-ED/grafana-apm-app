@@ -15,8 +15,9 @@ jest.mock('../../api/client', () => ({
 }));
 
 jest.mock('../../utils/datasources', () => ({
-  usePluginDatasources: () => ({ metricsUid: 'mimir', tracesUid: 'tempo', logsUid: 'loki' }),
+  usePluginDatasources: () => ({ metricsUid: 'mimir', tracesUid: 'tempo', logsUid: 'loki', clickHouseUid: '' }),
   usePluginLabelOverrides: () => ({}),
+  useServiceAlias: (name: string) => name,
 }));
 
 jest.mock('../../utils/timeRange', () => ({

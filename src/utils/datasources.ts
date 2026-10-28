@@ -189,6 +189,27 @@ function sanitizeOverrides(raw: LabelOverrides | undefined): LabelOverrides {
   return Object.keys(result).length > 0 ? result : EMPTY_OVERRIDES;
 }
 
+/**
+ * Inventory → scrape/browser ServiceName from jsonData.serviceAliases.
+ * Falls back to the inventory name when no alias is configured.
+ */
+export function useServiceAlias(inventoryName: string): string {
+  const [rev, setRev] = useState(0);
+  useEffect(() => {
+    const listener = () => setRev((r) => r + 1);
+    _listeners.push(listener);
+    return () => {
+      _listeners = _listeners.filter((l) => l !== listener);
+    };
+  }, []);
+  return useMemo(() => {
+    const aliases = getJsonData().serviceAliases ?? {};
+    const mapped = aliases[inventoryName];
+    return mapped && mapped.trim() !== '' ? mapped : inventoryName;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inventoryName, rev]);
+}
+
 /** Returns configured label overrides from plugin jsonData. */
 export function usePluginLabelOverrides(): LabelOverrides {
   const [rev, setRev] = useState(0);

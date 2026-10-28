@@ -16,3 +16,4 @@ export {
 export { WebVitalsBullets } from './components/WebVitalsBullets';
 export * from './queries/loki-builders';
 export * from './queries/histogram-builders';
+export * from './queries/clickstack-builders';

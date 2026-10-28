@@ -5,36 +5,35 @@ import {
   SceneFlexLayout,
   SceneQueryRunner,
   SceneTimeRange,
+  behaviors,
 } from '@grafana/scenes';
-import { sanitizeLabelValue } from '../utils/sanitize';
+import { DashboardCursorSync } from '@grafana/schema';
+import {
+  browserBreakdownSql,
+  interactivitySql,
+  jsExceptionsSql,
+  layoutStabilitySql,
+  measurementsVolumeSql,
+  pageLoadVitalsSql,
+  perPageSql,
+  ratingDistributionSql,
+} from './tabs/frontend/queries/clickstack-builders';
 
 const CH_DS_TYPE = 'grafana-clickhouse-datasource';
 
-function sqlStr(value: string): string {
-  return `'${sanitizeLabelValue(value).replace(/'/g, "''")}'`;
-}
-
-function chQuery(uid: string, rawSql: string) {
+/** format: 0/2 timeseries frames; 1 = table (docs/clickstack-migration/audit.md). */
+function chQuery(uid: string, rawSql: string, format: 0 | 1 | 2 = 0) {
   return new SceneQueryRunner({
     datasource: { uid, type: CH_DS_TYPE },
     queries: [
       {
         refId: 'A',
         rawSql,
-        format: 0,
+        format,
         queryType: 'sql',
       } as never,
     ],
   });
-}
-
-function webVitalsWhere(service: string, environment: string): string {
-  let where = `ServiceName = ${sqlStr(service)}`;
-  where += ` AND SpanName = 'webvitals'`;
-  if (environment) {
-    where += ` AND ResourceAttributes['cluster'] = ${sqlStr(environment)}`;
-  }
-  return where;
 }
 
 export interface BuildClickStackFrontendSceneParams {
@@ -45,7 +44,10 @@ export interface BuildClickStackFrontendSceneParams {
   clickHouseUid: string;
 }
 
-/** Browser-vitals trends backed directly by HyperDX webvitals spans. */
+/**
+ * HyperDX / ClickStack Frontend tab — vitals trends, volume, exceptions,
+ * CWV rating pie, browser + per-page tables (no Faro/Prom required).
+ */
 export function buildClickStackFrontendScene({
   service,
   environment = '',
@@ -56,52 +58,107 @@ export function buildClickStackFrontendScene({
   if (!service || !clickHouseUid) {
     return null;
   }
-  const where = webVitalsWhere(service, environment);
-  const pageLoadSql = `
-SELECT
-  $__timeInterval(Timestamp) AS time,
-  quantileIf(0.75)(toFloat64OrZero(SpanAttributes['lcp']), SpanAttributes['lcp'] != '') AS lcp,
-  quantileIf(0.75)(toFloat64OrZero(SpanAttributes['fcp']), SpanAttributes['fcp'] != '') AS fcp,
-  quantileIf(0.75)(toFloat64OrZero(SpanAttributes['ttfb']), SpanAttributes['ttfb'] != '') AS ttfb
-FROM \`default\`.\`otel_traces\`
-WHERE ${where}
-  AND $__timeFilter(Timestamp)
-GROUP BY time
-ORDER BY time`.trim();
-  const interactionSql = `
-SELECT
-  $__timeInterval(Timestamp) AS time,
-  quantileIf(0.75)(toFloat64OrZero(SpanAttributes['inp']), SpanAttributes['inp'] != '') AS inp,
-  quantileIf(0.75)(toFloat64OrZero(SpanAttributes['cls']), SpanAttributes['cls'] != '') AS cls
-FROM \`default\`.\`otel_traces\`
-WHERE ${where}
-  AND $__timeFilter(Timestamp)
-GROUP BY time
-ORDER BY time`.trim();
+  const env = environment || '';
+
+  const trendsRow = new SceneFlexLayout({
+    direction: 'row',
+    children: [
+      new SceneFlexItem({
+        minHeight: 260,
+        body: PanelBuilders.timeseries()
+          .setTitle('Page Load Vitals')
+          .setDescription('P75 LCP, FCP, and TTFB from HyperDX webvitals spans')
+          .setData(chQuery(clickHouseUid, pageLoadVitalsSql(service, env)))
+          .setUnit('ms')
+          .build(),
+      }),
+      new SceneFlexItem({
+        minHeight: 260,
+        body: PanelBuilders.timeseries()
+          .setTitle('Interactivity (INP)')
+          .setDescription('P75 Interaction to Next Paint')
+          .setData(chQuery(clickHouseUid, interactivitySql(service, env)))
+          .setUnit('ms')
+          .build(),
+      }),
+      new SceneFlexItem({
+        minHeight: 260,
+        body: PanelBuilders.timeseries()
+          .setTitle('Layout Stability (CLS)')
+          .setDescription('P75 Cumulative Layout Shift')
+          .setData(chQuery(clickHouseUid, layoutStabilitySql(service, env)))
+          .build(),
+      }),
+    ],
+  });
+
+  const trafficRow = new SceneFlexLayout({
+    direction: 'row',
+    children: [
+      new SceneFlexItem({
+        minHeight: 220,
+        body: PanelBuilders.timeseries()
+          .setTitle('Web Vitals Measurements')
+          .setDescription('Count of webvitals spans over time')
+          .setData(chQuery(clickHouseUid, measurementsVolumeSql(service, env)))
+          .setUnit('short')
+          .setCustomFieldConfig('fillOpacity', 15)
+          .build(),
+      }),
+      new SceneFlexItem({
+        minHeight: 220,
+        body: PanelBuilders.timeseries()
+          .setTitle('JavaScript Exceptions')
+          .setDescription('Browser error / unhandledrejection spans')
+          .setData(chQuery(clickHouseUid, jsExceptionsSql(service, env)))
+          .setUnit('short')
+          .setCustomFieldConfig('fillOpacity', 15)
+          .build(),
+      }),
+      new SceneFlexItem({
+        minHeight: 220,
+        width: '30%',
+        body: PanelBuilders.piechart()
+          .setTitle('Web Vitals Rating Distribution')
+          .setDescription('good / needs-improvement / poor from CWV thresholds')
+          .setData(chQuery(clickHouseUid, ratingDistributionSql(service, env), 1))
+          .build(),
+      }),
+    ],
+  });
+
+  const tablesRow = new SceneFlexLayout({
+    direction: 'row',
+    children: [
+      new SceneFlexItem({
+        minHeight: 280,
+        body: PanelBuilders.table()
+          .setTitle('Browser Breakdown')
+          .setDescription('Avg vitals by browser (UA joined via rum.sessionId)')
+          .setData(chQuery(clickHouseUid, browserBreakdownSql(service, env), 1))
+          .build(),
+      }),
+      new SceneFlexItem({
+        minHeight: 280,
+        body: PanelBuilders.table()
+          .setTitle('Per-page Vitals')
+          .setDescription('P75 vitals by URL path')
+          .setData(chQuery(clickHouseUid, perPageSql(service, env), 1))
+          .build(),
+      }),
+    ],
+  });
 
   return new EmbeddedScene({
     $timeRange: new SceneTimeRange({ from, to }),
+    $behaviors: [new behaviors.CursorSync({ sync: DashboardCursorSync.Crosshair })],
     controls: [],
     body: new SceneFlexLayout({
       direction: 'column',
       children: [
-        new SceneFlexItem({
-          height: 260,
-          body: PanelBuilders.timeseries()
-            .setTitle('Page Load Vitals')
-            .setDescription('P75 LCP, FCP, and TTFB from ClickStack webvitals spans')
-            .setData(chQuery(clickHouseUid, pageLoadSql))
-            .setUnit('ms')
-            .build(),
-        }),
-        new SceneFlexItem({
-          height: 260,
-          body: PanelBuilders.timeseries()
-            .setTitle('Interactivity and Layout')
-            .setDescription('P75 INP and CLS from ClickStack webvitals spans')
-            .setData(chQuery(clickHouseUid, interactionSql))
-            .build(),
-        }),
+        new SceneFlexItem({ body: trendsRow }),
+        new SceneFlexItem({ body: trafficRow }),
+        new SceneFlexItem({ body: tablesRow }),
       ],
     }),
   });

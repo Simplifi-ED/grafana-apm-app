@@ -449,20 +449,11 @@ func (a *App) aggregateServiceResults( //nolint:gocyclo // complexity from many 
 	}
 
 	// Fallback: derive framework from telemetry_sdk_language when metric probing didn't match.
-	// This covers languages without framework-specific metrics (Python, .NET) and cases where
-	// the app doesn't emit runtime metrics at all.
-	sdkLangToFramework := map[string]string{
-		"java":   "Java",
-		"go":     "Go",
-		"nodejs": "Node.js",
-		"python": "Python",
-		"dotnet": ".NET",
-	}
+	// Covers languages without framework-specific metrics and ClickStack-style SDK attrs
+	// (cpp/webjs/rust/…). Specific probes above still win when set.
 	for _, s := range serviceMap {
 		if s.Framework == "" && s.SDKLanguage != "" {
-			if fw, ok := sdkLangToFramework[s.SDKLanguage]; ok {
-				s.Framework = fw
-			}
+			s.Framework = FrameworkFromSDKLanguage(s.SDKLanguage)
 		}
 	}
 

@@ -12,6 +12,15 @@ export const FRAMEWORK_BADGES: Record<string, { label: string; bg: string }> = {
   Java: { label: 'Java', bg: '#5382A1' },
   Python: { label: 'Python', bg: '#3776AB' },
   '.NET': { label: '.NET', bg: '#512BD4' },
+  Rust: { label: 'Rust', bg: '#DEA584' },
+  'C++': { label: 'C++', bg: '#00599C' },
+  C: { label: 'C', bg: '#A8B9CC' },
+  Browser: { label: 'Browser', bg: '#CA8A04' },
+  TypeScript: { label: 'TypeScript', bg: '#3178C6' },
+  PHP: { label: 'PHP', bg: '#777BB4' },
+  Ruby: { label: 'Ruby', bg: '#CC342D' },
+  Swift: { label: 'Swift', bg: '#F05138' },
+  Kotlin: { label: 'Kotlin', bg: '#7F52FF' },
 };
 
 /**

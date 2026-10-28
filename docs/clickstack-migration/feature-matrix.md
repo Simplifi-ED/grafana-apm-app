@@ -32,7 +32,7 @@
 | Log Explore | Logs tab | `otel_logs` | ✅ | **E** match via alias→`k8s.deployment.name` / pod prefix when ServiceName empty |
 | Issues / exceptions | `GET .../issues` | `otel_traces` | ✅ | **F** live: nova-api server exceptions (24h); nova-frontend browser `Element not found` (7d) |
 | Issue occurrences / drawer | CH spans + `rum.sessionId` | `otel_traces`, `hyperdx_sessions` | ✅ | **F** shipped; replay deep-link via `rum.sessionId`; Faro Loki not required |
-| Frontend Web Vitals | `GET .../frontend` + tab | `otel_traces` `webvitals` | 🟨 | HyperDX live |
+| Frontend Web Vitals | `GET .../frontend` + tab | `otel_traces` `webvitals` | ✅ | **G** CH scene: bullets + trends + volume/exceptions + CWV rating pie + browser/per-page tables (HyperDX; no Faro) |
 | Frontend versions | `GET .../frontend/versions` | `ResourceAttributes['service.version']` | ✅ | **G** + **21**: DEV `@hyperdx/otel-web` emits `service.version=APP_VERSION` (never `rum.version`) |
 | Frontend Feedback | Feedback UI | `otel_traces` `SpanName=faro.feedback` | ✅ | **G** + **21**: contract live after `keep-browser-rum` sampling (#121); Support form optional extra proof |
 | Frontend sessions list | `GET .../frontend/sessions` | `hyperdx_sessions` + enrich from traces | ✅ | **F** enrich: errors + user/version/pages/UA from all browser spans (not errors-only) |

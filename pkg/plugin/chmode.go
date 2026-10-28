@@ -166,6 +166,7 @@ func (a *App) fetchServiceSummariesClickHouse(
 		}
 		return ""
 	})
+	applyFrameworkFromSDKLanguage(summaries)
 	for i := range summaries {
 		summaries[i].IsSidecar = isSidecar(summaries[i].Name)
 	}
