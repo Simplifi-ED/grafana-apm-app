@@ -1,8 +1,9 @@
 # ClickStack migration — feature matrix
 
-**Updated:** 2026-10-28 (closeout UI smoke vs prod CH: Versions/Feedback/Jobs/Runtime/aliases 10/10; wayfinder 16–18/21/27 closed)  
+**Updated:** 2026-10-28 (parity A→J ✅; post-parity A→F merged #5–#10)  
 **Mode:** When `jsonData.clickHouseDataSource.uid` is set, handlers use ClickHouse (`clickStackMode`). LGTM clients are not required.  
-**Phase 0 DoD:** full Nais UX parity with **real data** (ticket **05**). Soft-unavailable ≠ done for GraphQL / Jobs / Profiling / Feedback. Build order: ticket **12** (A→J).
+**Phase 0 DoD:** full Nais UX parity with **real data** (ticket **05**). Soft-unavailable ≠ done for GraphQL / Jobs / Profiling / Feedback. Build order: ticket **12** (A→J) — **done**.  
+**Post-parity:** hardening spine A→F — see [Post-parity hardening](#post-parity-hardening-plan-spine-af) below.
 
 **Status legend**
 
@@ -105,7 +106,7 @@ Platform **17/18/21** live (DEV/local); **16** plugin-ready without demo. Core s
 
 ## Post-parity hardening (plan spine A→F)
 
-Tracker: `.scratch/post-parity-hardening/map.md`. PR sizing: **A** alone; **B+C** combined; **D** / **E** / **F** separate.
+Tracker: `.scratch/post-parity-hardening/map.md` (ticket **09**/**10**). No new product scope beyond that map.
 
 | Letter | Work | Status |
 |--------|------|--------|
@@ -113,6 +114,6 @@ Tracker: `.scratch/post-parity-hardening/map.md`. PR sizing: **A** alone; **B+C*
 | **B+C** | Alerts UX polish + NEW / `regressing-exceptions` (`defaults=`) | ✅ [#6](https://github.com/Simplifi-ED/grafana-apm-app/pull/6) |
 | **D** | In-plugin notify: Issues flags, New/Returned, attention strip, Alerts CTA | ✅ [#7](https://github.com/Simplifi-ED/grafana-apm-app/pull/7) |
 | **E** | Custom signals: CH-native Overview auto-charts | ✅ [#9](https://github.com/Simplifi-ED/grafana-apm-app/pull/9) |
-| **F** | Scorecard v2 depth (sourcemaps, DB, messaging/Temporal, structured-log, probes) | 🚧 [#10](https://github.com/Simplifi-ED/grafana-apm-app/pull/10) |
+| **F** | Scorecard v2 depth (sourcemaps, DB, messaging/Temporal, structured-log, probes) | ✅ [#10](https://github.com/Simplifi-ED/grafana-apm-app/pull/10) |
 
-Skip: CH OTel dual-emit double-count fix (research 01). Namespace attention strip deferred (N+1).
+**Out of scope:** deploy-markers check; team rollup / Console ownership; CH OTel dual-emit “fix”; frontend measurements/events beyond Overview auto-charts; manual per-service scorecard override; namespace-level attention strip (N+1).
