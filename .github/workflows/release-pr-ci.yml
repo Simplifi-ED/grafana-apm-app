@@ -1,0 +1,83 @@
+name: Release PR CI
+
+# Gives release-please PRs real CI without a dedicated PAT.
+#
+# Why this workflow exists
+# -----------------------
+# release-please opens/updates its Release PR with the workflow `GITHUB_TOKEN`.
+# GitHub deliberately does not trigger workflows for events caused by that
+# token, so `pull_request` never fires for those PRs: they sit BLOCKED with no
+# `CI OK` until a human closes and reopens the PR to force an event. That dance
+# was performed for every release.
+#
+# The alternative (a fine-grained PAT / GitHub App token so the PR triggers CI
+# like a human-opened one) adds a long-lived secret to rotate, so we do not use
+# it. Instead this workflow reacts to the *completion* of the Release Please
+# run — `workflow_run` is not suppressed by the token that caused the upstream
+# event — and dispatches `ci.yml` on the release-please branch. A dispatched run
+# reports its checks against that branch head, which is exactly the commit the
+# Release PR points at, so the required `ci-ok` check is satisfied with no
+# secret and no close/reopen dance.
+#
+# Only the release-please branch prefix is targeted; nothing else is affected.
+
+on:
+  workflow_run:
+    # Must match `name:` in release-please.yml exactly.
+    workflows: ['Release Please']
+    types: [completed]
+
+# Least privilege: read the PR list, dispatch a workflow run.
+permissions:
+  contents: read
+  pull-requests: read
+  actions: write
+
+# One dispatcher at a time; a queued dispatcher is enough because it re-reads
+# the open PRs when it runs.
+concurrency:
+  group: release-pr-ci
+  cancel-in-progress: false
+
+jobs:
+  dispatch:
+    name: Dispatch CI for release PR
+    # A failed Release Please run did not create/update a PR; nothing to test.
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Dispatch ci.yml on each open release-please branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          # Release PRs only: release-please names its branch
+          # `release-please--branches--<target>--components--<component>`.
+          # Same-repo only — a fork's PR could not carry our checks anyway.
+          branches=$(gh pr list --repo "$REPO" --state open \
+            --json headRefName,isCrossRepository \
+            --jq '.[] | select(.isCrossRepository | not) | .headRefName | select(startswith("release-please--"))')
+
+          if [ -z "$branches" ]; then
+            echo "No open release-please PRs; nothing to dispatch."
+            exit 0
+          fi
+
+          for branch in $branches; do
+            status=$(gh run list --repo "$REPO" --workflow ci.yml --branch "$branch" \
+              --limit 1 --json status --jq '.[0].status // ""')
+
+            # Each push to main updates the Release PR, which re-runs Release
+            # Please. Without this guard a burst of merges would pile up
+            # identical CI runs on an unchanged release branch.
+            if [ "$status" = "in_progress" ] || [ "$status" = "queued" ] || [ "$status" = "requested" ]; then
+              echo "CI already ${status} on ${branch}; skipping."
+              continue
+            fi
+
+            echo "Dispatching CI on ${branch}"
+            gh workflow run ci.yml --repo "$REPO" --ref "$branch"
+          done
