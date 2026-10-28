@@ -136,7 +136,7 @@ func (a *App) queryFrontendVersions(ctx context.Context, loki *queries.Prometheu
 	go func() { defer wg.Done(); excRes, excErr = loki.InstantQuery(ctx, exceptionsExpr, to) }()
 	go func() {
 		defer wg.Done()
-		deploys, latestVersion = a.fetchDeployAnnotations(ctx, service, env, from, to)
+		deploys, latestVersion, _ = a.fetchDeployAnnotations(ctx, service, env, from, to)
 	}()
 	wg.Wait()
 	if sessErr != nil {
@@ -217,12 +217,13 @@ type grafanaAnnotation struct {
 }
 
 // fetchDeployAnnotations queries the Grafana annotations API for deploy
-// markers (#64 Phase 0 contract) and returns version → deploy timestamp (ms)
-// plus the version on the newest deploy. Degrades gracefully: any failure
+// markers (#64 Phase 0 contract) and returns version → earliest deploy
+// timestamp (ms), the version on the newest deploy annotation, and that
+// newest annotation's time (latestMs). Degrades gracefully: any failure
 // returns empty enrichment — version stats render without deploy times.
-func (a *App) fetchDeployAnnotations(ctx context.Context, service, env string, from, to time.Time) (map[string]int64, string) {
+func (a *App) fetchDeployAnnotations(ctx context.Context, service, env string, from, to time.Time) (map[string]int64, string, int64) {
 	if a.healthClient == nil || a.grafanaURL == "" {
-		return nil, ""
+		return nil, "", 0
 	}
 	logger := log.DefaultLogger.With("handler", "frontend-versions")
 
@@ -240,7 +241,7 @@ func (a *App) fetchDeployAnnotations(ctx context.Context, service, env string, f
 
 	apiReq, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/api/annotations?%s", a.grafanaURL, params.Encode()), nil)
 	if err != nil {
-		return nil, ""
+		return nil, "", 0
 	}
 	if token := a.resolveServiceToken(ctx); token != "" {
 		apiReq.Header.Set("Authorization", "Bearer "+token)
@@ -249,18 +250,18 @@ func (a *App) fetchDeployAnnotations(ctx context.Context, service, env string, f
 	resp, err := a.healthClient.Do(apiReq)
 	if err != nil {
 		logger.Debug("Deploy annotations request failed", "error", err)
-		return nil, ""
+		return nil, "", 0
 	}
 	defer resp.Body.Close() //nolint:errcheck
 	if resp.StatusCode != http.StatusOK {
 		logger.Debug("Deploy annotations request failed", "status", resp.StatusCode)
-		return nil, ""
+		return nil, "", 0
 	}
 
 	var annotations []grafanaAnnotation
 	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&annotations); err != nil {
 		logger.Debug("Deploy annotations decode failed", "error", err)
-		return nil, ""
+		return nil, "", 0
 	}
 
 	deploys := make(map[string]int64, len(annotations))
@@ -287,5 +288,5 @@ func (a *App) fetchDeployAnnotations(ctx context.Context, service, env string, f
 			latestVersion = version
 		}
 	}
-	return deploys, latestVersion
+	return deploys, latestVersion, latestTime
 }

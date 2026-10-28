@@ -30,7 +30,7 @@
 | Trace waterfall / Explore | Traces tab | `otel_traces` | ✅ | **E** CH search live via Grafana DS (nova-api traces) |
 | Log patterns | `GET .../logs/patterns` | `otel_logs` Body clustering | ✅ | **E** k8s identity + JSON body level match (filelog SeverityText empty) |
 | Log Explore | Logs tab | `otel_logs` | ✅ | **E** match via alias→`k8s.deployment.name` / pod prefix when ServiceName empty |
-| Issues / exceptions | `GET .../issues` | `otel_traces` | ✅ | **F** live: nova-api server exceptions (24h); nova-frontend browser `Element not found` (7d) |
+| Issues / exceptions | `GET .../issues` | `otel_traces` | ✅ | **F** live + post-parity **D**: `isNew` / `returnedAfterResolve` flags, badges, Overview attention strip |
 | Issue occurrences / drawer | CH spans + `rum.sessionId` | `otel_traces`, `hyperdx_sessions` | ✅ | **F** shipped; replay deep-link via `rum.sessionId`; Faro Loki not required |
 | Frontend Web Vitals | `GET .../frontend` + tab | `otel_traces` `webvitals` | ✅ | **G** CH scene: bullets + trends + volume/exceptions + CWV rating pie + browser/per-page tables (HyperDX; no Faro) |
 | Frontend versions | `GET .../frontend/versions` | `ResourceAttributes['service.version']` | ✅ | **G** + **21**: DEV `@hyperdx/otel-web` emits `service.version=APP_VERSION` (never `rum.version`) |
@@ -105,15 +105,14 @@ Platform **17/18/21** live (DEV/local); **16** plugin-ready without demo. Core s
 
 ## Post-parity hardening (plan spine A→F)
 
-Tracker: `.scratch/post-parity-hardening/map.md` (decisions in `issues/`). PR sizing: **A** alone; **B+C** combined; **D** / **E** / **F** separate (E∥F after A).
+Tracker: `.scratch/post-parity-hardening/map.md`. PR sizing: **A** alone; **B+C** combined; **D** / **E** / **F** separate.
 
 | Letter | Work | Status |
 |--------|------|--------|
-| **A** | Triage pagination + release-please `workflow_run` → `ci-ok` | 🚧 PR [#5](https://github.com/Simplifi-ED/grafana-apm-app/pull/5) |
-| **B** | Alerts UX polish (About callout; source badges; Open in Grafana; drop Under construction) | 🚧 PR [#6](https://github.com/Simplifi-ED/grafana-apm-app/pull/6) |
-| **C** | Templates: polish NEW + `regressing-exceptions` (CH) + `defaults=` contract | 🚧 PR [#6](https://github.com/Simplifi-ED/grafana-apm-app/pull/6) |
-| **D** | In-plugin notify: Issues flags, New/Returned, attention strip, Alerts CTA | 🚧 blocked on B+C |
-| **E** | Custom signals: CH-native Overview auto-charts | 🚧 parallel after A |
-| **F** | Scorecard v2 depth (sourcemaps, DB, messaging/Temporal, structured-log, probes) | 🚧 parallel after A |
+| **A** | Triage pagination + release-please `workflow_run` → `ci-ok` | ✅ [#5](https://github.com/Simplifi-ED/grafana-apm-app/pull/5) |
+| **B+C** | Alerts UX polish + NEW / `regressing-exceptions` (`defaults=`) | ✅ [#6](https://github.com/Simplifi-ED/grafana-apm-app/pull/6) |
+| **D** | In-plugin notify: Issues flags, New/Returned, attention strip, Alerts CTA | 🚧 [#7](https://github.com/Simplifi-ED/grafana-apm-app/pull/7) |
+| **E** | Custom signals: CH-native Overview auto-charts | 🚧 [#9](https://github.com/Simplifi-ED/grafana-apm-app/pull/9) |
+| **F** | Scorecard v2 depth (sourcemaps, DB, messaging/Temporal, structured-log, probes) | 🚧 [#10](https://github.com/Simplifi-ED/grafana-apm-app/pull/10) |
 
-Skip: CH OTel dual-emit double-count fix (research 01 — no CH equivalent).
+Skip: CH OTel dual-emit double-count fix (research 01). Namespace attention strip deferred (N+1).
