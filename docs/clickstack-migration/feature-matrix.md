@@ -1,6 +1,6 @@
 # ClickStack migration — feature matrix
 
-**Updated:** 2026-10-28 (yellow-row Grafana DS smoke: caps/ops/endpoints/health/breakdown/DB)  
+**Updated:** 2026-10-28 (closeout UI smoke vs prod CH: Versions/Feedback/Jobs/Runtime/aliases 10/10; wayfinder 16–18/21/27 closed)  
 **Mode:** When `jsonData.clickHouseDataSource.uid` is set, handlers use ClickHouse (`clickStackMode`). LGTM clients are not required.  
 **Phase 0 DoD:** full Nais UX parity with **real data** (ticket **05**). Soft-unavailable ≠ done for GraphQL / Jobs / Profiling / Feedback. Build order: ticket **12** (A→J).
 
