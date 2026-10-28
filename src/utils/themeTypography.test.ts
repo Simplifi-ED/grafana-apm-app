@@ -15,6 +15,7 @@ describe('themeTypography', () => {
 
   it('falls back to bodySmall/body when modern names are stripped (Grafana nightly)', () => {
     const theme = createTheme();
+    // Simulate nightly runtime where modern variant keys are absent.
     const stripped = {
       ...theme,
       typography: {
@@ -26,11 +27,11 @@ describe('themeTypography', () => {
         xl: undefined,
         xxl: undefined,
       },
-    };
+    } as unknown as ReturnType<typeof createTheme>;
 
-    expect(typographyFontSize(stripped as typeof theme, 'sm')).toBe(theme.typography.bodySmall.fontSize);
-    expect(typographyFontSize(stripped as typeof theme, 'base')).toBe(theme.typography.body.fontSize);
-    expect(typographyFontSize(stripped as typeof theme, 'md')).toBe(theme.typography.h5.fontSize);
-    expect(typographyVariant(stripped as typeof theme, 'lg').fontSize).toBe(theme.typography.h4.fontSize);
+    expect(typographyFontSize(stripped, 'sm')).toBe(theme.typography.bodySmall.fontSize);
+    expect(typographyFontSize(stripped, 'base')).toBe(theme.typography.body.fontSize);
+    expect(typographyFontSize(stripped, 'md')).toBe(theme.typography.h5.fontSize);
+    expect(typographyVariant(stripped, 'lg').fontSize).toBe(theme.typography.h4.fontSize);
   });
 });
