@@ -24,10 +24,7 @@ test.describe('Configuration', () => {
     await expect(save).toBeEnabled();
   });
 
-  test('save settings is clickable and yields a success or validation response', async ({
-    appConfigPage,
-    page,
-  }) => {
+  test('save settings is clickable and yields a success or validation response', async ({ appConfigPage, page }) => {
     const save = page.getByRole('button', { name: /Save settings/i });
     await expect(save).toBeVisible({ timeout: 10_000 });
     await save.click();
