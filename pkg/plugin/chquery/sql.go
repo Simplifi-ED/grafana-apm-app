@@ -41,6 +41,7 @@ const (
 	TraceStatusUnset    = "Unset"
 	ResCluster          = "cluster"
 	ResServiceNamespace = "service.namespace"
+	ResK8sNamespace     = "k8s.namespace.name"
 	ResSDKLanguage      = "telemetry.sdk.language"
 	ColTimeUnix         = "TimeUnix"  // metrics tables
 	ColTimestamp        = "Timestamp" // traces / logs / sessions
@@ -132,6 +133,15 @@ func ServiceExpr(attrCol string) string {
 	return fmt.Sprintf("coalesce(nullIf(%s['%s'], ''), ServiceName)", attrCol, AttrServiceName)
 }
 
+// NamespaceDisplayExpr prefers k8s.namespace.name over OTel service.namespace
+// (product labels like "sanad" break scrape/runtime filters that expect k8s ns).
+func NamespaceDisplayExpr(resourceCol string) string {
+	return fmt.Sprintf(
+		"coalesce(nullIf(%s['%s'], ''), nullIf(%s['%s'], ''))",
+		resourceCol, ResK8sNamespace, resourceCol, ResServiceNamespace,
+	)
+}
+
 // FilterClause builds AND-joined filters for namespace / environment / service list.
 // environment matches ResourceAttributes['cluster'] (verified HyperDX/OTel layout).
 func FilterClause(namespace, environment, service string, resourceCol string) string {
@@ -141,7 +151,13 @@ func FilterClause(namespace, environment, service string, resourceCol string) st
 			ServiceExpr("Attributes"), q(service), q(service)))
 	}
 	if namespace != "" {
-		parts = append(parts, fmt.Sprintf("%s['%s'] = %s", resourceCol, ResServiceNamespace, q(namespace)))
+		// Prefer k8s deployment ns; Sanad also sets OTel service.namespace=product
+		// ("sanad") which is not useful for inventory filters / scrape joins.
+		parts = append(parts, fmt.Sprintf(
+			"(%s['%s'] = %s OR %s['%s'] = %s)",
+			resourceCol, ResK8sNamespace, q(namespace),
+			resourceCol, ResServiceNamespace, q(namespace),
+		))
 	}
 	if environment != "" {
 		envs := strings.Split(environment, ",")

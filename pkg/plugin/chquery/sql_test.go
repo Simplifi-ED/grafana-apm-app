@@ -214,6 +214,26 @@ func TestAttachInventorySeries(t *testing.T) {
 	}
 }
 
+func TestNamespaceDisplayExpr_PrefersK8s(t *testing.T) {
+	got := NamespaceDisplayExpr("ResourceAttributes")
+	if !strings.Contains(got, ResK8sNamespace) || !strings.Contains(got, ResServiceNamespace) {
+		t.Fatalf("expected k8s then service.namespace: %s", got)
+	}
+	if !strings.Contains(got, "coalesce") {
+		t.Fatalf("expected coalesce: %s", got)
+	}
+}
+
+func TestFilterClause_NamespaceMatchesK8sOrService(t *testing.T) {
+	got := FilterClause("prod-nova", "", "", "ResourceAttributes")
+	if !strings.Contains(got, "k8s.namespace.name") || !strings.Contains(got, "service.namespace") {
+		t.Fatalf("namespace filter must OR k8s + service.namespace: %s", got)
+	}
+	if !strings.Contains(got, "prod-nova") {
+		t.Fatalf("missing namespace value: %s", got)
+	}
+}
+
 func TestFilterClause_EscapesQuotes(t *testing.T) {
 	got := FilterClause("", "", "O'Reilly", "ResourceAttributes")
 	if !strings.Contains(got, "O''Reilly") {
@@ -463,7 +483,10 @@ func TestParseGoRuntimeMaps(t *testing.T) {
 func TestCustomMetricsDiscoverSQL_DenylistAndScrape(t *testing.T) {
 	deny := `jvm_.*|go_.*|process_.*|up|promhttp_.*`
 	sql := CustomMetricsDiscoverSQL("nova-app", "prod-nova", deny, time.Now().Add(-time.Hour), time.Now(), 50)
-	for _, want := range []string{"nova-app", "NOT match", "otel_metrics_sum", "otel_metrics_histogram", "^(jvm_.*"} {
+	for _, want := range []string{
+		"nova-app", "NOT match", "otel_metrics_sum", "otel_metrics_histogram", "^(jvm_.*",
+		"GROUP BY MetricName, kind", // CH code 215 without outer agg keys
+	} {
 		if !strings.Contains(sql, want) {
 			t.Errorf("missing %q\n%s", want, sql)
 		}

@@ -1,6 +1,6 @@
 # ClickStack migration — feature matrix
 
-**Updated:** 2026-10-27 (plan sync — wayfinder tickets 05/12/13/15/19/20)  
+**Updated:** 2026-10-28 (Custom GROUP BY fix; Issues/deps/inventory live via Grafana DS)  
 **Mode:** When `jsonData.clickHouseDataSource.uid` is set, handlers use ClickHouse (`clickStackMode`). LGTM clients are not required.  
 **Phase 0 DoD:** full Nais UX parity with **real data** (ticket **05**). Soft-unavailable ≠ done for GraphQL / Jobs / Profiling / Feedback. Build order: ticket **12** (A→J).
 
@@ -20,7 +20,7 @@
 
 | Feature | Endpoint / UI | CH tables | Status | Plan / notes |
 |---------|---------------|-----------|--------|--------------|
-| Service inventory | `GET /services` → ServiceInventory | `otel_metrics_sum` (`traces.spanmetrics.calls`) + hist duration | 🟨 | **B** shipped: all-kind discover, SERVER RED + CLIENT fallback, histogram p95/sparklines, `hasFrontend`/`sdkLanguage` |
+| Service inventory | `GET /services` → ServiceInventory | `otel_metrics_sum` (`traces.spanmetrics.calls`) + hist duration | ✅ | **B** live: p95 + sparklines; ns prefers `k8s.namespace.name` over product `service.namespace=sanad`; residual `graphql-demo` until CH TTL |
 | Capabilities | `GET /capabilities` | sum metrics probes | 🟨 | + browser Issues/Versions/Feedback probes (**13**) |
 | Operations RED | `GET .../operations` | spanmetrics + traces quantiles | 🟨 | ADR 0003 SpanKind/StatusCode |
 | Overview RED timeseries | Scenes panels | `otel_metrics_sum` + histogram | 🟨 | Histogram-primary duration (**04**) |
@@ -30,18 +30,18 @@
 | Trace waterfall / Explore | Traces tab | `otel_traces` | ✅ | **E** CH search live via Grafana DS (nova-api traces) |
 | Log patterns | `GET .../logs/patterns` | `otel_logs` Body clustering | ✅ | **E** k8s identity + JSON body level match (filelog SeverityText empty) |
 | Log Explore | Logs tab | `otel_logs` | ✅ | **E** match via alias→`k8s.deployment.name` / pod prefix when ServiceName empty |
-| Issues / exceptions | `GET .../issues` | `otel_traces` | 🟨 | **F** shipped: HyperDX browser (`unhandledrejection`/`error.*`) + server `Events.exception` badged (**19**/ **20**); empty UX + alias/probe hints (**13**) |
-| Issue occurrences / drawer | CH spans + `rum.sessionId` | `otel_traces`, `hyperdx_sessions` | 🟨 | **F** shipped; replay deep-link via `rum.sessionId`; Faro Loki not required |
+| Issues / exceptions | `GET .../issues` | `otel_traces` | ✅ | **F** live: nova-api server exceptions (24h); nova-frontend browser `Element not found` (7d) |
+| Issue occurrences / drawer | CH spans + `rum.sessionId` | `otel_traces`, `hyperdx_sessions` | ✅ | **F** shipped; replay deep-link via `rum.sessionId`; Faro Loki not required |
 | Frontend Web Vitals | `GET .../frontend` + tab | `otel_traces` `webvitals` | 🟨 | HyperDX live |
 | Frontend versions | `GET .../frontend/versions` | `ResourceAttributes['service.version']` | ✅ | **G** + **21**: DEV `@hyperdx/otel-web` emits `service.version=APP_VERSION` (never `rum.version`) |
 | Frontend Feedback | Feedback UI | `otel_traces` `SpanName=faro.feedback` | ✅ | **G** + **21**: contract live after `keep-browser-rum` sampling (#121); Support form optional extra proof |
 | Frontend sessions list | `GET .../frontend/sessions` | `hyperdx_sessions` + enrich from traces | ✅ | **F** enrich: errors + user/version/pages/UA from all browser spans (not errors-only) |
 | Session replay | replay / probe / recordings | `hyperdx_sessions` | ✅ | |
 | Service map | `GET /service-map` | `traces_service_graph_*` | ✅ | Live edges via Grafana CH DS (envoy/nova-api/postgres/valkey) |
-| Dependencies / connected | `GET .../dependencies`, `/connected` | service graph CH | 🟨 | **D** service/global/ns/detail + connected |
+| Dependencies / connected | `GET .../dependencies`, `/connected` | service graph CH | ✅ | **D** live: nova-api → valkey/postgres/nova; inbound envoy-gateway (p95 often 0 — graph totals only) |
 | Database top queries / N+1 | DB tab | `otel_traces` db attrs | 🟨 | **D** `chquery` top queries + N+1 |
 | Runtime metrics | Runtime tab | `otel_metrics_*` `go_*`/`process_*` | ✅ | **C** + aliases: `nova-api→nova-app` Go runtime live |
-| Custom metrics | Custom tab | `otel_metrics_*` | 🟨 | **C** shipped: denylist discovery across gauge/sum/hist/summary |
+| Custom metrics | Custom tab | `otel_metrics_*` | ✅ | **C** live via aliases (`nova-api→nova-app`, 23 families); outer `GROUP BY MetricName, kind` (CH code 215) |
 | GraphQL | GraphQL / Server tab | `otel_metrics_*` probes ∨ `otel_traces` `graphql.operation.*` | 🟨 | **H** + **16**: plugin detect/query ready; no live Sanad GQL (demo removed; tab empty+hint until an app emits) |
 | Alerts / templates | Alerts UI | Grafana UA + CH SQL | ✅ | **D**/**27** `GET /alert-templates/error-rate` returns CH SQL defaults |
 | Scorecard | Scorecard | CH probes | ✅ | Logs+runtime via aliases; Jobs scored (kube_*); Profiling OK; GraphQL N/A |
@@ -89,14 +89,14 @@ Plan tracker: `.scratch/clickstack-nais-parity/map.md`.
 | Letter | Work | Enablement |
 |--------|------|------------|
 | A | ADR helpers + `serviceAliases` | 🟨 foundation shipped |
-| B | Inventory polish | 🟨 unit-tested; capabilities list live |
-| C | Runtime + Custom | ✅ Runtime live via aliases; Custom still 🟨 |
-| D | Alerts / Scorecard / DB / deps health | ✅ alerts templates + scorecard live; deps still 🟨 |
+| B | Inventory polish | ✅ live Grafana DS (k8s ns prefer) |
+| C | Runtime + Custom | ✅ both live via aliases |
+| D | Alerts / Scorecard / DB / deps health | ✅ alerts + scorecard + deps/connected live |
 | E | Explore depth | ✅ traces/logs/patterns live via Grafana CH DS |
-| F | Issues + Sessions UX | ✅ sessions enrich live; Issues still 🟨 unit-tested |
+| F | Issues + Sessions UX | ✅ sessions + Issues live |
 | G | Versions + Feedback | ✅ unit + DEV CH smoke (**21**) |
 | H | GraphQL | ✅ plugin path; live emitter optional (**16**) |
 | I | Jobs | ✅ Path A/B + live `kube_cronjob_*` (**17**) |
 | J | Profiling | ✅ plugin + local Pyroscope DS (**18**) |
 
-Platform **17/18/21** live (DEV/local); **16** plugin-ready without demo. Remaining: merge Sanad #836 → prod; local Grafana UI smoke with aliases.
+Platform **17/18/21** live (DEV/local); **16** plugin-ready without demo. Core spine A→J verified via Grafana CH DS on Local-ClickHouse.

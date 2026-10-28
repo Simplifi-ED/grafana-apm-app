@@ -15,7 +15,7 @@ func DiscoverInventorySQL(from, to time.Time, namespace, environment string) str
 	return fmt.Sprintf(`
 SELECT
   %s AS service,
-  any(ResourceAttributes['%s']) AS namespace,
+  any(%s) AS namespace,
   any(ResourceAttributes['%s']) AS environment,
   any(nullIf(ResourceAttributes['%s'], '')) AS sdk_language,
   sum(Value) AS calls
@@ -28,7 +28,8 @@ HAVING calls > 0
 ORDER BY calls DESC
 LIMIT 500`,
 		ServiceExpr("Attributes"),
-		ResServiceNamespace, ResCluster, ResSDKLanguage,
+		NamespaceDisplayExpr("ResourceAttributes"),
+		ResCluster, ResSDKLanguage,
 		table(queries.CHTableMetricsSum),
 		q(MetricSpanCalls),
 		MetricTimeFilter(from, to),
@@ -53,7 +54,7 @@ func inventoryCallsSQL(from, to time.Time, namespace, environment, spanKind stri
 	return fmt.Sprintf(`
 SELECT
   %s AS service,
-  any(ResourceAttributes['%s']) AS namespace,
+  any(%s) AS namespace,
   any(ResourceAttributes['%s']) AS environment,
   sum(Value) AS calls,
   sumIf(Value, %s) AS errors
@@ -67,7 +68,8 @@ HAVING calls > 0
 ORDER BY calls DESC
 LIMIT 500`,
 		ServiceExpr("Attributes"),
-		ResServiceNamespace, ResCluster,
+		NamespaceDisplayExpr("ResourceAttributes"),
+		ResCluster,
 		MetricStatusErrorFilter(),
 		table(queries.CHTableMetricsSum),
 		q(MetricSpanCalls),

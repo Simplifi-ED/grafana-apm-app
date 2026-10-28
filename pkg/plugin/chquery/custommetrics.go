@@ -30,6 +30,8 @@ func CustomMetricsDiscoverSQL(scrapeService, namespace, denylist string, from, t
 	svc := ScrapeServiceFilter(scrapeService, namespace)
 	tf := MetricTimeFilter(from, to)
 	deny := q(DenylistMatchPattern(denylist))
+	// Inner branches already aggregate; outer GROUP BY MetricName, kind is
+	// required by ClickHouse when wrapping UNION ALL (code 215 otherwise).
 	return fmt.Sprintf(`
 SELECT MetricName, kind, any(description) AS description, any(unit) AS unit FROM (
   SELECT MetricName, 'gauge' AS kind, any(MetricDescription) AS description, any(MetricUnit) AS unit
@@ -52,6 +54,7 @@ SELECT MetricName, kind, any(description) AS description, any(unit) AS unit FROM
   WHERE NOT match(MetricName, %s) AND %s AND (%s)
   GROUP BY MetricName
 )
+GROUP BY MetricName, kind
 ORDER BY MetricName
 LIMIT %d`,
 		table(queries.CHTableMetricsGauge), deny, tf, svc,
