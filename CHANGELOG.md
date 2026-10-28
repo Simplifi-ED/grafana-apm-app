@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.26.1](https://github.com/Simplifi-ED/grafana-apm-app/compare/clickhouse-apm-app-v0.26.0...clickhouse-apm-app-v0.26.1) (2026-10-28)
+
+
+### Bug Fixes
+
+* improve type handling in themeTypography tests ([1adc6f6](https://github.com/Simplifi-ED/grafana-apm-app/commit/1adc6f6cb4a929406d91e7df5dff75c30046ec85))
+
 ## [0.26.0](https://github.com/Simplifi-ED/grafana-apm-app/compare/clickhouse-apm-app-v0.25.3...clickhouse-apm-app-v0.26.0) (2026-10-28)
 
 
