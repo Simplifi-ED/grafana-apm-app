@@ -193,3 +193,62 @@ WHERE b.exception_type IS NULL`,
 		typeExpr, table(queries.CHTableTraces), ColTimestamp, ColTimestamp, filt,
 	)
 }
+
+// Regressing volume-alert knobs (plan ticket 06): recent window vs 7d hourly
+// baseline. Pure CH SQL — not triage/deploy-aware (that is ticket 07 / UI).
+const (
+	regressingRecentHours     = 1
+	regressingBaselineDays    = 7
+	regressingVolumeFactor    = 5.0
+	regressingAbsoluteFloor   = 10.0
+	regressingBaselineHours   = regressingBaselineDays * 24
+)
+
+// RegressingExceptionsAlertSQL counts exception types whose count in the last
+// hour exceeds max(5× the prior 7d hourly average, 10). Threshold the alert
+// rule against value > 0. Honest approximation: no triage state, no deploy
+// markers — a noisy type that was always loud can still trip the floor.
+func RegressingExceptionsAlertSQL(service, environment string) string {
+	filt := alertTraceServiceFilter(service, environment)
+	typeExpr := `coalesce(
+  nullIf(arrayElement(Events.Attributes, indexOf(Events.Name, 'exception'))['exception.type'], ''),
+  nullIf(SpanAttributes['exception.type'], ''),
+  nullIf(SpanAttributes['error.type'], ''),
+  SpanName
+)`
+	exShape := `(
+      has(Events.Name, 'exception')
+      OR SpanName = 'unhandledrejection'
+      OR startsWith(SpanName, 'error.')
+    )`
+	return fmt.Sprintf(`
+WITH recent AS (
+  SELECT %s AS exception_type, count() AS c
+  FROM %s
+  WHERE %s >= now() - INTERVAL %d HOUR
+    AND (%s)
+    AND %s
+    AND exception_type != ''
+  GROUP BY exception_type
+),
+baseline AS (
+  SELECT %s AS exception_type, count() / %d.0 AS hourly_avg
+  FROM %s
+  WHERE %s >= now() - INTERVAL %d DAY - INTERVAL %d HOUR
+    AND %s < now() - INTERVAL %d HOUR
+    AND (%s)
+    AND %s
+    AND exception_type != ''
+  GROUP BY exception_type
+)
+SELECT count() AS value
+FROM recent AS r
+LEFT JOIN baseline AS b ON r.exception_type = b.exception_type
+WHERE r.c > greatest(coalesce(b.hourly_avg, 0) * %g, %g)`,
+		typeExpr, table(queries.CHTableTraces), ColTimestamp, regressingRecentHours, filt, exShape,
+		typeExpr, regressingBaselineHours, table(queries.CHTableTraces),
+		ColTimestamp, regressingBaselineDays, regressingRecentHours,
+		ColTimestamp, regressingRecentHours, filt, exShape,
+		regressingVolumeFactor, regressingAbsoluteFloor,
+	)
+}

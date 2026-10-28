@@ -30,6 +30,10 @@ import (
 const (
 	triageTag       = "clickhouse-apm:triage"
 	maxTriageEvents = 1000
+	// minAnnotationFromMs is the lower time bound sent on every page. It must
+	// be positive: Grafana's annotation store only applies the epoch window
+	// when both from and to are > 0, so from=0 would silently disable paging.
+	minAnnotationFromMs = 1
 	// maxTriagePages bounds pagination: 10k events per service is far beyond
 	// any observed history and keeps a pathological loop finite.
 	maxTriagePages = 10
@@ -126,6 +130,16 @@ func (s *annotationTriageStore) do(ctx context.Context, method, path string, bod
 //   - Reads paginate past the per-request cap: the newest-1000 window
 //     silently dropped older resolves on heavily-triaged services (the
 //     fold then reported them active).
+//
+// Pagination contract: Grafana's annotation store applies the time window
+// only when BOTH bounds are positive (`if query.From > 0 && query.To > 0` in
+// pkg/services/sqlstore/annotation.go), so `from=0` silently dropped `to` as
+// well and every page re-read the same newest rows — the loop made no
+// progress and older events never reached the fold. We therefore pin
+// `from=1` (epoch ms 1 = "from the beginning", still positive) and advance
+// with `to = oldestSeen` (inclusive). Stepping to oldest-1 would drop
+// same-millisecond siblings cut from a full page; the store is inclusive on
+// both ends and `seen` already dedupes re-fetched IDs.
 func (s *annotationTriageStore) fetch(ctx context.Context, tags []string) ([]grafanaAnnotation, error) {
 	queryTags := make([]string, 0, len(tags))
 	for _, tg := range tags {
@@ -135,6 +149,7 @@ func (s *annotationTriageStore) fetch(ctx context.Context, tags []string) ([]gra
 	}
 
 	var out []grafanaAnnotation
+	seen := make(map[int64]bool, maxTriageEvents)
 	to := time.Now().UnixMilli()
 	for range maxTriagePages {
 		q := url.Values{}
@@ -142,7 +157,7 @@ func (s *annotationTriageStore) fetch(ctx context.Context, tags []string) ([]gra
 			q.Add("tags", tg)
 		}
 		q.Set("limit", strconv.Itoa(maxTriageEvents))
-		q.Set("from", "0")
+		q.Set("from", strconv.FormatInt(minAnnotationFromMs, 10))
 		q.Set("to", strconv.FormatInt(to, 10))
 
 		resp, err := s.do(ctx, http.MethodGet, "/api/annotations?"+q.Encode(), nil)
@@ -162,15 +177,18 @@ func (s *annotationTriageStore) fetch(ctx context.Context, tags []string) ([]gra
 			return nil, fmt.Errorf("unmarshaling annotations: %w", err)
 		}
 		for _, ann := range anns {
-			if hasTag(ann.Tags, triageTag) {
+			if hasTag(ann.Tags, triageTag) && !seen[ann.ID] {
+				seen[ann.ID] = true
 				out = append(out, ann)
 			}
 		}
 		if len(anns) < maxTriageEvents {
 			return out, nil
 		}
-		// Full page: older events may remain — continue below the oldest
-		// timestamp seen (results are newest-first).
+		// Full page: older events may remain. Keep `to` at the page's oldest
+		// Time so same-ms siblings cut by `limit` stay in range; `seen`
+		// drops the already-returned boundary rows. If the whole page sits
+		// at the current `to`, we cannot advance — stop (bounded by pages).
 		oldest := anns[len(anns)-1].Time
 		if oldest >= to {
 			return out, nil
