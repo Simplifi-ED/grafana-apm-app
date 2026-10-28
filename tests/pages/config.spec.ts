@@ -1,4 +1,4 @@
-import { test, expect, expectAnyVisible } from '../fixtures';
+import { test, expect, PLUGIN_ID } from '../fixtures';
 
 test.describe('Configuration', () => {
   test('renders all configuration sections', async ({ appConfigPage, page }) => {
@@ -24,21 +24,21 @@ test.describe('Configuration', () => {
     await expect(save).toBeEnabled();
   });
 
-  test('save settings is clickable and yields a success or validation response', async ({ appConfigPage, page }) => {
+  // Save calls updatePluginAndReload: success → window.location.reload (no toast);
+  // failure → console.error only. Assert the settings POST instead of UI chrome.
+  test('save settings posts plugin settings', async ({ appConfigPage, page }) => {
     const save = page.getByRole('button', { name: /Save settings/i });
     await expect(save).toBeVisible({ timeout: 10_000 });
-    await save.click();
 
-    // CI / local-without-DS often returns a validation or backend error toast;
-    // a blank click with neither success nor error means the handler broke.
-    await expectAnyVisible(
-      [
-        page.locator('[data-testid="data-testid Alert success"]'),
-        page.locator('[data-testid="data-testid Alert error"]'),
-        page.getByRole('alert'),
-      ],
-      { timeout: 8_000, message: 'Save settings produced no success or error feedback' }
+    const responsePromise = page.waitForResponse(
+      (r) => r.url().includes(`/api/plugins/${PLUGIN_ID}/settings`) && r.request().method() === 'POST',
+      { timeout: 10_000 }
     );
+    await save.click();
+    const response = await responsePromise;
+    // 200 = persisted (page then reloads); 4xx = Grafana rejected the payload.
+    // Either proves the submit handler ran.
+    expect(response.status(), `unexpected settings status ${response.status()}`).toBeLessThan(500);
   });
 
   test('authentication section has service account token field', async ({ appConfigPage, page }) => {
