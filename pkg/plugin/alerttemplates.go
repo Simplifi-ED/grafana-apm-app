@@ -192,7 +192,7 @@ type alertTemplateResponse struct {
 // known kind that cannot render a PrometheusRule (400) from a typo (404).
 var alertTemplateKinds = map[string]bool{
 	"error-rate": true, "exception-spike": true, "web-vitals": true,
-	"new-exceptions": true, "slo-burn-rate": true,
+	"new-exceptions": true, "regressing-exceptions": true, "slo-burn-rate": true,
 }
 
 func (a *App) handleAlertTemplate(w http.ResponseWriter, req *http.Request) {
@@ -296,6 +296,11 @@ func (a *App) handleAlertTemplate(w http.ResponseWriter, req *http.Request) {
 				return
 			}
 			defaults = a.newExceptionsDefaults(namespace, service, env, uid)
+
+		case "regressing-exceptions":
+			// Phase A (ticket 06): volume-regression template is ClickHouse-only.
+			http.Error(w, `{"error":"regressing-exceptions requires ClickStack (ClickHouse) mode"}`, http.StatusBadRequest)
+			return
 
 		case "slo-burn-rate":
 			window := q.Get("window")
@@ -930,7 +935,30 @@ func (a *App) clickStackAlertDefaults(
 			}, expressionQueries(0)...),
 			Annotations: []alertKeyValue{
 				{Key: "summary", Value: fmt.Sprintf(
-					"Exception types in %s appeared that were not seen in the previous 7 days (ClickHouse approximate detection)", service)},
+					"Exception types in %s appeared that were not seen in the previous 7 days "+
+						"(approximate: types older than the 7d lookback re-fire as new; "+
+						"resolved-issue returns are not detected here — see Exception volume regression)", service)},
+				{Key: "clickhouse_apm_url", Value: serviceDeepLink(namespace, service, env, "issues", "", "")},
+			},
+			Labels: templateLabels(namespace, service),
+		}, true
+
+	case "regressing-exceptions":
+		// Volume ≫ baseline (ticket 06). Deliberately NOT named "Regressed" —
+		// that word is reserved for the triage/deploy UI badge (ticket 07).
+		return ruleFormDefaults{
+			Type:        "grafana",
+			Name:        fmt.Sprintf("Exception volume regression – %s%s", service, envSuffix(env)),
+			Condition:   "C",
+			EvaluateFor: "5m",
+			Queries: append([]alertQuery{
+				chDataQuery(chUID, chquery.RegressingExceptionsAlertSQL(browser, env), 7*24*3600),
+			}, expressionQueries(0)...),
+			Annotations: []alertKeyValue{
+				{Key: "summary", Value: fmt.Sprintf(
+					"Exception types in %s exceeded 5× their prior 7-day hourly average in the last hour "+
+						"(or ≥10 absolute). Approximate volume signal — not triage/deploy aware; "+
+						"a chronically loud type can trip the absolute floor", service)},
 				{Key: "clickhouse_apm_url", Value: serviceDeepLink(namespace, service, env, "issues", "", "")},
 			},
 			Labels: templateLabels(namespace, service),

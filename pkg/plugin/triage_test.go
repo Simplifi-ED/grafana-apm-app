@@ -261,36 +261,131 @@ func TestTriageFetchOmitsCommonTagAndFiltersClientSide(t *testing.T) {
 	}
 }
 
+// seedPaginationEvents fills the mock with one old resolve plus enough newer
+// events to overflow a single page, so paging past the limit is required for
+// the resolve to reach the fold.
+func seedPaginationEvents(m *mockAnnotationsAPI) {
+	total := maxTriageEvents + 50
+	m.anns = append(m.anns, grafanaAnnotation{
+		ID:   1,
+		Time: 1,
+		Text: `{"schema":1,"action":"resolve","actor":"a"}`,
+		Tags: []string{"clickhouse-apm:triage", "app:team/app", "fp:v1-old"},
+	})
+	for i := 1; i < total; i++ {
+		m.anns = append(m.anns, grafanaAnnotation{
+			ID:   int64(i + 1),
+			Time: int64(i + 1),
+			Text: `{"schema":1,"action":"assign","actor":"b","assignee":"x"}`,
+			Tags: []string{"clickhouse-apm:triage", "app:team/app", "fp:v1-noise"},
+		})
+	}
+	m.nextID = int64(total)
+}
+
 func TestTriageFetchPaginatesPastLimit(t *testing.T) {
 	// ADR-0001 mitigation 2 (the 1000-event correctness cliff): a resolve
 	// older than the newest-limit window must still reach the fold.
-	pageSize := maxTriageEvents
-	total := pageSize + 50
-	anns := make([]grafanaAnnotation, 0, total)
-	// Oldest event: the resolve that the un-paginated fetch lost.
-	anns = append(anns, grafanaAnnotation{Time: 1, Text: `{"schema":1,"action":"resolve","actor":"a"}`, Tags: []string{"clickhouse-apm:triage", "app:team/app", "fp:v1-old"}})
-	for i := 1; i < total; i++ {
-		anns = append(anns, grafanaAnnotation{Time: int64(i + 1), Text: `{"schema":1,"action":"assign","actor":"b","assignee":"x"}`, Tags: []string{"clickhouse-apm:triage", "app:team/app", "fp:v1-noise"}})
-	}
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		to, _ := strconv.ParseInt(r.URL.Query().Get("to"), 10, 64)
-		var out []grafanaAnnotation
-		for i := len(anns) - 1; i >= 0 && len(out) < pageSize; i-- {
-			if anns[i].Time <= to {
-				out = append(out, anns[i])
-			}
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(out)
-	}))
-	t.Cleanup(srv.Close)
-	s := &annotationTriageStore{grafanaURL: srv.URL, token: "tok", httpClient: srv.Client()}
+	//
+	// Routed through mockAnnotationsAPI rather than a bespoke handler so the
+	// real Grafana from/to semantics apply — a handler that honours `to` but
+	// ignores `from` passes even when the caller sends from=0, which is the
+	// bug this test exists to catch.
+	s, mock := triageTestStore(t)
+	seedPaginationEvents(mock)
 
 	states, err := s.States(context.Background(), "team", "app")
 	if err != nil {
 		t.Fatalf("states: %v", err)
 	}
 	if st := states["v1:old"]; st.Status != "resolved" {
-		t.Errorf("v1:old = %+v — the oldest resolve fell off the un-paginated window", st)
+		t.Errorf("v1:old = %+v — the oldest resolve fell off the paginated window", st)
+	}
+}
+
+// TestTriageFetchKeepsTiedTimestampsAcrossPages: when the page cut falls
+// inside a same-Time group, advancing with to=oldest-1 would drop the
+// cut siblings forever. Insert resolve before filler at Time=1000 so the
+// mock's reverse-insertion order for ties puts filler on page 1 and
+// resolve off the page — the fold must still see the resolve.
+func TestTriageFetchKeepsTiedTimestampsAcrossPages(t *testing.T) {
+	s, mock := triageTestStore(t)
+	tags := []string{"clickhouse-apm:triage", "app:team/app", "fp:v1-tied"}
+	noise := []string{"clickhouse-apm:triage", "app:team/app", "fp:v1-noise"}
+
+	mock.anns = append(mock.anns, grafanaAnnotation{
+		ID: 1, Time: 1000,
+		Text: `{"schema":1,"action":"resolve","actor":"a"}`,
+		Tags: tags,
+	})
+	mock.anns = append(mock.anns, grafanaAnnotation{
+		ID: 2, Time: 1000,
+		Text: `{"schema":1,"action":"assign","actor":"b","assignee":"x"}`,
+		Tags: noise,
+	})
+	id := int64(3)
+	for i := 0; i < maxTriageEvents-1; i++ {
+		mock.anns = append(mock.anns, grafanaAnnotation{
+			ID: id, Time: int64(1001 + i),
+			Text: `{"schema":1,"action":"assign","actor":"b","assignee":"x"}`,
+			Tags: noise,
+		})
+		id++
+	}
+	for i := 0; i < maxTriageEvents-1; i++ {
+		mock.anns = append(mock.anns, grafanaAnnotation{
+			ID: id, Time: int64(999 - i),
+			Text: `{"schema":1,"action":"assign","actor":"b","assignee":"x"}`,
+			Tags: noise,
+		})
+		id++
+	}
+	mock.nextID = id
+
+	states, err := s.States(context.Background(), "team", "app")
+	if err != nil {
+		t.Fatalf("states: %v", err)
+	}
+	if st := states["v1:tied"]; st.Status != "resolved" {
+		t.Errorf("v1:tied = %+v — same-ms resolve cut by page limit was dropped", st)
+	}
+}
+
+// TestTriageFetchSendsPositiveFrom locks the pagination contract: Grafana
+// applies the epoch window only when from AND to are both positive, so a
+// from=0 request silently drops the upper bound and the loop re-reads the
+// same newest page forever.
+func TestTriageFetchSendsPositiveFrom(t *testing.T) {
+	var gotFrom []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		gotFrom = append(gotFrom, q.Get("from"))
+		// A full page every time: forces the caller to paginate.
+		page := make([]grafanaAnnotation, 0, maxTriageEvents)
+		for i := range maxTriageEvents {
+			page = append(page, grafanaAnnotation{
+				ID:   int64(i + 1),
+				Time: int64(maxTriageEvents - i),
+				Text: `{"schema":1,"action":"assign","actor":"b","assignee":"x"}`,
+				Tags: []string{"clickhouse-apm:triage", "app:team/app", "fp:v1-noise"},
+			})
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(page)
+	}))
+	t.Cleanup(srv.Close)
+	s := &annotationTriageStore{grafanaURL: srv.URL, token: "tok", httpClient: srv.Client()}
+
+	if _, err := s.fetch(context.Background(), []string{triageTag, "app:team/app"}); err != nil {
+		t.Fatalf("fetch: %v", err)
+	}
+	if len(gotFrom) < 2 {
+		t.Fatalf("expected pagination (2+ requests), got %d", len(gotFrom))
+	}
+	for i, from := range gotFrom {
+		v, err := strconv.ParseInt(from, 10, 64)
+		if err != nil || v <= 0 {
+			t.Errorf("page %d sent from=%q — Grafana ignores the time window unless from > 0", i, from)
+		}
 	}
 }

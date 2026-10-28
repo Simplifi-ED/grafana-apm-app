@@ -76,8 +76,8 @@ curl -s ".../capabilities"
 
 `GET /services/{namespace}/{service}/scorecard`
 
-An observability-readiness scorecard for a service (6 checks) plus nais Console
-ownership enrichment.
+An observability-readiness scorecard for a service. Score is
+`score/total` over **applicable** checks only (`notApplicable` excluded).
 
 ### Parameters
 
@@ -89,15 +89,16 @@ ownership enrichment.
 | Field | Type | Description |
 | --- | --- | --- |
 | `readiness` | object | `{ score int, total int, checks: [ScorecardCheck] }`. |
-| `console` | object | nais Console enrichment (see below). |
 
-**ScorecardCheck**: `key` (string), `label` (string), `ok` (bool), `hint`
-(string). The six checks, in order: `spanMetrics`, `traces`, `logs`,
-`runtimeMetrics`, `browserTelemetry`, `alertRules`.
+**ScorecardCheck**: `key`, `label`, `ok`, `hint`, optional `notApplicable`.
 
-**console** (`ScorecardConsole`): `configured` (bool), `teamSlug?`,
-`slackChannel?`, `repositoryUrl?`, `ingresses?` (array&lt;string&gt;).
-`configured` is `false` when the nais Console API is not set up on the install.
+Base checks: `spanMetrics`, `traces`, `logs`, `runtimeMetrics`,
+`browserTelemetry`, `alertRules`, plus `graphql` (N/A until enablement),
+`jobs`, `profiling`. ClickStack v2 (letter F): `sourcemaps` (browser-only),
+`database` (N/A without `db.system`), `messagingOrWorkflow` (N/A without
+messaging or Temporal signals), `structuredLogs` (N/A without logs; requires
+ADR-0002 `exception.type` + `exception.stacktrace`). Deploy markers and team
+rollup / Console ownership are out of scope.
 
 ### Example
 
@@ -111,12 +112,11 @@ curl -s ".../services/fager/min-side-arbeidsgiver/scorecard"
     "score": 5,
     "total": 6,
     "checks": [
-      { "key": "spanMetrics", "label": "Span metrics (RED)", "ok": true, "hint": "Enable auto-instrumentation in your nais manifest..." },
-      { "key": "traces", "label": "Traces in Tempo", "ok": true, "hint": "Export OTLP traces to the collector..." },
-      { "key": "browserTelemetry", "label": "Browser telemetry (Faro)", "ok": true, "hint": "Instrument your frontend with @nais/apm (Faro)..." }
+      { "key": "spanMetrics", "label": "Span metrics (RED)", "ok": true, "hint": "Enable auto-instrumentation..." },
+      { "key": "traces", "label": "Traces", "ok": true, "hint": "Export OTLP traces..." },
+      { "key": "database", "label": "Database usage", "ok": false, "hint": "Not applicable — no db.system client spans.", "notApplicable": true }
     ]
-  },
-  "console": { "configured": false }
+  }
 }
 ```
 

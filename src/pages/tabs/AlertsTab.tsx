@@ -16,7 +16,7 @@ import { usePluginDatasources } from '../../utils/datasources';
 import { useFetch } from '../../utils/useFetch';
 import { useUrlParams } from '../../utils/useUrlState';
 import { FiringAlertDrawer } from './alerts/FiringAlertDrawer';
-import { typographyFontSize } from '../../utils/themeTypography';
+import { typographyFontSize, typographyVariant } from '../../utils/themeTypography';
 
 interface AlertsTabProps {
   service: string;
@@ -36,6 +36,8 @@ interface AlertTemplateCard {
   title: string;
   description: string;
   window?: 'fast' | 'slow';
+  /** When true, only offer this card in ClickStack-only mode (no Mimir). */
+  clickStackOnly?: boolean;
 }
 
 const ALERT_TEMPLATES: AlertTemplateCard[] = [
@@ -63,7 +65,16 @@ const ALERT_TEMPLATES: AlertTemplateCard[] = [
     key: 'new-exceptions',
     kind: 'new-exceptions',
     title: 'New exception types',
-    description: 'Fires when an exception type appears that was not seen in the previous 7 days. Requires logs (Loki).',
+    description:
+      'Fires when an exception type appears that was not seen in the previous 7 days (approximate lookback). ClickStack uses traces; dual-mode uses logs.',
+  },
+  {
+    key: 'regressing-exceptions',
+    kind: 'regressing-exceptions',
+    title: 'Exception volume regression',
+    description:
+      'Fires when an exception type\'s last-hour count exceeds 5× its prior 7-day hourly average (or ≥10 absolute). Volume signal only — not the Issues "Returned after resolve" badge. ClickStack (ClickHouse) only.',
+    clickStackOnly: true,
   },
   {
     key: 'web-vitals',
@@ -148,15 +159,33 @@ export function AlertsTab({ service, namespace, environment }: AlertsTabProps) {
   return (
     <div className={styles.container}>
       <section className={styles.panel}>
+        <div className={styles.aboutCallout} role="note">
+          <Icon name="info-circle" className={styles.aboutIcon} />
+          <div>
+            <div className={styles.aboutTitle}>Where alerts live</div>
+            <div className={styles.aboutBody}>
+              {clickStackOnly ? (
+                <>
+                  Rules are <strong>Grafana unified alerting</strong> evaluations against your ClickHouse datasource.
+                  APM lists rules that mention this service and offers create-from-template shortcuts — saving happens
+                  in Grafana&apos;s alert editor. Contact points and Slack routing stay in Grafana / Alertmanager.
+                </>
+              ) : (
+                <>
+                  This tab merges <strong>Prometheus / Mimir ruler</strong> rules with{' '}
+                  <strong>Grafana unified alerting</strong>. Templates open Grafana&apos;s editor pre-filled; the plugin
+                  never creates a rule until you Save there. Routing (Slack, etc.) is owned by your Alertmanager /
+                  Grafana contact points — not this plugin.
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+
         <div className={styles.sectionHeader}>
           <h3 className={styles.sectionTitle}>
             <Icon name="bell" className={styles.titleIcon} />
-            Alert rules{' '}
-            <Badge
-              text="Under construction"
-              color="orange"
-              tooltip="Per-team alert folders and configuration are still being set up across the platform — where a rule lands may change. You can create alerts from templates today."
-            />
+            Alert rules
           </h3>
           <span className={styles.sectionSubtitle}>
             {clickStackOnly
@@ -192,7 +221,7 @@ export function AlertsTab({ service, namespace, environment }: AlertsTabProps) {
         </div>
 
         <div className={styles.cards}>
-          {ALERT_TEMPLATES.map((card) => (
+          {ALERT_TEMPLATES.filter((card) => !card.clickStackOnly || clickStackOnly).map((card) => (
             <div key={card.key} className={styles.card}>
               <div className={styles.cardBody}>
                 <div className={styles.cardTitle}>{card.title}</div>
@@ -313,9 +342,9 @@ function AlertRulesTable({
               </td>
               <td className={styles.narrowCol}>
                 {rule.source === 'grafana' ? (
-                  <Badge text="grafana" color="blue" icon="bell" />
+                  <Badge text="Grafana UA" color="blue" icon="bell" />
                 ) : (
-                  <Badge text="mimir" color="purple" icon="graph-bar" />
+                  <Badge text="Prometheus" color="purple" icon="graph-bar" />
                 )}
               </td>
               <td>
@@ -417,6 +446,29 @@ const getStyles = (theme: GrafanaTheme2) => ({
     border: 1px solid ${theme.colors.border.weak};
     border-radius: ${theme.shape.radius.default};
     padding: ${theme.spacing(2)};
+  `,
+  aboutCallout: css`
+    display: flex;
+    gap: ${theme.spacing(1.5)};
+    margin-bottom: ${theme.spacing(2)};
+    padding: ${theme.spacing(1.5)};
+    background: ${theme.colors.background.secondary};
+    border-radius: ${theme.shape.radius.default};
+    border: 1px solid ${theme.colors.border.weak};
+  `,
+  aboutIcon: css`
+    margin-top: ${theme.spacing(0.25)};
+    color: ${theme.colors.text.secondary};
+    flex-shrink: 0;
+  `,
+  aboutTitle: css`
+    font-weight: ${theme.typography.fontWeightMedium};
+    margin-bottom: ${theme.spacing(0.5)};
+  `,
+  aboutBody: css`
+    font-size: ${typographyFontSize(theme, 'sm')};
+    color: ${theme.colors.text.secondary};
+    line-height: ${typographyVariant(theme, 'sm').lineHeight};
   `,
   sectionHeader: css`
     margin-bottom: ${theme.spacing(1.5)};

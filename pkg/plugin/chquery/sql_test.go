@@ -575,6 +575,38 @@ func TestScorecardProbeSQL(t *testing.T) {
 	}
 }
 
+func TestScorecardV2ProbeSQL(t *testing.T) {
+	from, to := time.Now().Add(-time.Hour), time.Now()
+	db := DatabasePresenceProbeSQL("nova-api", "prod", from, to)
+	for _, want := range []string{"db.system", "nova-api", MetricSpanCalls} {
+		if !strings.Contains(db, want) {
+			t.Errorf("database probe missing %q\n%s", want, db)
+		}
+	}
+	msg := MessagingOrWorkflowPresenceProbeSQL("nova-api", "prod", from, to)
+	for _, want := range []string{"messaging.system", "rpc.system", "temporal", "temporal.workflow.id"} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("messaging probe missing %q\n%s", want, msg)
+		}
+	}
+	structured := StructuredLogProbeSQL("nova-api", "nova-app", "prod", from, to)
+	for _, want := range []string{"exception.type", "exception.stacktrace", "nova-api"} {
+		if !strings.Contains(structured, want) {
+			t.Errorf("structured log probe missing %q\n%s", want, structured)
+		}
+	}
+	errors := BrowserErrorPresenceProbeSQL("nova-frontend", "prod", from, to)
+	if !strings.Contains(errors, "unhandledrejection") || !strings.Contains(errors, "nova-frontend") {
+		t.Fatalf("browser error probe: %s", errors)
+	}
+	maps := SourcemapsProbeSQL("nova-frontend", "prod", from, to)
+	for _, want := range []string{"error.stack", ".ts:", "webpack://", "nova-frontend"} {
+		if !strings.Contains(maps, want) {
+			t.Errorf("sourcemaps probe missing %q\n%s", want, maps)
+		}
+	}
+}
+
 func TestTopDBQueriesSQL(t *testing.T) {
 	sql := TopDBQueriesSQL("nova-api", "prod", time.Now().Add(-time.Hour), time.Now(), 100)
 	for _, want := range []string{"db.statement", "db.system", "nova-api", "duration_ms"} {
@@ -652,6 +684,22 @@ func TestBrowserFeedbackSQL_FaroShapedContract(t *testing.T) {
 func TestErrorRateAlertSQL_UsesTimeFilterMacro(t *testing.T) {
 	sql := ErrorRateAlertSQL("nova-api", "ns", "prod")
 	for _, want := range []string{"$__timeFilter(TimeUnix)", MetricSpanCalls, "STATUS_CODE_ERROR", "SPAN_KIND_SERVER"} {
+		if !strings.Contains(sql, want) {
+			t.Errorf("missing %q\n%s", want, sql)
+		}
+	}
+}
+
+func TestRegressingExceptionsAlertSQL_VolumeVsBaseline(t *testing.T) {
+	sql := RegressingExceptionsAlertSQL("nova-api", "prod")
+	for _, want := range []string{
+		"hourly_avg",
+		"INTERVAL 1 HOUR",
+		"INTERVAL 7 DAY",
+		"greatest",
+		"ServiceName = 'nova-api'",
+		"has(Events.Name, 'exception')",
+	} {
 		if !strings.Contains(sql, want) {
 			t.Errorf("missing %q\n%s", want, sql)
 		}
