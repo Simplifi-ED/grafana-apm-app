@@ -438,7 +438,8 @@ export async function getNamespaceAlerts(namespace: string): Promise<NamespaceAl
 
 // ---- Alert rule templates (#65 Phase 1) ----
 
-export type AlertTemplateKind = 'error-rate' | 'exception-spike' | 'web-vitals' | 'new-exceptions' | 'slo-burn-rate';
+export type AlertTemplateKind =
+  'error-rate' | 'exception-spike' | 'web-vitals' | 'new-exceptions' | 'regressing-exceptions' | 'slo-burn-rate';
 
 export interface AlertTemplateResponse {
   /**
@@ -652,6 +653,19 @@ export interface UnifiedIssue {
   truncated?: boolean;
   source: IssueSource;
   impact?: IssueImpact;
+  /** On-read: absent from preceding equal-length window (server-derived). */
+  isNew?: boolean;
+  /**
+   * On-read: triage resolved before newest deploy, still occurring.
+   * UI: "Returned after resolve" — not alert volume regression.
+   */
+  returnedAfterResolve?: boolean;
+}
+
+/** Counts for Overview attention strips (post-parity letter D). */
+export interface IssuesAttention {
+  new: number;
+  returnedAfterResolve: number;
 }
 
 /** One discovered facet value with its occurrence count in range. */
@@ -693,6 +707,8 @@ export interface IssuesResponse {
    * probe found no HyperDX exception signal (ticket 13).
    */
   hint?: string;
+  /** New / returned-after-resolve counts for attention strips. */
+  attention?: IssuesAttention;
 }
 
 export async function getIssues(
@@ -1395,6 +1411,8 @@ export interface CustomMetric {
 export interface CustomMetricsResponse {
   metrics: CustomMetric[];
   truncated: boolean;
+  /** ClickStack: missing serviceAliases for inventory → scrape name. */
+  hint?: string;
 }
 
 export async function getCustomMetrics(

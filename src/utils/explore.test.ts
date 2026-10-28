@@ -3,6 +3,7 @@ import {
   buildTempoExploreUrl,
   buildLokiExploreUrl,
   buildMimirExploreUrl,
+  buildClickHouseExploreUrl,
   buildLogsDrilldownUrl,
   buildMetricsDrilldownUrl,
   buildTracesDrilldownUrl,
@@ -154,6 +155,17 @@ describe('buildMimirExploreUrl', () => {
     const left = parseLeft(url);
     expect(left.datasource).toBe('mimir-uid');
     expect(left.queries[0].expr).toBe(expr);
+  });
+});
+
+describe('buildClickHouseExploreUrl', () => {
+  it('passes rawSql with ClickHouse SQL queryType', () => {
+    const sql = 'SELECT 1';
+    const url = buildClickHouseExploreUrl('ch-uid', sql, { from: 'now-1h', to: 'now' });
+    const left = parseLeft(url);
+    expect(left.datasource).toBe('ch-uid');
+    expect(left.queries[0].rawSql).toBe(sql);
+    expect(left.queries[0].queryType).toBe('sql');
   });
 });
 

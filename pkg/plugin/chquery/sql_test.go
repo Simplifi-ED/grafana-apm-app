@@ -689,3 +689,19 @@ func TestErrorRateAlertSQL_UsesTimeFilterMacro(t *testing.T) {
 		}
 	}
 }
+
+func TestRegressingExceptionsAlertSQL_VolumeVsBaseline(t *testing.T) {
+	sql := RegressingExceptionsAlertSQL("nova-api", "prod")
+	for _, want := range []string{
+		"hourly_avg",
+		"INTERVAL 1 HOUR",
+		"INTERVAL 7 DAY",
+		"greatest",
+		"ServiceName = 'nova-api'",
+		"has(Events.Name, 'exception')",
+	} {
+		if !strings.Contains(sql, want) {
+			t.Errorf("missing %q\n%s", want, sql)
+		}
+	}
+}

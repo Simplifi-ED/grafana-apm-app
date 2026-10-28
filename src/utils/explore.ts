@@ -146,6 +146,31 @@ export function buildMimirExploreUrl(mimirUid: string, expr: string, options?: {
   });
 }
 
+/**
+ * Build an Explore URL for ClickHouse SQL (ClickStack custom-metric charts).
+ */
+export function buildClickHouseExploreUrl(
+  clickHouseUid: string,
+  rawSql: string,
+  options?: { from?: string; to?: string }
+): string {
+  return buildExploreUrl({
+    datasourceUid: clickHouseUid,
+    queries: [
+      {
+        refId: 'A',
+        rawSql,
+        format: 0,
+        queryType: 'sql',
+      },
+    ],
+    range: {
+      from: options?.from ?? 'now-1h',
+      to: options?.to ?? 'now',
+    },
+  });
+}
+
 /* -------------------------------------------------------------------------
  * Grafana Drilldown app deep links.
  *
