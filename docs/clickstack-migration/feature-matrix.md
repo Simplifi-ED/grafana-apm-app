@@ -110,8 +110,8 @@ Tracker: `.scratch/post-parity-hardening/map.md` (decisions in `issues/`). PR si
 | Letter | Work | Status |
 |--------|------|--------|
 | **A** | Triage pagination + release-please `workflow_run` → `ci-ok` | 🚧 PR [#5](https://github.com/Simplifi-ED/grafana-apm-app/pull/5) |
-| **B** | Alerts UX polish (About callout; source badges; Open in Grafana; drop Under construction) | 🚧 with **C** |
-| **C** | Templates: polish NEW + `regressing-exceptions` (CH) + `defaults=` contract | 🚧 with **B** |
+| **B** | Alerts UX polish (About callout; source badges; Open in Grafana; drop Under construction) | 🚧 PR [#6](https://github.com/Simplifi-ED/grafana-apm-app/pull/6) |
+| **C** | Templates: polish NEW + `regressing-exceptions` (CH) + `defaults=` contract | 🚧 PR [#6](https://github.com/Simplifi-ED/grafana-apm-app/pull/6) |
 | **D** | In-plugin notify: Issues flags, New/Returned, attention strip, Alerts CTA | 🚧 blocked on B+C |
 | **E** | Custom signals: CH-native Overview auto-charts | 🚧 parallel after A |
 | **F** | Scorecard v2 depth (sourcemaps, DB, messaging/Temporal, structured-log, probes) | 🚧 parallel after A |
