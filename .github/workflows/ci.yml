@@ -13,6 +13,12 @@ on:
   # on the merge queue's synthetic merge_group branch. Without this the queue
   # waits forever for a check that never fires.
   merge_group:
+  # Dispatched by `release-pr-ci.yml` for release-please PRs. Those PRs are
+  # opened with GITHUB_TOKEN, so GitHub does not fire `pull_request` for them
+  # and they would otherwise sit without CI until someone closes/reopens the
+  # PR. A dispatch on the release-please branch head produces the same
+  # `CI OK` check on that commit, which is the commit the PR points at.
+  workflow_dispatch:
 
 jobs:
   commitlint:
