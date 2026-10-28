@@ -79,10 +79,12 @@ and triage annotations are never deleted.
 
 An issue whose folded state is `resolved` but which still has occurrences in
 the current query window **and** whose resolve predates the newest deploy
-annotation (`clickhouse-apm:deploy`, see #64) renders as **Regressed** and bubbles
-to the top of the default view. This is a documented approximation — when
-viewing historical windows, occurrences may predate the resolve. Exact
-regression detection (per-version occurrence tracking) is #57 Phase 2.
+annotation (`clickhouse-apm:deploy`, see #64) is flagged
+`returnedAfterResolve` on `/issues` and renders as **Returned after resolve**
+(bubbles to the top). This is triage/deploy semantics — not the alert template
+**Exception volume regression** (volume ≫ baseline). Approximate: when viewing
+historical windows, occurrences may predate the resolve. Exact per-version
+occurrence tracking is #57 Phase 2.
 
 ## HA verification procedure (kill-two-replicas test)
 

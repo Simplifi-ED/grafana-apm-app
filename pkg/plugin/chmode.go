@@ -1145,7 +1145,7 @@ func (a *App) fetchFrontendVersionsClickHouse(
 		totalSessions += g.Sessions
 	}
 
-	deploys, latestVersion := a.fetchDeployAnnotations(ctx, service, environment, from, to)
+	deploys, latestVersion, _ := a.fetchDeployAnnotations(ctx, service, environment, from, to)
 
 	out := make([]VersionStat, 0, len(groups))
 	for _, g := range groups {

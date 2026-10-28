@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor, within } from '@testing-library/rea
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { IssuesTable } from './IssuesTable';
 import * as client from '../../../../api/client';
+import type { IssuesResponse } from '../../../../api/client';
 
 jest.mock('../../../../api/client', () => ({
   ...jest.requireActual('../../../../api/client'),
@@ -48,7 +49,7 @@ jest.mock('../../../../utils/userStorage', () => ({
   useUserMutes: () => ({ mutes: new Set<string>(), toggleMute: toggleMuteMock, loaded: true }),
 }));
 
-function mockIssues(n: number, source: 'browser' | 'server' = 'browser') {
+function mockIssues(n: number, source: 'browser' | 'server' = 'browser'): IssuesResponse {
   return {
     fingerprintVersion: 'v1',
     sources: { browser: true, serverLogs: true },
@@ -60,7 +61,7 @@ function mockIssues(n: number, source: 'browser' | 'server' = 'browser') {
       sessions: source === 'server' ? 0 : 100 - (i % 100),
       memberHashes: source === 'server' ? [] : [`${i}`],
       source,
-      impact: { pods: 0, versions: [] },
+      impact: { pods: 0, versions: [] as string[] },
     })),
   };
 }
@@ -131,9 +132,9 @@ describe('IssuesTable triage', () => {
     expect(screen.queryByText('Error: issue number 0')).not.toBeInTheDocument();
   });
 
-  it('bubbles regressed issues to the top with a badge', async () => {
+  it('bubbles returned-after-resolve issues to the top with a badge', async () => {
     getIssues.mockResolvedValue(mockIssues(3));
-    // Issue 2 resolved BEFORE the latest deploy but still occurring → regressed.
+    // Issue 2 resolved BEFORE the latest deploy but still occurring → returned.
     getTriageStates.mockResolvedValue({
       'v1:0000000000000002': { status: 'resolved', updatedAt: 1000, updatedBy: 'hans' },
     });
@@ -143,8 +144,19 @@ describe('IssuesTable triage', () => {
     });
     renderTable();
 
-    await waitFor(() => expect(screen.getByText('Regressed')).toBeInTheDocument());
-    // Issue rows carry role=button (clickable); the regressed one sorts first.
+    await waitFor(() => expect(screen.getByText('Returned after resolve')).toBeInTheDocument());
+    const rows = screen.getAllByRole('button').filter((el) => /issue number/.test(el.textContent ?? ''));
+    expect(rows[0]).toHaveTextContent('Error: issue number 2');
+  });
+
+  it('renders New badge from server isNew flag and sorts it up', async () => {
+    const payload = mockIssues(3);
+    payload.issues[2] = { ...payload.issues[2], isNew: true };
+    getIssues.mockResolvedValue(payload);
+    getTriageStates.mockResolvedValue({});
+    renderTable();
+
+    await waitFor(() => expect(screen.getByText('New')).toBeInTheDocument());
     const rows = screen.getAllByRole('button').filter((el) => /issue number/.test(el.textContent ?? ''));
     expect(rows[0]).toHaveTextContent('Error: issue number 2');
   });

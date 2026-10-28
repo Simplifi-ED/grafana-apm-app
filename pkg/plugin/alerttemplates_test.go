@@ -898,6 +898,55 @@ func TestPrometheusRuleFormatRejectsOtherKinds(t *testing.T) {
 	}
 }
 
+// TestAlertTemplateDefaultsURLContract locks the Grafana UA hand-off: every
+// successful template response must carry a /alerting/new?defaults= deep link
+// whose query value is JSON-decodable RuleFormValues (ticket 08 / spine C).
+func TestAlertTemplateDefaultsURLContract(t *testing.T) {
+	app := newAlertTemplateApp(t)
+	app.chClient = &queries.ClickHouseClient{}
+	app.settings.ClickHouseDataSource = queries.DataSourceRef{UID: "clickhouse"}
+
+	for _, target := range []string{
+		"/alert-templates/error-rate?namespace=team-a&service=my-svc",
+		"/alert-templates/new-exceptions?namespace=team-a&service=my-svc",
+		"/alert-templates/regressing-exceptions?namespace=team-a&service=my-svc",
+	} {
+		t.Run(target, func(t *testing.T) {
+			w := serveAlertTemplate(t, app, target)
+			resp := decodeAlertTemplate(t, w)
+			u, err := url.Parse(resp.URL)
+			if err != nil {
+				t.Fatalf("url: %v", err)
+			}
+			if u.Path != "/alerting/new" {
+				t.Fatalf("path=%q", u.Path)
+			}
+			raw := u.Query().Get("defaults")
+			if raw == "" {
+				t.Fatal("missing defaults=")
+			}
+			var decoded map[string]any
+			if err := json.Unmarshal([]byte(raw), &decoded); err != nil {
+				t.Fatalf("defaults JSON: %v\n%s", err, raw)
+			}
+			if decoded["name"] == nil || decoded["queries"] == nil {
+				t.Fatalf("defaults missing name/queries: %#v", decoded)
+			}
+		})
+	}
+}
+
+func TestRegressingExceptionsRequiresClickStack(t *testing.T) {
+	app := newAlertTemplateApp(t) // dual-mode: Metrics/Logs only
+	w := serveAlertTemplate(t, app, "/alert-templates/regressing-exceptions?namespace=team-a&service=my-svc")
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), "ClickStack") {
+		t.Fatalf("body=%s", w.Body.String())
+	}
+}
+
 func TestClickStackAlertTemplates_UseClickHouseSQL(t *testing.T) {
 	app := newAlertTemplateApp(t)
 	app.chClient = &queries.ClickHouseClient{}
@@ -937,6 +986,12 @@ func TestClickStackAlertTemplates_UseClickHouseSQL(t *testing.T) {
 		{
 			url:       "/alert-templates/new-exceptions?namespace=team-a&service=my-svc",
 			wantRaw:   "INTERVAL 7 DAY",
+			wantFrom:  7 * 24 * 3600,
+			threshold: 0,
+		},
+		{
+			url:       "/alert-templates/regressing-exceptions?namespace=team-a&service=my-svc",
+			wantRaw:   "hourly_avg",
 			wantFrom:  7 * 24 * 3600,
 			threshold: 0,
 		},
