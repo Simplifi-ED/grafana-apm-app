@@ -14,13 +14,16 @@ import { CustomMetric, getCustomMetrics } from '../api/client';
 import { useFetch } from '../utils/useFetch';
 import { useTimeRange } from '../utils/timeRange';
 import { useSceneTimeSync } from '../utils/useSceneTimeSync';
-import { usePluginDatasources } from '../utils/datasources';
-import { buildMimirExploreUrl } from '../utils/explore';
+import { usePluginDatasources, useServiceAlias } from '../utils/datasources';
+import { buildClickHouseExploreUrl, buildMimirExploreUrl } from '../utils/explore';
 import { escapeQueryString } from '../utils/sanitize';
 import { otel } from '../otelconfig';
 import { customMetricExploreQuery, customMetricPanels } from './customMetricQueries';
+import { customMetricExploreSQL, customMetricPanelsCH } from './customMetricQueries.ch';
 import { DataState } from './DataState';
 import { typographyFontSize } from '../utils/themeTypography';
+
+const CH_DS_TYPE = 'grafana-clickhouse-datasource';
 
 interface CustomMetricsPanelProps {
   namespace: string;
@@ -37,27 +40,17 @@ const TYPE_BADGE_COLOR: Record<string, BadgeColor> = {
 };
 
 /**
- * Zero-config custom-metric discovery + auto-charting (#68 Phase 0/1): lists a
- * service's non-platform metric families straight from Mimir — type/help/unit
- * from the metadata API (suffix heuristics as fallback), series counts as the
- * cardinality guard — each row deep-linking to Explore with an auto-generated
- * PromQL query by metric type. When expanded, the non-high-cardinality families
- * are also rendered as type-aware Scenes panels (counter→rate, histogram→p95,
- * summary/timer→throughput+avg, gauge→pod-aggregated avg). High-cardinality
- * families (series > 100) stay Explore-link only. Renders nothing when no
- * custom metrics exist.
- *
- * Collapsible, default-collapsed, with the discovered-metric count in its
- * own header (IA review P9): the Overview budget is RED-first, so this
- * unbounded auto-discovered list shouldn't compete for attention until
- * curated (#68 P1). The count still requires the fetch, so that keeps
- * running unconditionally (existing `useFetch` above/below is unchanged) —
- * only the table (and any fetch error) stay hidden until expanded.
+ * Zero-config custom-metric discovery + auto-charting (#68 + letter E):
+ * Mimir PromQL when `metricsUid` is set; ClickHouse SQL Scenes when only
+ * ClickStack (`clickHouseUid`) is configured. High-cardinality families
+ * (series > 100) stay Explore-link only. Collapsed by default on Overview.
  */
 export function CustomMetricsPanel({ namespace, service, environment }: CustomMetricsPanelProps) {
   const styles = useStyles2(getStyles);
   const { from, to, fromMs, toMs } = useTimeRange();
-  const { metricsUid } = usePluginDatasources(environment);
+  const { metricsUid, clickHouseUid } = usePluginDatasources(environment);
+  const scrapeService = useServiceAlias(service);
+  const clickStackOnly = Boolean(clickHouseUid) && !metricsUid;
   const [collapsed, setCollapsed] = useState(true);
 
   const { data, loading, error } = useFetch(
@@ -66,26 +59,35 @@ export function CustomMetricsPanel({ namespace, service, environment }: CustomMe
   );
 
   const metrics = data?.metrics ?? [];
+  const aliasHint = data?.hint;
 
-  // Collapsed-when-empty: no section chrome at all when nothing is discovered.
-  if (!loading && !error && metrics.length === 0) {
+  // Collapsed-when-empty: no chrome unless alias-miss hint (operator action).
+  if (!loading && !error && metrics.length === 0 && !aliasHint) {
     return null;
   }
 
-  const filter = runtimeFilter(service, namespace);
-  // Auto-chart the low-cardinality families; high-cardinality ones stay
-  // Explore-link only (the series > 100 guard is the auto-chart cutoff).
+  const promFilter = runtimeFilter(service, namespace);
   const chartable = metrics.filter((m) => !m.highCardinality);
-  // Errors are actionable feedback, not "the panel" — surface them even
-  // while collapsed instead of silently hiding a failed fetch.
-  const showBody = !collapsed || !!error;
+  const showBody = !collapsed || !!error || (!!aliasHint && metrics.length === 0);
+
+  const exploreUrlFor = (m: CustomMetric): string => {
+    if (clickStackOnly && clickHouseUid) {
+      return buildClickHouseExploreUrl(clickHouseUid, customMetricExploreSQL(m, scrapeService, namespace), {
+        from,
+        to,
+      });
+    }
+    return buildMimirExploreUrl(metricsUid, customMetricExploreQuery(m, promFilter), { from, to });
+  };
 
   return (
     <div className={styles.container}>
       <div className={styles.header} onClick={() => setCollapsed((c) => !c)}>
         <Icon name={collapsed ? 'angle-right' : 'angle-down'} />
         <h6 className={styles.title}>Custom metrics{metrics.length > 0 ? ` (${metrics.length})` : ''}</h6>
-        <span className={styles.subtitle}>Auto-discovered application metrics</span>
+        <span className={styles.subtitle}>
+          {clickStackOnly ? 'Auto-discovered ClickHouse application metrics' : 'Auto-discovered application metrics'}
+        </span>
       </div>
       {showBody && (
         <DataState
@@ -94,28 +96,37 @@ export function CustomMetricsPanel({ namespace, service, environment }: CustomMe
           empty={false}
           loadingText="Discovering custom metrics…"
         >
-          {!collapsed && chartable.length > 0 && (
-            <AutoCharts metrics={chartable} filter={filter} metricsUid={metricsUid} from={from} to={to} />
+          {aliasHint && metrics.length === 0 && <div className={styles.hint}>{aliasHint}</div>}
+          {!collapsed && chartable.length > 0 && clickStackOnly && clickHouseUid && (
+            <AutoChartsCH
+              metrics={chartable}
+              scrapeService={scrapeService}
+              namespace={namespace}
+              clickHouseUid={clickHouseUid}
+              from={from}
+              to={to}
+            />
           )}
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>Metric</th>
-                <th>Type</th>
-                <th className={styles.num}>Series</th>
-                <th className={styles.actions}></th>
-              </tr>
-            </thead>
-            <tbody>
-              {metrics.map((m) => (
-                <MetricRow
-                  key={m.name}
-                  metric={m}
-                  exploreUrl={buildMimirExploreUrl(metricsUid, customMetricExploreQuery(m, filter), { from, to })}
-                />
-              ))}
-            </tbody>
-          </table>
+          {!collapsed && chartable.length > 0 && !clickStackOnly && (
+            <AutoCharts metrics={chartable} filter={promFilter} metricsUid={metricsUid} from={from} to={to} />
+          )}
+          {metrics.length > 0 && (
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th>Metric</th>
+                  <th>Type</th>
+                  <th className={styles.num}>Series</th>
+                  <th className={styles.actions}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {metrics.map((m) => (
+                  <MetricRow key={m.name} metric={m} exploreUrl={exploreUrlFor(m)} />
+                ))}
+              </tbody>
+            </table>
+          )}
           {data?.truncated && (
             <div className={styles.hint}>Showing the first {metrics.length} metric families — more exist.</div>
           )}
@@ -208,6 +219,59 @@ function AutoCharts({
 
   // Header refresh re-resolves fromMs/toMs while the raw strings stay put —
   // re-query the live scene instead of rebuilding it.
+  useSceneTimeSync(scene, fromMs, toMs);
+
+  return <scene.Component model={scene} />;
+}
+
+/** ClickStack auto-charts: CH SQL SceneQueryRunners (letter E). */
+function AutoChartsCH({
+  metrics,
+  scrapeService,
+  namespace,
+  clickHouseUid,
+  from,
+  to,
+}: {
+  metrics: CustomMetric[];
+  scrapeService: string;
+  namespace: string;
+  clickHouseUid: string;
+  from: string;
+  to: string;
+}) {
+  const { fromMs, toMs } = useTimeRange();
+  const scene = useMemo(() => {
+    const items = metrics.flatMap((metric) =>
+      customMetricPanelsCH(metric, scrapeService, namespace).map((spec) => {
+        const runner = new SceneQueryRunner({
+          datasource: { uid: clickHouseUid, type: CH_DS_TYPE },
+          queries: [
+            {
+              refId: 'A',
+              rawSql: spec.rawSql,
+              format: 0,
+              queryType: 'sql',
+            } as never,
+          ],
+        });
+        let builder = PanelBuilders.timeseries().setTitle(spec.title).setData(runner);
+        if (metric.help) {
+          builder = builder.setDescription(metric.help);
+        }
+        if (spec.unit) {
+          builder = builder.setUnit(spec.unit);
+        }
+        return new SceneFlexItem({ minWidth: '320px', height: 200, body: builder.build() });
+      })
+    );
+
+    return new EmbeddedScene({
+      $timeRange: new SceneTimeRange({ from, to }),
+      body: new SceneFlexLayout({ direction: 'row', wrap: 'wrap', children: items }),
+    });
+  }, [metrics, scrapeService, namespace, clickHouseUid, from, to]);
+
   useSceneTimeSync(scene, fromMs, toMs);
 
   return <scene.Component model={scene} />;
