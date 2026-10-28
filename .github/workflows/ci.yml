@@ -205,6 +205,9 @@ jobs:
       - name: Resolve Grafana E2E versions
         id: resolve-versions
         uses: grafana/plugin-actions/e2e-version@31f6f292a4ccc6530594b8939af571898b09cda8 # ratchet:grafana/plugin-actions/e2e-version@e2e-version/v1.1.1
+        with:
+          # Nightly UI churn breaks most page assertions; pin CI e2e to released images only.
+          skip-grafana-nightly-image: true
 
   playwright-tests:
     needs: [resolve-versions, package]
