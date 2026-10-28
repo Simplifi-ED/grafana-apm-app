@@ -243,6 +243,94 @@ func TestScorecardReadinessScore(t *testing.T) {
 	}
 }
 
+func TestScorecardV2Applicability(t *testing.T) {
+	t.Run("database absent is N/A", func(t *testing.T) {
+		c := ScorecardCheck{Key: "database"}
+		applyDatabaseCheck(&c, false)
+		if !c.NotApplicable || c.OK {
+			t.Fatalf("want N/A fail, got ok=%v na=%v", c.OK, c.NotApplicable)
+		}
+	})
+	t.Run("database present passes", func(t *testing.T) {
+		c := ScorecardCheck{Key: "database"}
+		applyDatabaseCheck(&c, true)
+		if c.NotApplicable || !c.OK {
+			t.Fatalf("want OK, got ok=%v na=%v", c.OK, c.NotApplicable)
+		}
+	})
+	t.Run("messaging neither is N/A", func(t *testing.T) {
+		c := ScorecardCheck{Key: "messagingOrWorkflow"}
+		applyMessagingOrWorkflowCheck(&c, false)
+		if !c.NotApplicable {
+			t.Fatal("expected N/A when neither kafka nor temporal")
+		}
+	})
+	t.Run("structured logs no logs is N/A", func(t *testing.T) {
+		c := ScorecardCheck{Key: "structuredLogs"}
+		applyStructuredLogsCheck(&c, false, false)
+		if !c.NotApplicable {
+			t.Fatal("expected N/A without logs")
+		}
+	})
+	t.Run("structured logs without semconv fails", func(t *testing.T) {
+		c := ScorecardCheck{Key: "structuredLogs"}
+		applyStructuredLogsCheck(&c, true, false)
+		if c.NotApplicable || c.OK {
+			t.Fatalf("want scored fail, got ok=%v na=%v", c.OK, c.NotApplicable)
+		}
+	})
+	t.Run("structured logs with semconv passes", func(t *testing.T) {
+		c := ScorecardCheck{Key: "structuredLogs"}
+		applyStructuredLogsCheck(&c, true, true)
+		if c.NotApplicable || !c.OK {
+			t.Fatalf("want OK, got ok=%v na=%v", c.OK, c.NotApplicable)
+		}
+	})
+	t.Run("sourcemaps N/A when browser N/A", func(t *testing.T) {
+		c := ScorecardCheck{Key: "sourcemaps"}
+		browser := &ScorecardCheck{Key: "browserTelemetry", NotApplicable: true}
+		applySourcemapsCheck(&c, browser, true, false)
+		if !c.NotApplicable {
+			t.Fatal("expected sourcemaps N/A when browser N/A")
+		}
+	})
+	t.Run("sourcemaps N/A without browser errors", func(t *testing.T) {
+		c := ScorecardCheck{Key: "sourcemaps"}
+		browser := &ScorecardCheck{Key: "browserTelemetry"}
+		applySourcemapsCheck(&c, browser, false, false)
+		if !c.NotApplicable {
+			t.Fatal("expected N/A without browser errors")
+		}
+	})
+	t.Run("sourcemaps fails on minified stacks", func(t *testing.T) {
+		c := ScorecardCheck{Key: "sourcemaps"}
+		browser := &ScorecardCheck{Key: "browserTelemetry"}
+		applySourcemapsCheck(&c, browser, true, false)
+		if c.NotApplicable || c.OK {
+			t.Fatalf("want scored fail, got ok=%v na=%v", c.OK, c.NotApplicable)
+		}
+	})
+	t.Run("sourcemaps passes when symbolicated", func(t *testing.T) {
+		c := ScorecardCheck{Key: "sourcemaps"}
+		browser := &ScorecardCheck{Key: "browserTelemetry"}
+		applySourcemapsCheck(&c, browser, true, true)
+		if c.NotApplicable || !c.OK {
+			t.Fatalf("want OK, got ok=%v na=%v", c.OK, c.NotApplicable)
+		}
+	})
+	t.Run("N/A excluded from tally", func(t *testing.T) {
+		r := tallyScorecard([]ScorecardCheck{
+			{Key: "a", OK: true},
+			{Key: "database", NotApplicable: true},
+			{Key: "messagingOrWorkflow", NotApplicable: true},
+			{Key: "b", OK: false},
+		})
+		if r.Score != 1 || r.Total != 2 {
+			t.Fatalf("score=%d total=%d want 1/2", r.Score, r.Total)
+		}
+	})
+}
+
 func TestRuleMentionsService(t *testing.T) {
 	cases := []struct {
 		name    string

@@ -44,7 +44,7 @@
 | Custom metrics | Custom tab | `otel_metrics_*` | ✅ | **C** live via aliases (`nova-api→nova-app`, 23 families); outer `GROUP BY MetricName, kind` (CH code 215) |
 | GraphQL | GraphQL / Server tab | `otel_metrics_*` probes ∨ `otel_traces` `graphql.operation.*` | ✅ | Plugin path live (`detected:false` + hint); needs app emitter (**16**) |
 | Alerts / templates | Alerts UI | Grafana UA + CH SQL | ✅ | **D**/**27** `GET /alert-templates/error-rate` returns CH SQL defaults |
-| Scorecard | Scorecard | CH probes | ✅ | Logs+runtime via aliases; Jobs scored (kube_*); Profiling OK; GraphQL N/A |
+| Scorecard | Scorecard | CH probes | ✅ | Logs+runtime via aliases; Jobs/Profiling; **F** v2: sourcemaps/DB/messaging|Temporal/structured-logs + data-driven N/A; GraphQL N/A |
 | Jobs | Jobs UI | KSM/Prom and/or `kube_*` in CH | ✅ | **I** + **17**: `kube_cronjob_*` in CH (`namespace=prod-nova`) via KSM + honor_labels |
 | Triage / watchlist / sourcemap | annotations / HTTP | N/A | ✅ | |
 | Profiling | Profiling tab | Pyroscope DS | ✅ | **J** + **18**: local compose Pyroscope DS; plugin detects (`available:true`) |

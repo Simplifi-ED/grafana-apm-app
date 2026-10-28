@@ -34,6 +34,10 @@ export default defineConfig([
       'blob-report/',
       'playwright/.cache/',
       'playwright/.auth/',
+      // Local Playwright browser downloads (gitignored): vendored helper scripts
+      // in Chromium bundles trip no-eval and fail `mise run frontend:check`
+      // on machines where `playwright install` has run. (Same ignore as spine A.)
+      '.playwright-browsers/',
       '**/.idea',
       '**/.eslintcache',
     ],
