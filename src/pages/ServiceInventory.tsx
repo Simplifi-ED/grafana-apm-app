@@ -431,7 +431,7 @@ function ServiceInventory() {
             <table className={styles.table}>
               <colgroup>
                 <col style={{ width: '32px' }} />
-                <col style={{ width: '1%' }} />
+                <col style={{ width: '108px' }} />
                 <col style={{ width: '22%' }} />
                 {showNsColumn && <col style={{ width: '14%' }} />}
                 {showEnvColumn && <col style={{ width: '10%' }} />}
@@ -747,8 +747,10 @@ const getStyles = (theme: GrafanaTheme2) => ({
     display: block;
   `,
   typeColHeader: css`
-    width: 1%;
+    width: 108px;
     white-space: nowrap;
+    overflow: visible;
+    text-overflow: clip;
     color: ${theme.colors.text.secondary};
     font-weight: ${theme.typography.fontWeightMedium};
     padding-left: ${theme.spacing(0.5)} !important;
@@ -790,8 +792,10 @@ const getStyles = (theme: GrafanaTheme2) => ({
     }
   `,
   typeCell: css`
-    width: 1%;
+    width: 108px;
     white-space: nowrap;
+    overflow: visible;
+    text-overflow: clip;
     padding-left: ${theme.spacing(0.5)} !important;
     padding-right: ${theme.spacing(1)} !important;
     text-align: left;

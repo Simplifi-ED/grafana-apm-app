@@ -1,57 +1,47 @@
 import React from 'react';
-import { css } from '@emotion/css';
+import { Badge, type BadgeColor } from '@grafana/ui';
 
 /**
- * Framework metadata for SDK/framework badges used across pages.
+ * Framework → Grafana Badge color (named viz colors from @grafana/ui Badge).
+ * @see https://developers.grafana.com/ui/latest/index.html?path=/docs/information-badge--docs
  */
-export const FRAMEWORK_BADGES: Record<string, { label: string; bg: string }> = {
-  Ktor: { label: 'Ktor', bg: '#7B68EE' },
-  'Spring Boot': { label: 'Spring', bg: '#6DB33F' },
-  'Node.js': { label: 'Node.js', bg: '#68A063' },
-  Go: { label: 'Go', bg: '#00ADD8' },
-  Java: { label: 'Java', bg: '#5382A1' },
-  Python: { label: 'Python', bg: '#3776AB' },
-  '.NET': { label: '.NET', bg: '#512BD4' },
-  Rust: { label: 'Rust', bg: '#DEA584' },
-  // Pink-purple (Envoy / native C++)
-  'C++': { label: 'C++', bg: '#C026D3' },
-  cpp: { label: 'C++', bg: '#C026D3' },
-  C: { label: 'C', bg: '#A8B9CC' },
-  // Navy (HyperDX / Faro browser RUM)
-  Browser: { label: 'Browser', bg: '#1E3A8A' },
-  webjs: { label: 'Browser', bg: '#1E3A8A' },
-  TypeScript: { label: 'TypeScript', bg: '#3178C6' },
-  PHP: { label: 'PHP', bg: '#777BB4' },
-  Ruby: { label: 'Ruby', bg: '#CC342D' },
-  Swift: { label: 'Swift', bg: '#F05138' },
-  Kotlin: { label: 'Kotlin', bg: '#7F52FF' },
+export const FRAMEWORK_BADGES: Record<string, { label: string; color: BadgeColor }> = {
+  Ktor: { label: 'Ktor', color: 'purple' },
+  'Spring Boot': { label: 'Spring', color: 'green' },
+  'Node.js': { label: 'Node.js', color: 'green' },
+  Go: { label: 'Go', color: 'blue' },
+  Java: { label: 'Java', color: 'blue' },
+  Python: { label: 'Python', color: 'blue' },
+  '.NET': { label: '.NET', color: 'purple' },
+  Rust: { label: 'Rust', color: 'orange' },
+  'C++': { label: 'C++', color: 'purple' },
+  cpp: { label: 'C++', color: 'purple' },
+  C: { label: 'C', color: 'darkgrey' },
+  Browser: { label: 'Browser', color: 'blue' },
+  webjs: { label: 'Browser', color: 'blue' },
+  TypeScript: { label: 'TypeScript', color: 'blue' },
+  PHP: { label: 'PHP', color: 'purple' },
+  Ruby: { label: 'Ruby', color: 'red' },
+  Swift: { label: 'Swift', color: 'orange' },
+  Kotlin: { label: 'Kotlin', color: 'purple' },
 };
 
-/**
- * Compact pill badge for framework/SDK, with a custom background colour.
- */
+/** Compact framework/SDK badge using Grafana UI Badge. */
 export function FrameworkBadge({ framework, className }: { framework?: string; className?: string }) {
   if (!framework) {
     return null;
   }
-  const info = FRAMEWORK_BADGES[framework] ?? FRAMEWORK_BADGES[framework.trim()];
+  const key = framework.trim();
+  const info = FRAMEWORK_BADGES[framework] ?? FRAMEWORK_BADGES[key];
   if (!info) {
-    return <span className={`${badgeStyle('#888')}${className ? ` ${className}` : ''}`}>{framework}</span>;
+    return <Badge className={className} text={framework} color="darkgrey" />;
   }
-  return <span className={`${badgeStyle(info.bg)}${className ? ` ${className}` : ''}`}>{info.label}</span>;
-}
-
-function badgeStyle(bg: string) {
-  return css`
-    display: inline-flex;
-    align-items: center;
-    padding: 1px 8px;
-    border-radius: 4px;
-    font-size: 12px;
-    font-weight: 400;
-    color: white;
-    letter-spacing: 0.5px;
-    background-color: ${bg};
-    vertical-align: middle;
-  `;
+  return (
+    <Badge
+      className={className}
+      text={info.label}
+      color={info.color}
+      icon={info.label === 'Browser' ? 'monitor' : undefined}
+    />
+  );
 }
