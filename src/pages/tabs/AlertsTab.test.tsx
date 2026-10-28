@@ -12,6 +12,18 @@ jest.mock('../../api/client', () => ({
   getNewExceptionsPrometheusRule: jest.fn(),
 }));
 
+let mockDatasources = {
+  metricsUid: 'mimir',
+  tracesUid: 'tempo',
+  logsUid: 'loki',
+  clickHouseUid: '',
+  isEnvSpecific: false,
+  isLogsEnvSpecific: false,
+};
+jest.mock('../../utils/datasources', () => ({
+  usePluginDatasources: () => mockDatasources,
+}));
+
 const mockPush = jest.fn();
 jest.mock('@grafana/runtime', () => ({
   getBackendSrv: () => ({ fetch: jest.fn(), get: jest.fn().mockResolvedValue([]) }),
@@ -40,6 +52,14 @@ function renderTab(initialEntries: string[] = ['/']) {
 
 beforeEach(() => {
   mockPush.mockReset();
+  mockDatasources = {
+    metricsUid: 'mimir',
+    tracesUid: 'tempo',
+    logsUid: 'loki',
+    clickHouseUid: '',
+    isEnvSpecific: false,
+    isLogsEnvSpecific: false,
+  };
   getServiceAlerts.mockReset().mockResolvedValue({ rules: [] });
   getAlertTemplate.mockReset().mockResolvedValue({ url: '/alerting/new?defaults=%7B%7D', defaults: {} });
   getNewExceptionsPrometheusRule.mockReset().mockResolvedValue(PROMETHEUS_RULE);
@@ -73,7 +93,7 @@ describe('AlertsTab (#32/#33 home)', () => {
 
     await waitFor(() => expect(screen.getByText('OrdersHighErrorRate')).toBeInTheDocument());
     expect(screen.getByText('Orders erroring')).toBeInTheDocument();
-    expect(screen.getByText('grafana')).toBeInTheDocument();
+    expect(screen.getByText('Grafana UA')).toBeInTheDocument();
     // The read-only firing state (#33) renders directly from the rule now.
     expect(screen.getByText('firing')).toBeInTheDocument();
     expect(screen.getByText(/current value 0\.12/)).toBeInTheDocument();
@@ -210,9 +230,29 @@ describe('AlertsTab (#32/#33 home)', () => {
     await waitFor(() => expect(mockPush).toHaveBeenCalledWith(expect.stringContaining('/alerting/new?defaults=')));
   });
 
-  // #123 Phase 1: the self-serve "new issue -> Slack" path. This section is
-  // deliberately NOT under the "Under construction" banner - it needs nothing
-  // provisioned per team, unlike the Grafana-folder/contact-point work.
+  it('explains where alerts live and does not show Under construction', async () => {
+    renderTab();
+    await waitFor(() => expect(screen.getByText('Where alerts live')).toBeInTheDocument());
+    expect(screen.queryByText('Under construction')).not.toBeInTheDocument();
+    expect(screen.getByText(/Grafana unified alerting/)).toBeInTheDocument();
+  });
+
+  it('offers Exception volume regression among create-alert cards in ClickStack mode', async () => {
+    mockDatasources = {
+      metricsUid: '',
+      tracesUid: '',
+      logsUid: '',
+      clickHouseUid: 'clickhouse',
+      isEnvSpecific: false,
+      isLogsEnvSpecific: false,
+    };
+    renderTab();
+    await waitFor(() => expect(screen.getByText('Exception volume regression')).toBeInTheDocument());
+    expect(screen.getByText('New exception types')).toBeInTheDocument();
+    expect(screen.queryByText(/New issues in your Slack channel/)).not.toBeInTheDocument();
+  });
+
+  // #123 Phase 1: the self-serve "new issue -> Slack" path.
   it('renders the new-issues PrometheusRule with a copy button', async () => {
     renderTab();
 
