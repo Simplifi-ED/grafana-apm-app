@@ -236,6 +236,12 @@ jobs:
       - name: Strip plugin signature for local testing
         run: rm -f ./dist/MANIFEST.txt
 
+      # *.local.yaml is gitignored (ClickStack/prod secrets). Without an apps.yaml
+      # Grafana never enables the plugin, so /a/clickhouse-apm-app/ stays blank and
+      # every page assertion burns its full timeout — the previous 15m job cancel.
+      - name: Seed e2e plugin provisioning
+        run: cp provisioning/plugins/apps.e2e.yaml provisioning/plugins/apps.yaml
+
       - name: Enable corepack
         run: corepack enable
       - name: Setup Node.js
@@ -288,7 +294,9 @@ jobs:
         run: docker compose down
 
   publish-report:
-    if: ${{ always() && !cancelled() && github.event.pull_request.head.repo.full_name == github.repository }}
+    # Skip when playwright was cancelled (job timeout): upload-report-artifacts is
+    # also skipped on cancel, so deploy would ENOENT on missing all-reports/.
+    if: ${{ always() && !cancelled() && needs.playwright-tests.result != 'cancelled' && github.event.pull_request.head.repo.full_name == github.repository }}
     permissions:
       contents: write
       id-token: write

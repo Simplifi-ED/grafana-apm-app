@@ -1,0 +1,11 @@
+# Minimal app enablement for CI / smoke e2e (no real datasources required).
+# Copied to apps.yaml in the playwright job before `docker compose up`.
+# Local ClickStack setups should keep using gitignored apps.local.yaml instead.
+
+apiVersion: 1
+
+apps:
+  - type: 'clickhouse-apm-app'
+    org_id: 1
+    disabled: false
+    jsonData: {}

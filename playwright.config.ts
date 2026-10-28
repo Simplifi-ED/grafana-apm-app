@@ -25,10 +25,14 @@ export default defineConfig<PluginOptions>({
   fullyParallel: true,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
-  /* Retry on CI only */
-  retries: process.env.CI ? 2 : 0,
-  /* Limit concurrent browsers when local Docker resources are constrained. */
-  workers,
+  /* One CI retry only — 2 retries × 15s assertion timeouts blew the 15m job budget
+     when pages failed to mount (22 failures → ~14m of hang before timeout cancel). */
+  retries: process.env.CI ? 1 : 0,
+  /* Fail individual tests faster so a broken mount doesn't eat the whole job. */
+  timeout: 30_000,
+  expect: { timeout: 10_000 },
+  /* Cap CI concurrency — Grafana + plugin backend thrash under default workers. */
+  workers: workers ?? (process.env.CI ? 2 : undefined),
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: 'html',
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */

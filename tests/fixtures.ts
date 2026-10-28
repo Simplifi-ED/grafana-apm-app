@@ -31,7 +31,7 @@ export async function dismissOverlays(page: Page): Promise<void> {
  */
 export async function expectAnyVisible(
   locators: Locator[],
-  { timeout = 15_000, message }: { timeout?: number; message?: string } = {}
+  { timeout = 10_000, message }: { timeout?: number; message?: string } = {}
 ): Promise<Locator> {
   const deadline = Date.now() + timeout;
   const poll = 500;

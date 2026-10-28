@@ -62,3 +62,6 @@ helm-charts/
 apm-client/
 # Nais docs (external repo for documenting nais apm online for users)
 nais-doc/
+.playwright-browsers/
+e2e-local*.txt
+e2e-ci-sim.txt
