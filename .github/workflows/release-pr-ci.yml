@@ -42,8 +42,9 @@ concurrency:
 jobs:
   dispatch:
     name: Dispatch CI for release PR
-    # A failed Release Please run did not create/update a PR; nothing to test.
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    # Any conclusion: release-please can open/update the Release PR before a
+    # later job in the same workflow (e.g. publish) fails — that PR still
+    # needs CI OK.
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -57,7 +58,8 @@ jobs:
           # Release PRs only: release-please names its branch
           # `release-please--branches--<target>--components--<component>`.
           # Same-repo only — a fork's PR could not carry our checks anyway.
-          branches=$(gh pr list --repo "$REPO" --state open \
+          # Explicit --limit: gh defaults to 30 open PRs.
+          branches=$(gh pr list --repo "$REPO" --state open --limit 100 \
             --json headRefName,isCrossRepository \
             --jq '.[] | select(.isCrossRepository | not) | .headRefName | select(startswith("release-please--"))')
 
@@ -67,15 +69,21 @@ jobs:
           fi
 
           for branch in $branches; do
-            status=$(gh run list --repo "$REPO" --workflow ci.yml --branch "$branch" \
-              --limit 1 --json status --jq '.[0].status // ""')
+            latest=$(gh run list --repo "$REPO" --workflow ci.yml --branch "$branch" \
+              --limit 1 --json status,headSha)
+            status=$(printf '%s' "$latest" | jq -r '.[0].status // empty')
+            run_sha=$(printf '%s' "$latest" | jq -r '.[0].headSha // empty')
+            branch_sha=$(gh api "repos/${REPO}/commits/${branch}" --jq .sha)
 
-            # Each push to main updates the Release PR, which re-runs Release
-            # Please. Without this guard a burst of merges would pile up
-            # identical CI runs on an unchanged release branch.
+            # Skip only when an active run already covers the current head.
+            # If Release Please moved the branch while an older CI is still
+            # running, re-dispatch so the new head gets CI OK.
             if [ "$status" = "in_progress" ] || [ "$status" = "queued" ] || [ "$status" = "requested" ]; then
-              echo "CI already ${status} on ${branch}; skipping."
-              continue
+              if [ -n "$run_sha" ] && [ "$run_sha" = "$branch_sha" ]; then
+                echo "CI already ${status} on ${branch} @ ${run_sha}; skipping."
+                continue
+              fi
+              echo "CI ${status} on ${branch} for ${run_sha:-none}, head is ${branch_sha}; re-dispatching."
             fi
 
             echo "Dispatching CI on ${branch}"

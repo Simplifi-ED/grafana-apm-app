@@ -137,8 +137,9 @@ func (s *annotationTriageStore) do(ctx context.Context, method, path string, bod
 // well and every page re-read the same newest rows — the loop made no
 // progress and older events never reached the fold. We therefore pin
 // `from=1` (epoch ms 1 = "from the beginning", still positive) and advance
-// by `to = oldestSeen - 1`, since the store's range filter is inclusive on
-// both ends. Repeated rows are dropped by annotation ID.
+// with `to = oldestSeen` (inclusive). Stepping to oldest-1 would drop
+// same-millisecond siblings cut from a full page; the store is inclusive on
+// both ends and `seen` already dedupes re-fetched IDs.
 func (s *annotationTriageStore) fetch(ctx context.Context, tags []string) ([]grafanaAnnotation, error) {
 	queryTags := make([]string, 0, len(tags))
 	for _, tg := range tags {
@@ -184,16 +185,15 @@ func (s *annotationTriageStore) fetch(ctx context.Context, tags []string) ([]gra
 		if len(anns) < maxTriageEvents {
 			return out, nil
 		}
-		// Full page: older events may remain — continue below the oldest
-		// timestamp seen (results are newest-first). The store's range
-		// filter is inclusive on both ends, so step one millisecond below
-		// the oldest row instead of re-requesting it.
+		// Full page: older events may remain. Keep `to` at the page's oldest
+		// Time so same-ms siblings cut by `limit` stay in range; `seen`
+		// drops the already-returned boundary rows. If the whole page sits
+		// at the current `to`, we cannot advance — stop (bounded by pages).
 		oldest := anns[len(anns)-1].Time
-		next := oldest - 1
-		if next >= to {
+		if oldest >= to {
 			return out, nil
 		}
-		to = next
+		to = oldest
 	}
 	return out, nil
 }
