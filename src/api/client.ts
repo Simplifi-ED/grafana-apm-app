@@ -1395,6 +1395,8 @@ export interface CustomMetric {
 export interface CustomMetricsResponse {
   metrics: CustomMetric[];
   truncated: boolean;
+  /** ClickStack: missing serviceAliases for inventory → scrape name. */
+  hint?: string;
 }
 
 export async function getCustomMetrics(

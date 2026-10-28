@@ -41,7 +41,7 @@
 | Dependencies / connected | `GET .../dependencies`, `/connected` | service graph CH | ✅ | **D** live: nova-api → valkey/postgres/nova; inbound envoy-gateway (p95 often 0 — graph totals only) |
 | Database top queries / N+1 | DB tab | `otel_traces` db attrs | ✅ | Top queries live (redis EVALSHA…); N+1 API OK, 0 findings in 1h cap (needs `db.statement` + ≥10 repeats/trace) |
 | Runtime metrics | Runtime tab | `otel_metrics_*` `go_*`/`process_*` | ✅ | **C** + aliases: `nova-api→nova-app` Go runtime live |
-| Custom metrics | Custom tab | `otel_metrics_*` | ✅ | **C** live via aliases (`nova-api→nova-app`, 23 families); outer `GROUP BY MetricName, kind` (CH code 215) |
+| Custom metrics | Custom tab + Overview | `otel_metrics_*` | ✅ | Discovery + letter **E**: Overview auto-charts via CH SQL Scenes (`rate`/`p95`/`summary`/`gauge`); Explore deep-links CH SQL |
 | GraphQL | GraphQL / Server tab | `otel_metrics_*` probes ∨ `otel_traces` `graphql.operation.*` | ✅ | Plugin path live (`detected:false` + hint); needs app emitter (**16**) |
 | Alerts / templates | Alerts UI | Grafana UA + CH SQL | ✅ | **D**/**27** `GET /alert-templates/error-rate` returns CH SQL defaults |
 | Scorecard | Scorecard | CH probes | ✅ | Logs+runtime via aliases; Jobs scored (kube_*); Profiling OK; GraphQL N/A |
@@ -100,3 +100,17 @@ Plan tracker: `.scratch/clickstack-nais-parity/map.md`.
 | J | Profiling | ✅ plugin + local Pyroscope DS (**18**) |
 
 Platform **17/18/21** live (DEV/local); **16** plugin-ready without demo. Core spine A→J verified via Grafana CH DS on Local-ClickHouse.
+
+---
+
+## Post-parity hardening (plan spine A→F)
+
+Tracker: `.scratch/post-parity-hardening/map.md`.
+
+| Letter | Work | Status |
+|--------|------|--------|
+| **A** | Triage pagination + release-please CI | 🚧 PR #5 |
+| **B+C** | Alerts UX + volume-regression template | 🚧 PR #6 |
+| **D** | `/issues` notify flags + badges + Overview strip | 🚧 PR #7 |
+| **E** | Custom signals: CH-native Overview auto-charts | 🚧 this branch |
+| **F** | Scorecard v2 depth | 🚧 |

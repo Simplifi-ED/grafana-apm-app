@@ -10,6 +10,19 @@ jest.mock('../api/client', () => ({
   getCustomMetrics: jest.fn(),
 }));
 
+let mockDatasources = {
+  metricsUid: 'mimir',
+  tracesUid: 'tempo',
+  logsUid: 'loki',
+  clickHouseUid: '',
+  isEnvSpecific: false,
+  isLogsEnvSpecific: false,
+};
+jest.mock('../utils/datasources', () => ({
+  usePluginDatasources: () => mockDatasources,
+  useServiceAlias: (name: string) => (name === 'app' ? 'nova-app' : name),
+}));
+
 // The auto-charts render an EmbeddedScene; stub @grafana/scenes so the table
 // assertions here stay focused (the per-type query PromQL is covered in
 // customMetricQueries.test.ts).
@@ -82,6 +95,14 @@ describe('CustomMetricsPanel', () => {
 
   beforeEach(() => {
     getCustomMetrics.mockReset();
+    mockDatasources = {
+      metricsUid: 'mimir',
+      tracesUid: 'tempo',
+      logsUid: 'loki',
+      clickHouseUid: '',
+      isEnvSpecific: false,
+      isLogsEnvSpecific: false,
+    };
   });
 
   it('defaults to collapsed — the table stays hidden until the header is clicked', async () => {
@@ -185,5 +206,54 @@ describe('CustomMetricsPanel', () => {
 
     // Errors are actionable — they must not be hidden behind the default collapse.
     await waitFor(() => expect(screen.getByText('Failed to load custom metrics')).toBeInTheDocument());
+  });
+
+  it('ClickStack-only: auto-charts with CH SQL runners and Explore rawSql links', async () => {
+    mockDatasources = {
+      metricsUid: '',
+      tracesUid: '',
+      logsUid: '',
+      clickHouseUid: 'clickhouse',
+      isEnvSpecific: false,
+      isLogsEnvSpecific: false,
+    };
+    const runner = SceneQueryRunner as unknown as jest.Mock;
+    runner.mockClear();
+    getCustomMetrics.mockResolvedValue({ metrics: [COUNTER, HISTOGRAM], truncated: false });
+    renderPanel();
+
+    await waitFor(() => expect(screen.getByText('Custom metrics (2)')).toBeInTheDocument());
+    fireEvent.click(screen.getByText('Custom metrics (2)'));
+    await waitFor(() => expect(screen.getByText('orders_processed_total')).toBeInTheDocument());
+
+    const calls = runner.mock.calls.map((c) => c[0]);
+    expect(calls.every((c) => c.datasource?.type === 'grafana-clickhouse-datasource')).toBe(true);
+    const sqls = calls.flatMap((c) => (c.queries as Array<{ rawSql?: string }>).map((q) => q.rawSql ?? ''));
+    expect(sqls.some((s) => s.includes('otel_metrics_sum') && s.includes('orders_processed_total'))).toBe(true);
+    expect(sqls.some((s) => s.includes('quantilePrometheusHistogram'))).toBe(true);
+
+    const links = screen.getAllByRole('link', { name: /open in explore/i });
+    const left = JSON.parse(
+      new URLSearchParams((links[0].getAttribute('href') ?? '').split('?')[1]).get('left') ?? '{}'
+    );
+    expect(left.queries?.[0]?.rawSql).toContain('otel_metrics_sum');
+  });
+
+  it('ClickStack: shows alias-miss hint when discovery returns empty + hint', async () => {
+    mockDatasources = {
+      metricsUid: '',
+      tracesUid: '',
+      logsUid: '',
+      clickHouseUid: 'clickhouse',
+      isEnvSpecific: false,
+      isLogsEnvSpecific: false,
+    };
+    getCustomMetrics.mockResolvedValue({
+      metrics: [],
+      truncated: false,
+      hint: 'Add serviceAliases for app',
+    });
+    renderPanel();
+    await waitFor(() => expect(screen.getByText(/Add serviceAliases/)).toBeInTheDocument());
   });
 });
