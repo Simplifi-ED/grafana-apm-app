@@ -43,7 +43,7 @@
 | Runtime metrics | Runtime tab | `otel_metrics_*` `go_*`/`process_*` | ✅ | **C** + aliases: `nova-api→nova-app` Go runtime live |
 | Custom metrics | Custom tab | `otel_metrics_*` | ✅ | **C** live via aliases (`nova-api→nova-app`, 23 families); outer `GROUP BY MetricName, kind` (CH code 215) |
 | GraphQL | GraphQL / Server tab | `otel_metrics_*` probes ∨ `otel_traces` `graphql.operation.*` | ✅ | Plugin path live (`detected:false` + hint); needs app emitter (**16**) |
-| Alerts / templates | Alerts UI | Grafana UA + CH SQL | ✅ | **D**/**27** `GET /alert-templates/error-rate` returns CH SQL defaults |
+| Alerts / templates | Alerts UI | Grafana UA + CH SQL | ✅ | **27** + post-parity **B+C**: NEW + `regressing-exceptions` CH SQL; About callout / source badges |
 | Scorecard | Scorecard | CH probes | ✅ | Logs+runtime via aliases; Jobs scored (kube_*); Profiling OK; GraphQL N/A |
 | Jobs | Jobs UI | KSM/Prom and/or `kube_*` in CH | ✅ | **I** + **17**: `kube_cronjob_*` in CH (`namespace=prod-nova`) via KSM + honor_labels |
 | Triage / watchlist / sourcemap | annotations / HTTP | N/A | ✅ | |
@@ -80,7 +80,7 @@
 6. Restart Grafana after backend binary rebuild (`mise run deploy` / `backend:build`).
 
 Docs: [schema.md](schema.md), [session-replay.md](session-replay.md), [ADR 0003](../adr/0003-clickstack-query-contract.md), [configuration.md](../configuration.md).  
-Plan tracker: `.scratch/clickstack-nais-parity/map.md`.
+Plan trackers: `.scratch/clickstack-nais-parity/map.md` (parity A→J ✅), `.scratch/post-parity-hardening/map.md` (post-parity A→F).
 
 ---
 
@@ -100,3 +100,20 @@ Plan tracker: `.scratch/clickstack-nais-parity/map.md`.
 | J | Profiling | ✅ plugin + local Pyroscope DS (**18**) |
 
 Platform **17/18/21** live (DEV/local); **16** plugin-ready without demo. Core spine A→J verified via Grafana CH DS on Local-ClickHouse.
+
+---
+
+## Post-parity hardening (plan spine A→F)
+
+Tracker: `.scratch/post-parity-hardening/map.md` (decisions in `issues/`). PR sizing: **A** alone; **B+C** combined; **D** / **E** / **F** separate (E∥F after A).
+
+| Letter | Work | Status |
+|--------|------|--------|
+| **A** | Triage pagination + release-please `workflow_run` → `ci-ok` | 🚧 PR [#5](https://github.com/Simplifi-ED/grafana-apm-app/pull/5) |
+| **B** | Alerts UX polish (About callout; source badges; Open in Grafana; drop Under construction) | 🚧 with **C** |
+| **C** | Templates: polish NEW + `regressing-exceptions` (CH) + `defaults=` contract | 🚧 with **B** |
+| **D** | In-plugin notify: Issues flags, New/Returned, attention strip, Alerts CTA | 🚧 blocked on B+C |
+| **E** | Custom signals: CH-native Overview auto-charts | 🚧 parallel after A |
+| **F** | Scorecard v2 depth (sourcemaps, DB, messaging/Temporal, structured-log, probes) | 🚧 parallel after A |
+
+Skip: CH OTel dual-emit double-count fix (research 01 — no CH equivalent).
