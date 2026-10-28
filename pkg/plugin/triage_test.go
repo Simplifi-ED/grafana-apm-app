@@ -261,36 +261,83 @@ func TestTriageFetchOmitsCommonTagAndFiltersClientSide(t *testing.T) {
 	}
 }
 
+// seedPaginationEvents fills the mock with one old resolve plus enough newer
+// events to overflow a single page, so paging past the limit is required for
+// the resolve to reach the fold.
+func seedPaginationEvents(m *mockAnnotationsAPI) {
+	total := maxTriageEvents + 50
+	m.anns = append(m.anns, grafanaAnnotation{
+		ID:   1,
+		Time: 1,
+		Text: `{"schema":1,"action":"resolve","actor":"a"}`,
+		Tags: []string{"clickhouse-apm:triage", "app:team/app", "fp:v1-old"},
+	})
+	for i := 1; i < total; i++ {
+		m.anns = append(m.anns, grafanaAnnotation{
+			ID:   int64(i + 1),
+			Time: int64(i + 1),
+			Text: `{"schema":1,"action":"assign","actor":"b","assignee":"x"}`,
+			Tags: []string{"clickhouse-apm:triage", "app:team/app", "fp:v1-noise"},
+		})
+	}
+	m.nextID = int64(total)
+}
+
 func TestTriageFetchPaginatesPastLimit(t *testing.T) {
 	// ADR-0001 mitigation 2 (the 1000-event correctness cliff): a resolve
 	// older than the newest-limit window must still reach the fold.
-	pageSize := maxTriageEvents
-	total := pageSize + 50
-	anns := make([]grafanaAnnotation, 0, total)
-	// Oldest event: the resolve that the un-paginated fetch lost.
-	anns = append(anns, grafanaAnnotation{Time: 1, Text: `{"schema":1,"action":"resolve","actor":"a"}`, Tags: []string{"clickhouse-apm:triage", "app:team/app", "fp:v1-old"}})
-	for i := 1; i < total; i++ {
-		anns = append(anns, grafanaAnnotation{Time: int64(i + 1), Text: `{"schema":1,"action":"assign","actor":"b","assignee":"x"}`, Tags: []string{"clickhouse-apm:triage", "app:team/app", "fp:v1-noise"}})
-	}
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		to, _ := strconv.ParseInt(r.URL.Query().Get("to"), 10, 64)
-		var out []grafanaAnnotation
-		for i := len(anns) - 1; i >= 0 && len(out) < pageSize; i-- {
-			if anns[i].Time <= to {
-				out = append(out, anns[i])
-			}
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(out)
-	}))
-	t.Cleanup(srv.Close)
-	s := &annotationTriageStore{grafanaURL: srv.URL, token: "tok", httpClient: srv.Client()}
+	//
+	// Routed through mockAnnotationsAPI rather than a bespoke handler so the
+	// real Grafana from/to semantics apply — a handler that honours `to` but
+	// ignores `from` passes even when the caller sends from=0, which is the
+	// bug this test exists to catch.
+	s, mock := triageTestStore(t)
+	seedPaginationEvents(mock)
 
 	states, err := s.States(context.Background(), "team", "app")
 	if err != nil {
 		t.Fatalf("states: %v", err)
 	}
 	if st := states["v1:old"]; st.Status != "resolved" {
-		t.Errorf("v1:old = %+v — the oldest resolve fell off the un-paginated window", st)
+		t.Errorf("v1:old = %+v — the oldest resolve fell off the paginated window", st)
+	}
+}
+
+// TestTriageFetchSendsPositiveFrom locks the pagination contract: Grafana
+// applies the epoch window only when from AND to are both positive, so a
+// from=0 request silently drops the upper bound and the loop re-reads the
+// same newest page forever.
+func TestTriageFetchSendsPositiveFrom(t *testing.T) {
+	var gotFrom []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		gotFrom = append(gotFrom, q.Get("from"))
+		// A full page every time: forces the caller to paginate.
+		page := make([]grafanaAnnotation, 0, maxTriageEvents)
+		for i := range maxTriageEvents {
+			page = append(page, grafanaAnnotation{
+				ID:   int64(i + 1),
+				Time: int64(maxTriageEvents - i),
+				Text: `{"schema":1,"action":"assign","actor":"b","assignee":"x"}`,
+				Tags: []string{"clickhouse-apm:triage", "app:team/app", "fp:v1-noise"},
+			})
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(page)
+	}))
+	t.Cleanup(srv.Close)
+	s := &annotationTriageStore{grafanaURL: srv.URL, token: "tok", httpClient: srv.Client()}
+
+	if _, err := s.fetch(context.Background(), []string{triageTag, "app:team/app"}); err != nil {
+		t.Fatalf("fetch: %v", err)
+	}
+	if len(gotFrom) < 2 {
+		t.Fatalf("expected pagination (2+ requests), got %d", len(gotFrom))
+	}
+	for i, from := range gotFrom {
+		v, err := strconv.ParseInt(from, 10, 64)
+		if err != nil || v <= 0 {
+			t.Errorf("page %d sent from=%q — Grafana ignores the time window unless from > 0", i, from)
+		}
 	}
 }
