@@ -1,8 +1,9 @@
 # ClickStack migration — feature matrix
 
-**Updated:** 2026-10-28 (closeout UI smoke vs prod CH: Versions/Feedback/Jobs/Runtime/aliases 10/10; wayfinder 16–18/21/27 closed)  
+**Updated:** 2026-10-28 (parity A→J verified; post-parity spine A→F locked + PRs open)  
 **Mode:** When `jsonData.clickHouseDataSource.uid` is set, handlers use ClickHouse (`clickStackMode`). LGTM clients are not required.  
-**Phase 0 DoD:** full Nais UX parity with **real data** (ticket **05**). Soft-unavailable ≠ done for GraphQL / Jobs / Profiling / Feedback. Build order: ticket **12** (A→J).
+**Phase 0 DoD:** full Nais UX parity with **real data** (ticket **05**). Soft-unavailable ≠ done for GraphQL / Jobs / Profiling / Feedback. Build order: ticket **12** (A→J) — **done**.  
+**Post-parity:** hardening spine A→F — see [Post-parity hardening](#post-parity-hardening-plan-spine-af) below.
 
 **Status legend**
 
@@ -80,7 +81,11 @@
 6. Restart Grafana after backend binary rebuild (`mise run deploy` / `backend:build`).
 
 Docs: [schema.md](schema.md), [session-replay.md](session-replay.md), [ADR 0003](../adr/0003-clickstack-query-contract.md), [configuration.md](../configuration.md).  
-Plan tracker: `.scratch/clickstack-nais-parity/map.md`.
+
+Plan trackers (local / gitignored scratch):
+
+- Parity A→J: `.scratch/clickstack-nais-parity/map.md`
+- Post-parity A→F: `.scratch/post-parity-hardening/map.md`
 
 ---
 
@@ -100,3 +105,21 @@ Plan tracker: `.scratch/clickstack-nais-parity/map.md`.
 | J | Profiling | ✅ plugin + local Pyroscope DS (**18**) |
 
 Platform **17/18/21** live (DEV/local); **16** plugin-ready without demo. Core spine A→J verified via Grafana CH DS on Local-ClickHouse.
+
+---
+
+## Post-parity hardening (plan spine A→F)
+
+Locked in `.scratch/post-parity-hardening/` (ticket **09**). No new product scope beyond that map. Dual-emit CH fix skipped (research: not a plugin bug).
+
+| Letter | Work | Sources | Status |
+|--------|------|---------|--------|
+| **A** | Triage pagination (`from=1`, `to=oldest`) + release-please `workflow_run` → `ci-ok` | 02, 03 | 🚧 [PR #5](https://github.com/Simplifi-ED/grafana-apm-app/pull/5) |
+| **B+C** | Alerts UX polish + NEW / `regressing-exceptions` templates (`defaults=`) | 06, 08 | 🚧 [PR #6](https://github.com/Simplifi-ED/grafana-apm-app/pull/6) |
+| **D** | In-plugin notify: `/issues` flags, New/Returned badges, attention strip, Alerts CTA | 07 | 🚧 [PR #7](https://github.com/Simplifi-ED/grafana-apm-app/pull/7) |
+| **E** | Custom signals: CH-native Overview auto-charts | 04 | 🚧 [PR #9](https://github.com/Simplifi-ED/grafana-apm-app/pull/9) |
+| **F** | Scorecard v2: sourcemaps + DB + messaging/Temporal + structured-log + probe N/A | 05 | 🚧 [PR #10](https://github.com/Simplifi-ED/grafana-apm-app/pull/10) |
+
+**Ordering:** serial **B→C→D**; after **A**, **E** ∥ **F** with the B→C→D track. Verify: unit tests + local Grafana / Local-ClickHouse smoke.
+
+**Out of scope (post-parity map):** deploy-markers check; team rollup / Console ownership; CH OTel dual-emit “fix”; frontend measurements/events beyond Overview auto-charts; manual per-service scorecard override; namespace-level attention strip (N+1).
