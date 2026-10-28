@@ -306,6 +306,23 @@ func TestQueryFrontendSessionsTruncates(t *testing.T) {
 	}
 }
 
+func TestParseUserAgent(t *testing.T) {
+	tests := []struct {
+		ua, browser, os string
+	}{
+		{"", "", ""},
+		{"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36", "Chrome", "macOS"},
+		{"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:120.0) Gecko/20100101 Firefox/120.0", "Firefox", "Windows"},
+		{"Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1", "Safari", "iOS"},
+	}
+	for _, tc := range tests {
+		b, o := parseUserAgent(tc.ua)
+		if b != tc.browser || o != tc.os {
+			t.Errorf("parseUserAgent(%q)=(%q,%q) want (%q,%q)", tc.ua, b, o, tc.browser, tc.os)
+		}
+	}
+}
+
 func TestParseLogfmt(t *testing.T) {
 	got := parseLogfmt(`kind=log session_id=abc user_email="Bob \"The Builder\" <bob@nav.no>" browser_os="macOS 14" empty= trailing`)
 	want := map[string]string{

@@ -339,24 +339,43 @@ ORDER BY errors DESC
 LIMIT 50`, table(queries.CHTableTraces), where)
 }
 
-// SessionErrorEnrichmentSQL counts HyperDX browser errors per rum.sessionId
-// and harvests user identity for Sessions UX polish.
+const attrHTTPUserAgent = "http.user_agent"
+
+// SessionErrorEnrichmentSQL is kept for callers that only need error counts.
+// Prefer SessionEnrichmentSQL for the Sessions list (user/version/pages/UA).
 func SessionErrorEnrichmentSQL(service string, from, to time.Time, environment string) string {
+	return SessionEnrichmentSQL(service, from, to, environment)
+}
+
+// SessionEnrichmentSQL harvests per-session metadata from otel_traces for the
+// HyperDX Sessions list: error counts, user identity, app version, distinct
+// pages, and a sample user-agent. Identity/version come from *all* browser
+// spans (not only error spans) so healthy sessions still enrich.
+func SessionEnrichmentSQL(service string, from, to time.Time, environment string) string {
 	where := fmt.Sprintf(`%s
   AND ServiceName = %s
-  AND ResourceAttributes[%s] != ''
-  AND %s%s`,
+  AND ResourceAttributes[%s] != ''%s`,
 		TimestampFilter(from, to), q(service), q(ResRumSessionID),
-		BrowserHyperDXErrorFilter(), tracesEnvFilter(environment))
+		tracesEnvFilter(environment))
+	errIf := BrowserHyperDXErrorFilter()
 	return fmt.Sprintf(`
 SELECT
   ResourceAttributes[%s] AS session_id,
-  count() AS errors,
-  any(SpanAttributes[%s]) AS user_id,
-  any(SpanAttributes[%s]) AS user_email
+  countIf(%s) AS errors,
+  anyIf(SpanAttributes[%s], SpanAttributes[%s] != '') AS user_id,
+  anyIf(SpanAttributes[%s], SpanAttributes[%s] != '') AS user_email,
+  anyIf(ResourceAttributes[%s], ResourceAttributes[%s] != '') AS app_version,
+  uniqExactIf(SpanAttributes[%s], SpanAttributes[%s] != '') AS pages,
+  anyIf(SpanAttributes[%s], SpanAttributes[%s] != '') AS user_agent
 FROM %s
 WHERE %s
 GROUP BY session_id`,
-		q(ResRumSessionID), q(AttrUserID), q(AttrUserEmail),
+		q(ResRumSessionID),
+		errIf,
+		q(AttrUserID), q(AttrUserID),
+		q(AttrUserEmail), q(AttrUserEmail),
+		q(ResServiceVersion), q(ResServiceVersion),
+		q(AttrLocationHref), q(AttrLocationHref),
+		q(attrHTTPUserAgent), q(attrHTTPUserAgent),
 		table(queries.CHTableTraces), where)
 }

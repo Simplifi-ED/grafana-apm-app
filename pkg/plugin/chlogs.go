@@ -66,8 +66,9 @@ func (a *App) handleLogSearch(w http.ResponseWriter, req *http.Request) {
 		})
 		return
 	}
+	scrape, _ := a.ResolveServiceAlias(service)
 	res, err := ch.Query(req.Context(), chquery.LogSearchSQLFiltered(
-		service, from, to, environment, severity, search, fields, sqlWhere, 200,
+		service, scrape, from, to, environment, severity, search, fields, sqlWhere, 200,
 	), queries.ClickHouseQueryOptions{From: from, To: to, Limit: 200})
 	if err != nil {
 		writeJSON(w, ClickStackLogsResponse{

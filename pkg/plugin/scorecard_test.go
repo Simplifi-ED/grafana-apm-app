@@ -147,9 +147,9 @@ func TestScorecardReadinessScore(t *testing.T) {
 			name:      "nothing instrumented",
 			fx:        scorecardFixture{},
 			wantScore: 0,
-			wantTotal: 7,
-			wantOK:    map[string]bool{"profiling": false},
-			wantNA:    map[string]bool{"profiling": false},
+			wantTotal: 8, // Nais 6 + jobs + profiling; graphql N/A
+			wantOK:    map[string]bool{"profiling": false, "jobs": false},
+			wantNA:    map[string]bool{"profiling": false, "jobs": false},
 		},
 		{
 			name: "fully instrumented including Pyroscope",
@@ -157,44 +157,45 @@ func TestScorecardReadinessScore(t *testing.T) {
 				spanMetrics: true, traces: true, logs: true, runtime: true,
 				browser: true, alertRule: true, pyroscope: true,
 			},
+			// Jobs stays false in LGTM fixtures (needs ClickStack kube_*).
 			wantScore: 7,
-			wantTotal: 7,
-			wantOK:    map[string]bool{"profiling": true},
+			wantTotal: 8,
+			wantOK:    map[string]bool{"profiling": true, "jobs": false},
 		},
 		{
 			name:      "backend service, unknown language: Faro stays actionable",
 			fx:        scorecardFixture{spanMetrics: true, traces: true, logs: true, runtime: true},
 			wantScore: 4,
-			wantTotal: 7,
+			wantTotal: 8,
 			wantOK: map[string]bool{
 				"spanMetrics": true, "traces": true, "logs": true,
-				"runtimeMetrics": true, "browserTelemetry": false, "alertRules": false, "profiling": false,
+				"runtimeMetrics": true, "browserTelemetry": false, "alertRules": false, "profiling": false, "jobs": false,
 			},
 		},
 		{
 			name:      "pure JVM backend: Faro not applicable, excluded from score",
 			fx:        scorecardFixture{spanMetrics: true, traces: true, logs: true, runtime: true, sdkLanguage: "java"},
 			wantScore: 4,
-			wantTotal: 6,
+			wantTotal: 7,
 			wantOK: map[string]bool{
 				"spanMetrics": true, "traces": true, "logs": true,
 				"runtimeMetrics": true, "browserTelemetry": false, "alertRules": false,
 			},
-			wantNA: map[string]bool{"browserTelemetry": true, "profiling": false},
+			wantNA: map[string]bool{"browserTelemetry": true, "profiling": false, "jobs": false},
 		},
 		{
 			name:      "node service: Faro stays applicable (SSR/BFF ambiguity)",
 			fx:        scorecardFixture{spanMetrics: true, sdkLanguage: "nodejs"},
 			wantScore: 1,
-			wantTotal: 7,
+			wantTotal: 8,
 			wantOK:    map[string]bool{"browserTelemetry": false},
-			wantNA:    map[string]bool{"browserTelemetry": false, "profiling": false},
+			wantNA:    map[string]bool{"browserTelemetry": false, "profiling": false, "jobs": false},
 		},
 		{
 			name:      "JVM service WITH faro data: check passes and stays applicable",
 			fx:        scorecardFixture{browser: true, sdkLanguage: "java"},
 			wantScore: 1,
-			wantTotal: 7,
+			wantTotal: 8,
 			wantOK:    map[string]bool{"browserTelemetry": true},
 			wantNA:    map[string]bool{"browserTelemetry": false},
 		},
@@ -202,8 +203,8 @@ func TestScorecardReadinessScore(t *testing.T) {
 			name:      "alert rule via grafana-managed rules",
 			fx:        scorecardFixture{alertRule: true},
 			wantScore: 1,
-			wantTotal: 7,
-			wantOK:    map[string]bool{"alertRules": true, "profiling": false},
+			wantTotal: 8,
+			wantOK:    map[string]bool{"alertRules": true, "profiling": false, "jobs": false},
 		},
 	}
 
@@ -225,10 +226,8 @@ func TestScorecardReadinessScore(t *testing.T) {
 					t.Errorf("check %q missing label/hint", c.Key)
 				}
 			}
-			for _, gated := range []string{"graphql", "jobs"} {
-				if !byKey[gated].NotApplicable {
-					t.Errorf("check %q should be NotApplicable until enablement", gated)
-				}
+			if !byKey["graphql"].NotApplicable {
+				t.Errorf("check graphql should be NotApplicable until ticket 16 emits signals")
 			}
 			for key, want := range tc.wantOK {
 				if byKey[key].OK != want {

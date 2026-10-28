@@ -8,14 +8,49 @@ import (
 	"github.com/nais/grafana-otel-plugin/pkg/plugin/queries"
 )
 
+// LogServiceIdentityFilter matches otel_logs rows for an inventory service.
+// Filelog pipelines often leave ServiceName empty and stamp k8s.* attrs instead,
+// so we also match service.name / k8s.deployment.name / k8s.pod.name prefix.
+// scrapeOrBrowser is optional (from jsonData.serviceAliases); when set it is
+// tried alongside the inventory name.
+func LogServiceIdentityFilter(inventory, scrapeOrBrowser string) string {
+	names := make([]string, 0, 2)
+	seen := map[string]bool{}
+	for _, n := range []string{strings.TrimSpace(inventory), strings.TrimSpace(scrapeOrBrowser)} {
+		if n == "" || seen[n] {
+			continue
+		}
+		seen[n] = true
+		names = append(names, n)
+	}
+	if len(names) == 0 {
+		return "1=0"
+	}
+	quoted := make([]string, len(names))
+	for i, n := range names {
+		quoted[i] = q(n)
+	}
+	inList := strings.Join(quoted, ", ")
+	parts := []string{
+		fmt.Sprintf("ServiceName IN (%s)", inList),
+		fmt.Sprintf("ResourceAttributes['service.name'] IN (%s)", inList),
+		fmt.Sprintf("ResourceAttributes['k8s.deployment.name'] IN (%s)", inList),
+	}
+	for _, n := range names {
+		parts = append(parts, fmt.Sprintf("startsWith(ResourceAttributes['k8s.pod.name'], %s)", q(n+"-")))
+	}
+	return "(" + strings.Join(parts, " OR ") + ")"
+}
+
 // LogSearchSQL returns recent log rows for a service (bounded).
 func LogSearchSQL(service string, from, to time.Time, environment, severity string, limit int) string {
-	return LogSearchSQLFiltered(service, from, to, environment, severity, "", nil, "", limit)
+	return LogSearchSQLFiltered(service, "", from, to, environment, severity, "", nil, "", limit)
 }
 
 // LogSearchSQLFiltered returns recent log rows with body search, field chips, and optional SQL WHERE.
+// scrapeOrBrowser is the optional serviceAliases target (e.g. nova-app for nova-api).
 func LogSearchSQLFiltered(
-	service string,
+	service, scrapeOrBrowser string,
 	from, to time.Time,
 	environment, severity, search string,
 	fields []FieldFilter,
@@ -26,22 +61,25 @@ func LogSearchSQLFiltered(
 		limit = 200
 	}
 	where := fmt.Sprintf(`%s
-  AND ServiceName = %s`, TimestampFilter(from, to), q(service))
+  AND %s`, TimestampFilter(from, to), LogServiceIdentityFilter(service, scrapeOrBrowser))
 	if environment != "" {
 		where += fmt.Sprintf(" AND ResourceAttributes['%s'] = %s", ResCluster, q(environment))
 	}
 	if severity != "" {
-		levels := make([]string, 0)
+		orParts := make([]string, 0)
 		for level := range strings.SplitSeq(severity, ",") {
 			level = strings.ToLower(strings.TrimSpace(level))
-			if level != "" {
-				levels = append(levels, q(level))
+			if level == "" {
+				continue
 			}
+			orParts = append(orParts,
+				fmt.Sprintf("lower(SeverityText) = %s", q(level)),
+				fmt.Sprintf("positionCaseInsensitiveUTF8(Body, %s) > 0", q(`"level":"`+level+`"`)),
+				fmt.Sprintf("positionCaseInsensitiveUTF8(Body, %s) > 0", q(`"level": "`+level+`"`)),
+			)
 		}
-		if len(levels) == 1 {
-			where += fmt.Sprintf(" AND lower(SeverityText) = %s", levels[0])
-		} else if len(levels) > 1 {
-			where += fmt.Sprintf(" AND lower(SeverityText) IN (%s)", strings.Join(levels, ", "))
+		if len(orParts) > 0 {
+			where += " AND (" + strings.Join(orParts, " OR ") + ")"
 		}
 	}
 	if search != "" {
@@ -69,33 +107,37 @@ LIMIT %d`, table(queries.CHTableLogs), where, limit)
 // LogPatternSQL groups recent log bodies by a truncated fingerprint for one service.
 // This replaces Loki's pattern API with an in-ClickHouse GROUP BY.
 func LogPatternSQL(service string, from, to time.Time, environment string, limit int) string {
-	return LogPatternSQLFiltered(service, from, to, environment, "", limit)
+	return LogPatternSQLFiltered(service, "", from, to, environment, "", limit)
 }
 
 // LogPatternSQLFiltered groups normalized log bodies, optionally restricting
 // the result to one or more severity levels.
-func LogPatternSQLFiltered(service string, from, to time.Time, environment, severity string, limit int) string {
+func LogPatternSQLFiltered(service, scrapeOrBrowser string, from, to time.Time, environment, severity string, limit int) string {
 	if limit <= 0 || limit > 100 {
 		limit = 50
 	}
 	where := fmt.Sprintf(`%s
-  AND ServiceName = %s
-  AND Body != ''`, TimestampFilter(from, to), q(service))
+  AND %s
+  AND Body != ''`, TimestampFilter(from, to), LogServiceIdentityFilter(service, scrapeOrBrowser))
 	if environment != "" {
 		where += fmt.Sprintf(" AND ResourceAttributes['%s'] = %s", ResCluster, q(environment))
 	}
 	if severity != "" {
-		levels := make([]string, 0)
+		// Filelog rows often leave SeverityText empty and put level in JSON Body.
+		orParts := make([]string, 0)
 		for level := range strings.SplitSeq(severity, ",") {
 			level = strings.ToLower(strings.TrimSpace(level))
-			if level != "" {
-				levels = append(levels, q(level))
+			if level == "" {
+				continue
 			}
+			orParts = append(orParts,
+				fmt.Sprintf("lower(SeverityText) = %s", q(level)),
+				fmt.Sprintf("positionCaseInsensitiveUTF8(Body, %s) > 0", q(`"level":"`+level+`"`)),
+				fmt.Sprintf("positionCaseInsensitiveUTF8(Body, %s) > 0", q(`"level": "`+level+`"`)),
+			)
 		}
-		if len(levels) == 1 {
-			where += fmt.Sprintf(" AND lower(SeverityText) = %s", levels[0])
-		} else if len(levels) > 1 {
-			where += fmt.Sprintf(" AND lower(SeverityText) IN (%s)", strings.Join(levels, ", "))
+		if len(orParts) > 0 {
+			where += " AND (" + strings.Join(orParts, " OR ") + ")"
 		}
 	}
 	// Normalize digits to reduce cardinality of otherwise-identical messages.

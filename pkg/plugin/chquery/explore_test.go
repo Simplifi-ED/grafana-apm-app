@@ -56,13 +56,15 @@ func TestValidateSQLWhere(t *testing.T) {
 func TestLogSearchSQLFiltered_FieldsAndWhere(t *testing.T) {
 	from := time.UnixMilli(1_700_000_000_000)
 	to := time.UnixMilli(1_700_000_360_000)
-	sql := LogSearchSQLFiltered("svc", from, to, "", "error", "boom",
+	sql := LogSearchSQLFiltered("svc", "svc-app", from, to, "", "error", "boom",
 		[]FieldFilter{{Key: "exception.type", Value: "Timeout"}},
 		"positionCaseInsensitiveUTF8(Body, 'x') > 0",
 		50,
 	)
 	for _, want := range []string{
-		"ServiceName = 'svc'",
+		"ServiceName IN ('svc', 'svc-app')",
+		"k8s.deployment.name",
+		"k8s.pod.name",
 		"lower(SeverityText) = 'error'",
 		"positionCaseInsensitiveUTF8(Body, 'boom')",
 		"LogAttributes['exception.type'] = 'Timeout'",

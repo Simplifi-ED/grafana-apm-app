@@ -59,7 +59,9 @@ func parseTimeRange(req *http.Request) (from, to time.Time) {
 		parseUnixParam(req, "to", now)
 }
 
-// parseUnixParam parses a Unix-epoch seconds query parameter.
+// parseUnixParam parses a Unix-epoch query parameter.
+// Values ≥ 1e12 are treated as milliseconds (common from JS Date.now());
+// smaller values are seconds (Grafana UI / timeParams).
 func parseUnixParam(req *http.Request, name string, defaultVal time.Time) time.Time {
 	s := req.URL.Query().Get(name)
 	if s == "" {
@@ -68,6 +70,9 @@ func parseUnixParam(req *http.Request, name string, defaultVal time.Time) time.T
 	ts, err := strconv.ParseInt(s, 10, 64)
 	if err != nil {
 		return defaultVal
+	}
+	if ts >= 1_000_000_000_000 {
+		return time.UnixMilli(ts)
 	}
 	return time.Unix(ts, 0)
 }

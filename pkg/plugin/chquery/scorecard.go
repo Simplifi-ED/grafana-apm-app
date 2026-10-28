@@ -39,9 +39,10 @@ WHERE %s
 LIMIT 1`, table(queries.CHTableTraces), where)
 }
 
-// LogsProbeSQL is true when otel_logs has any row for the service.
-func LogsProbeSQL(service, environment string, from, to time.Time) string {
-	where := fmt.Sprintf(`%s AND ServiceName = %s`, TimestampFilter(from, to), q(service))
+// LogsProbeSQL is true when otel_logs has any row for the service (incl. k8s identity).
+// scrapeOrBrowser may be empty; when set (serviceAliases) it broadens the match.
+func LogsProbeSQL(service, scrapeOrBrowser, environment string, from, to time.Time) string {
+	where := fmt.Sprintf(`%s AND %s`, TimestampFilter(from, to), LogServiceIdentityFilter(service, scrapeOrBrowser))
 	if environment != "" {
 		where += fmt.Sprintf(" AND ResourceAttributes['%s'] = %s", ResCluster, q(environment))
 	}

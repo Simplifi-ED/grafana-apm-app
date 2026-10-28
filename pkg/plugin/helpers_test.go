@@ -78,6 +78,7 @@ func TestParseUnixParam(t *testing.T) {
 		expected time.Time
 	}{
 		{"valid timestamp", "?from=1700000000", time.Unix(1700000000, 0)},
+		{"milliseconds from JS Date.now", "?from=1700000000000", time.UnixMilli(1700000000000)},
 		{"empty value returns default", "?from=", defaultTime},
 		{"missing param returns default", "", defaultTime},
 		{"non-numeric returns default", "?from=abc", defaultTime},

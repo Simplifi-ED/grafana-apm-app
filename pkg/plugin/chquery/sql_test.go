@@ -318,6 +318,38 @@ func TestBrowserExceptionOccurrencesSQL_ReplayFields(t *testing.T) {
 	}
 }
 
+func TestSessionEnrichmentSQL_AllSpansNotErrorsOnly(t *testing.T) {
+	from := time.Unix(1_700_000_000, 0)
+	to := from.Add(time.Hour)
+	sql := SessionEnrichmentSQL("nova-frontend", from, to, "prod-k3s-omnivya")
+	for _, want := range []string{
+		"countIf(",
+		"unhandledrejection",
+		"userId",
+		"userEmail",
+		"service.version",
+		"location.href",
+		"http.user_agent",
+		"app_version",
+		"pages",
+		"user_agent",
+		"prod-k3s-omnivya",
+	} {
+		if !strings.Contains(sql, want) {
+			t.Errorf("SessionEnrichmentSQL missing %q\n%s", want, sql)
+		}
+	}
+	// Must not require the error filter on the whole WHERE (healthy sessions enrich).
+	whereIdx := strings.Index(sql, "WHERE")
+	if whereIdx < 0 {
+		t.Fatal("no WHERE")
+	}
+	where := sql[whereIdx:]
+	if strings.Contains(where, "AND (SpanName = 'unhandledrejection'") {
+		t.Fatalf("error filter must not gate entire WHERE:\n%s", where)
+	}
+}
+
 func TestParseWebVitalsMaps(t *testing.T) {
 	vitals, samples := ParseWebVitalsMaps([]map[string]any{
 		{"lcp": 1200.0, "fcp": 800.0, "cls": 0.0, "inp": 50.0, "ttfb": 100.0, "samples": 12.0},
@@ -362,6 +394,19 @@ func TestParseServiceGraphMaps(t *testing.T) {
 	edges := ParseServiceGraphMaps(rows, 50)
 	if len(edges) != 1 || edges[0].ErrorRate != 0.05 || edges[0].Rate != 2.0 {
 		t.Fatalf("%+v", edges)
+	}
+}
+
+func TestLogServiceIdentityFilter_IncludesK8s(t *testing.T) {
+	got := LogServiceIdentityFilter("nova-api", "nova-app")
+	for _, want := range []string{
+		"ServiceName IN ('nova-api', 'nova-app')",
+		"k8s.deployment.name",
+		"startsWith(ResourceAttributes['k8s.pod.name'], 'nova-app-')",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %q in %s", want, got)
+		}
 	}
 }
 

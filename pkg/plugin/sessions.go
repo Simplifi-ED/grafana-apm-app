@@ -314,6 +314,43 @@ func setIfEmpty(dst *string, v string) {
 	}
 }
 
+// parseUserAgent extracts coarse browser + OS labels from a HyperDX
+// http.user_agent string for Sessions list columns (best-effort).
+func parseUserAgent(ua string) (browser, osName string) {
+	ua = strings.TrimSpace(ua)
+	if ua == "" {
+		return "", ""
+	}
+	lower := strings.ToLower(ua)
+	switch {
+	case strings.Contains(lower, "edg/"):
+		browser = "Edge"
+	case strings.Contains(lower, "chrome/") && !strings.Contains(lower, "edg/"):
+		browser = "Chrome"
+	case strings.Contains(lower, "firefox/"):
+		browser = "Firefox"
+	case strings.Contains(lower, "safari/") && !strings.Contains(lower, "chrome/"):
+		browser = "Safari"
+	default:
+		browser = "Other"
+	}
+	switch {
+	case strings.Contains(lower, "android"):
+		osName = "Android"
+	case strings.Contains(lower, "iphone") || strings.Contains(lower, "ipad") || strings.Contains(lower, "ios"):
+		osName = "iOS"
+	case strings.Contains(lower, "mac os x") || strings.Contains(lower, "macintosh"):
+		osName = "macOS"
+	case strings.Contains(lower, "windows"):
+		osName = "Windows"
+	case strings.Contains(lower, "linux"):
+		osName = "Linux"
+	default:
+		osName = "Other"
+	}
+	return browser, osName
+}
+
 // parseLogfmt extracts key=value pairs from a logfmt line. Values may be
 // bare (up to the next space) or double-quoted with backslash escapes —
 // enough for Faro's Loki exporter output; no external logfmt dependency.

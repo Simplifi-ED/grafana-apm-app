@@ -135,8 +135,9 @@ func scorecardBaseChecks() []ScorecardCheck {
 		// Visible but unscored until enablement tickets 16–17 (ticket 22).
 		{Key: "graphql", Label: "GraphQL",
 			Hint: "Waiting on GraphQL signal enablement (ticket 16).", NotApplicable: true},
+		// Letter I / ticket 17: scored from kube_* probe (see applyJobsCheck).
 		{Key: "jobs", Label: "Jobs",
-			Hint: "Waiting on Jobs / KSM signal enablement (ticket 17).", NotApplicable: true},
+			Hint: "Waiting on Jobs / KSM signal enablement (ticket 17)."},
 		// Letter J / ticket 18: scored from detectPyroscope (see applyProfilingCheck).
 		{Key: "profiling", Label: "Profiling",
 			Hint: "Install grafana-pyroscope-datasource and provision a Pyroscope DS (ticket 18)."},
@@ -199,8 +200,7 @@ func (a *App) computeReadiness(ctx context.Context, headers http.Header, namespa
 }
 
 // computeReadinessClickHouse runs ticket-22 CH probes for the Nais 6 keys,
-// scores Profiling via detectPyroscope (letter J / 18), and keeps graphql/jobs
-// as unscored N/A placeholders until 16–17.
+// scores Jobs (I/17) + Profiling (J/18), and keeps graphql as N/A until 16.
 func (a *App) computeReadinessClickHouse(ctx context.Context, headers http.Header, namespace, service, env string) ScorecardReadiness {
 	now := time.Now()
 	from := now.Add(-scorecardTraceLookback)
@@ -223,7 +223,8 @@ func (a *App) computeReadinessClickHouse(ctx context.Context, headers http.Heade
 	}()
 	go func() {
 		defer wg.Done()
-		checks[2].OK = a.chProbeNonEmpty(ctx, ch, chquery.LogsProbeSQL(service, env, from, now))
+		scrape, _ := a.ResolveServiceAlias(service)
+		checks[2].OK = a.chProbeNonEmpty(ctx, ch, chquery.LogsProbeSQL(service, scrape, env, from, now))
 	}()
 	go func() {
 		defer wg.Done()
@@ -270,8 +271,41 @@ func (a *App) computeReadinessClickHouse(ctx context.Context, headers http.Heade
 	go func() { defer wg.Done(); checks[5].OK = a.checkAlertRules(ctx, headers, token, service) }()
 	wg.Wait()
 
+	a.applyJobsCheck(ctx, headers, token, checks)
 	a.applyProfilingCheck(ctx, headers, token, checks)
 	return tallyScorecard(checks)
+}
+
+// applyJobsCheck scores the Jobs slot from live kube_cronjob_*/kube_job_* in CH
+// (letter I / ticket 17). Stays NotApplicable only when the probe cannot run.
+func (a *App) applyJobsCheck(ctx context.Context, headers http.Header, token string, checks []ScorecardCheck) {
+	const jobsIdx = 7
+	if jobsIdx >= len(checks) || checks[jobsIdx].Key != "jobs" {
+		return
+	}
+	checks[jobsIdx].NotApplicable = false
+	if !a.clickStackMode() {
+		checks[jobsIdx].OK = false
+		checks[jobsIdx].Hint = "Jobs scoring requires ClickStack mode with kube_* metrics in ClickHouse."
+		return
+	}
+	ch := a.chClient
+	if ch != nil {
+		ch = ch.WithServiceToken(token).WithAuthHeaders(headers)
+	}
+	if ch == nil {
+		checks[jobsIdx].OK = false
+		checks[jobsIdx].Hint = "ClickHouse datasource unavailable for Jobs probe."
+		return
+	}
+	now := time.Now()
+	from := now.Add(-scorecardTraceLookback)
+	checks[jobsIdx].OK = a.chProbeNonEmpty(ctx, ch, chquery.JobsKubeProbeSQL(from, now))
+	if checks[jobsIdx].OK {
+		checks[jobsIdx].Hint = "kube_cronjob_* / kube_job_* metrics present in ClickHouse."
+	} else {
+		checks[jobsIdx].Hint = "No kube_cronjob_* / kube_job_* metrics in ClickHouse — scrape kube-state-metrics into the OTel metrics pipeline."
+	}
 }
 
 // applyProfilingCheck sets the Profiling scorecard slot from the live Pyroscope

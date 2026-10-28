@@ -27,24 +27,24 @@
 | Endpoints | `GET .../endpoints` | spanmetrics → protocol groups | 🟨 | |
 | Service health | `GET .../health` | spanmetrics + service graph | 🟨 | **D** CH path: RED + prev-period + degraded ops/deps |
 | Trace breakdown | `GET .../traces/breakdown` | `otel_traces` | 🟨 | |
-| Trace waterfall / Explore | Traces tab | `otel_traces` | 🟨 | **E** CH-primary + chips/SQL; Tempo Explore secondary |
-| Log patterns | `GET .../logs/patterns` | `otel_logs` Body clustering | 🟨 | |
-| Log Explore | Logs tab | `otel_logs` | 🟨 | **E** CH-primary + chips/SQL; patterns kept; Loki Explore secondary |
+| Trace waterfall / Explore | Traces tab | `otel_traces` | ✅ | **E** CH search live via Grafana DS (nova-api traces) |
+| Log patterns | `GET .../logs/patterns` | `otel_logs` Body clustering | ✅ | **E** k8s identity + JSON body level match (filelog SeverityText empty) |
+| Log Explore | Logs tab | `otel_logs` | ✅ | **E** match via alias→`k8s.deployment.name` / pod prefix when ServiceName empty |
 | Issues / exceptions | `GET .../issues` | `otel_traces` | 🟨 | **F** shipped: HyperDX browser (`unhandledrejection`/`error.*`) + server `Events.exception` badged (**19**/ **20**); empty UX + alias/probe hints (**13**) |
 | Issue occurrences / drawer | CH spans + `rum.sessionId` | `otel_traces`, `hyperdx_sessions` | 🟨 | **F** shipped; replay deep-link via `rum.sessionId`; Faro Loki not required |
 | Frontend Web Vitals | `GET .../frontend` + tab | `otel_traces` `webvitals` | 🟨 | HyperDX live |
 | Frontend versions | `GET .../frontend/versions` | `ResourceAttributes['service.version']` | ✅ | **G** + **21**: DEV `@hyperdx/otel-web` emits `service.version=APP_VERSION` (never `rum.version`) |
 | Frontend Feedback | Feedback UI | `otel_traces` `SpanName=faro.feedback` | ✅ | **G** + **21**: contract live after `keep-browser-rum` sampling (#121); Support form optional extra proof |
-| Frontend sessions list | `GET .../frontend/sessions` | `hyperdx_sessions` + error enrich from traces | 🟨 | **F** polish: errors/user enrich, alias hint, ClickStack empty copy |
+| Frontend sessions list | `GET .../frontend/sessions` | `hyperdx_sessions` + enrich from traces | ✅ | **F** enrich: errors + user/version/pages/UA from all browser spans (not errors-only) |
 | Session replay | replay / probe / recordings | `hyperdx_sessions` | ✅ | |
-| Service map | `GET /service-map` | `traces_service_graph_*` | 🟨 | |
+| Service map | `GET /service-map` | `traces_service_graph_*` | ✅ | Live edges via Grafana CH DS (envoy/nova-api/postgres/valkey) |
 | Dependencies / connected | `GET .../dependencies`, `/connected` | service graph CH | 🟨 | **D** service/global/ns/detail + connected |
 | Database top queries / N+1 | DB tab | `otel_traces` db attrs | 🟨 | **D** `chquery` top queries + N+1 |
-| Runtime metrics | Runtime tab | `otel_metrics_*` `go_*`/`process_*` | 🟨 | **C** shipped: alias → scrape `ServiceName`; Go/process CH queries; miss → hint |
+| Runtime metrics | Runtime tab | `otel_metrics_*` `go_*`/`process_*` | ✅ | **C** + aliases: `nova-api→nova-app` Go runtime live |
 | Custom metrics | Custom tab | `otel_metrics_*` | 🟨 | **C** shipped: denylist discovery across gauge/sum/hist/summary |
 | GraphQL | GraphQL / Server tab | `otel_metrics_*` probes ∨ `otel_traces` `graphql.operation.*` | 🟨 | **H** + **16**: plugin detect/query ready; no live Sanad GQL (demo removed; tab empty+hint until an app emits) |
-| Alerts / templates | Alerts UI | Grafana UA + CH SQL | 🟨 | **D** list/firing (**10**); full catalog CH SQL eval (**27**) |
-| Scorecard | Scorecard | CH probes | 🟨 | **D** Nais 6 + graphql/jobs N/A (**22**); **J** profiling scored via Pyroscope probe |
+| Alerts / templates | Alerts UI | Grafana UA + CH SQL | ✅ | **D**/**27** `GET /alert-templates/error-rate` returns CH SQL defaults |
+| Scorecard | Scorecard | CH probes | ✅ | Logs+runtime via aliases; Jobs scored (kube_*); Profiling OK; GraphQL N/A |
 | Jobs | Jobs UI | KSM/Prom and/or `kube_*` in CH | ✅ | **I** + **17**: `kube_cronjob_*` in CH (`namespace=prod-nova`) via KSM + honor_labels |
 | Triage / watchlist / sourcemap | annotations / HTTP | N/A | ✅ | |
 | Profiling | Profiling tab | Pyroscope DS | ✅ | **J** + **18**: local compose Pyroscope DS; plugin detects (`available:true`) |
@@ -89,11 +89,11 @@ Plan tracker: `.scratch/clickstack-nais-parity/map.md`.
 | Letter | Work | Enablement |
 |--------|------|------------|
 | A | ADR helpers + `serviceAliases` | 🟨 foundation shipped |
-| B | Inventory polish | 🟨 unit-tested; live Grafana DS smoke pending |
-| C | Runtime + Custom | 🟨 unit-tested; Sanad smoke via aliases pending |
-| D | Alerts / Scorecard / DB / deps health | 🟨 shipped this session |
-| E | Explore depth | 🟨 filter chips + Advanced SQL + CH-primary; Explore links UID-gated |
-| F | Issues + Sessions UX | 🟨 unit-tested; Sanad smoke pending |
+| B | Inventory polish | 🟨 unit-tested; capabilities list live |
+| C | Runtime + Custom | ✅ Runtime live via aliases; Custom still 🟨 |
+| D | Alerts / Scorecard / DB / deps health | ✅ alerts templates + scorecard live; deps still 🟨 |
+| E | Explore depth | ✅ traces/logs/patterns live via Grafana CH DS |
+| F | Issues + Sessions UX | ✅ sessions enrich live; Issues still 🟨 unit-tested |
 | G | Versions + Feedback | ✅ unit + DEV CH smoke (**21**) |
 | H | GraphQL | ✅ plugin path; live emitter optional (**16**) |
 | I | Jobs | ✅ Path A/B + live `kube_cronjob_*` (**17**) |

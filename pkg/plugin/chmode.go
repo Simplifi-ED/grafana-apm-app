@@ -795,7 +795,8 @@ func (a *App) fetchLogPatternsClickHouse(
 	}
 	opts := queries.ClickHouseQueryOptions{From: from, To: to, Limit: 50}
 	severity := "error,fatal,critical"
-	res, err := ch.Query(ctx, chquery.LogPatternSQLFiltered(service, from, to, environment, severity, 50), opts)
+	scrape, _ := a.ResolveServiceAlias(service)
+	res, err := ch.Query(ctx, chquery.LogPatternSQLFiltered(service, scrape, from, to, environment, severity, 50), opts)
 	if err != nil {
 		log.DefaultLogger.Warn("log patterns CH query failed", "error", err)
 		return LogPatternsResponse{Mode: "unavailable", Patterns: []LogPattern{}, Note: "clickhouse query failed"}
@@ -806,7 +807,7 @@ func (a *App) fetchLogPatternsClickHouse(
 	if span > 0 {
 		prevRes, prevErr := ch.Query(
 			ctx,
-			chquery.LogPatternSQLFiltered(service, from.Add(-span), from, environment, severity, 50),
+			chquery.LogPatternSQLFiltered(service, scrape, from.Add(-span), from, environment, severity, 50),
 			queries.ClickHouseQueryOptions{From: from.Add(-span), To: from, Limit: 50},
 		)
 		if prevErr == nil {
@@ -1023,24 +1024,33 @@ LIMIT 50`, table, where, chquery.TimestampFilter(from, to))
 	}
 
 	type enrich struct {
-		errors    float64
-		userID    string
-		userEmail string
+		errors     float64
+		userID     string
+		userEmail  string
+		appVersion string
+		pages      int
+		browser    string
+		os         string
 	}
 	bySession := map[string]enrich{}
-	enrichRes, enrichErr := ch.Query(ctx, chquery.SessionErrorEnrichmentSQL(browserName, from, to, environment), opts)
+	enrichRes, enrichErr := ch.Query(ctx, chquery.SessionEnrichmentSQL(browserName, from, to, environment), opts)
 	if enrichErr != nil {
-		log.DefaultLogger.Warn("frontend sessions error enrichment failed", "error", enrichErr)
+		log.DefaultLogger.Warn("frontend sessions enrichment failed", "error", enrichErr)
 	} else {
 		for _, m := range enrichRes.Maps() {
 			sid := chquery.ParseString(m["session_id"])
 			if sid == "" {
 				continue
 			}
+			browser, osName := parseUserAgent(chquery.ParseString(m["user_agent"]))
 			bySession[sid] = enrich{
-				errors:    chquery.ParseFloat(m["errors"]),
-				userID:    chquery.ParseString(m["user_id"]),
-				userEmail: chquery.ParseString(m["user_email"]),
+				errors:     chquery.ParseFloat(m["errors"]),
+				userID:     chquery.ParseString(m["user_id"]),
+				userEmail:  chquery.ParseString(m["user_email"]),
+				appVersion: chquery.ParseString(m["app_version"]),
+				pages:      int(chquery.ParseFloat(m["pages"])),
+				browser:    browser,
+				os:         osName,
 			}
 		}
 	}
@@ -1057,6 +1067,10 @@ LIMIT 50`, table, where, chquery.TimestampFilter(from, to))
 			Errors:      e.errors,
 			UserID:      e.userID,
 			UserEmail:   e.userEmail,
+			Browser:     e.browser,
+			OS:          e.os,
+			AppVersion:  e.appVersion,
+			Pages:       e.pages,
 		})
 	}
 	// Prefer sessions with errors, then recency (M5 / HyperDX polish).
