@@ -33,8 +33,8 @@
 | Issues / exceptions | `GET .../issues` | `otel_traces` | 🟨 | **F** shipped: HyperDX browser (`unhandledrejection`/`error.*`) + server `Events.exception` badged (**19**/ **20**); empty UX + alias/probe hints (**13**) |
 | Issue occurrences / drawer | CH spans + `rum.sessionId` | `otel_traces`, `hyperdx_sessions` | 🟨 | **F** shipped; replay deep-link via `rum.sessionId`; Faro Loki not required |
 | Frontend Web Vitals | `GET .../frontend` + tab | `otel_traces` `webvitals` | 🟨 | HyperDX live |
-| Frontend versions | `GET .../frontend/versions` | `ResourceAttributes['service.version']` | 🟨 | **G** shipped: `@hyperdx/otel-web` GROUP BY `service.version` (never `rum.version`); probe + alias/enablement empty (**13**/**21**) |
-| Frontend Feedback | Feedback UI | `otel_traces` `SpanName=faro.feedback` | 🟨 | **G** shipped: Faro-shaped CH query + Issues Feedback panel; probe empty until Sanad **21** deploy |
+| Frontend versions | `GET .../frontend/versions` | `ResourceAttributes['service.version']` | ✅ | **G** + **21**: DEV `@hyperdx/otel-web` emits `service.version=APP_VERSION` (never `rum.version`) |
+| Frontend Feedback | Feedback UI | `otel_traces` `SpanName=faro.feedback` | ✅ | **G** + **21**: contract live after `keep-browser-rum` sampling (#121); Support form optional extra proof |
 | Frontend sessions list | `GET .../frontend/sessions` | `hyperdx_sessions` + error enrich from traces | 🟨 | **F** polish: errors/user enrich, alias hint, ClickStack empty copy |
 | Session replay | replay / probe / recordings | `hyperdx_sessions` | ✅ | |
 | Service map | `GET /service-map` | `traces_service_graph_*` | 🟨 | |
@@ -42,13 +42,13 @@
 | Database top queries / N+1 | DB tab | `otel_traces` db attrs | 🟨 | **D** `chquery` top queries + N+1 |
 | Runtime metrics | Runtime tab | `otel_metrics_*` `go_*`/`process_*` | 🟨 | **C** shipped: alias → scrape `ServiceName`; Go/process CH queries; miss → hint |
 | Custom metrics | Custom tab | `otel_metrics_*` | 🟨 | **C** shipped: denylist discovery across gauge/sum/hist/summary |
-| GraphQL | GraphQL / Server tab | `otel_metrics_*` probes ∨ `otel_traces` `graphql.operation.*` | 🟨 | **H** ✅ detect; **16** fixture+emitter shipped; live OTLP seed pending |
+| GraphQL | GraphQL / Server tab | `otel_metrics_*` probes ∨ `otel_traces` `graphql.operation.*` | 🟨 | **H** + **16**: plugin detect/query ready; no live Sanad GQL (demo removed; tab empty+hint until an app emits) |
 | Alerts / templates | Alerts UI | Grafana UA + CH SQL | 🟨 | **D** list/firing (**10**); full catalog CH SQL eval (**27**) |
 | Scorecard | Scorecard | CH probes | 🟨 | **D** Nais 6 + graphql/jobs N/A (**22**); **J** profiling scored via Pyroscope probe |
-| Jobs | Jobs UI | KSM/Prom and/or `kube_*` in CH | 🟨 | **I** Path A Prom preferred; Path B CH `kube_*` probe; soft-unavailable + ticket **17** hint when empty |
+| Jobs | Jobs UI | KSM/Prom and/or `kube_*` in CH | ✅ | **I** + **17**: `kube_cronjob_*` in CH (`namespace=prod-nova`) via KSM + honor_labels |
 | Triage / watchlist / sourcemap | annotations / HTTP | N/A | ✅ | |
-| Profiling | Profiling tab | Pyroscope DS | 🟨 | **J** always-visible tab; real flame graphs when DS present; empty+hint otherwise (**18**) |
-| Service identity aliases | plugin `jsonData.serviceAliases` | — | 🟨 | **A** / **15** — resolve helper + AppConfig; Runtime/Custom CH queries in **C** |
+| Profiling | Profiling tab | Pyroscope DS | ✅ | **J** + **18**: local compose Pyroscope DS; plugin detects (`available:true`) |
+| Service identity aliases | plugin `jsonData.serviceAliases` | — | ✅ | **A** / **15** — Sanad seeds: `nova-api→nova-app`, `admin-api→admin-app`, `nova-frontend` (example + local provisioning) |
 
 ---
 
@@ -63,10 +63,10 @@
 | `hyperdx_sessions` multi-chunk concat | Valid rrweb type=2 + timestamp |
 | Browser Issues | `nova-frontend` `SpanName=unhandledrejection` + `error.message`/`error.stack` + `Events.exception.*` + `rum.sessionId` (**20**) |
 | Server exception events | `nova-api` `Events.Name=exception` (`exception.type`/`message`) |
-| Frontend `service.version` | **Empty** on `@hyperdx/otel-web`; `rum.version=0.20.0` is SDK only |
-| Feedback RUM events | **Absent** (only unrelated `GET /api/feedback` HTTP spans) |
-| Runtime identity gap | spanmetrics `nova-api` vs scrape `nova-app` (**15**/ **06**) |
-| GraphQL / Jobs / Pyroscope | No signal in this CH (**08**/ **09**/ **11**) → enablement **16–18** |
+| Frontend `service.version` | ✅ DEV: `20260422164408-main` on `@hyperdx/otel-web` (**21**) |
+| Feedback RUM events | ✅ `SpanName=faro.feedback` after keep-browser-rum (**21** / #121) |
+| Runtime identity gap | spanmetrics `nova-api` vs scrape `nova-app` (**15**/ **06**) — aliases |
+| GraphQL / Jobs / Pyroscope | Jobs ✅ KSM; Pyroscope ✅ local; GraphQL plugin-ready (no live emitter) |
 
 ---
 
@@ -94,9 +94,9 @@ Plan tracker: `.scratch/clickstack-nais-parity/map.md`.
 | D | Alerts / Scorecard / DB / deps health | 🟨 shipped this session |
 | E | Explore depth | 🟨 filter chips + Advanced SQL + CH-primary; Explore links UID-gated |
 | F | Issues + Sessions UX | 🟨 unit-tested; Sanad smoke pending |
-| G | Versions + Feedback | 🟨 unit-tested; live **21** smoke pending |
-| H | GraphQL | 🟨 plugin CH path; live emitter **16** |
-| I | Jobs | 🟨 Path A/B shipped; live Sanad needs **17** KSM |
-| J | Profiling | 🟨 shipped (probe + empty hint); live DS still **18** |
+| G | Versions + Feedback | ✅ unit + DEV CH smoke (**21**) |
+| H | GraphQL | ✅ plugin path; live emitter optional (**16**) |
+| I | Jobs | ✅ Path A/B + live `kube_cronjob_*` (**17**) |
+| J | Profiling | ✅ plugin + local Pyroscope DS (**18**) |
 
-Platform **16–18/21** start in parallel with A. Gated tabs: capability probe + empty-state (**13**), no fake zeros.
+Platform **17/18/21** live (DEV/local); **16** plugin-ready without demo. Remaining: merge Sanad #836 → prod; local Grafana UI smoke with aliases.
