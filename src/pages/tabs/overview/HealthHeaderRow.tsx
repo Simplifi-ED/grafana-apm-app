@@ -5,6 +5,7 @@ import { css } from '@emotion/css';
 import { HealthSummary as HealthData } from '../../../api/client';
 import { formatRate, formatErrorRate, formatDuration } from '../../../utils/format';
 import { computeDelta, DeltaResult, DeltaPolarity } from './healthDelta';
+import { typographyFontSize } from '../../../utils/themeTypography';
 
 interface HealthHeaderRowProps {
   health: HealthData | null;
@@ -152,13 +153,13 @@ const getStyles = (theme: GrafanaTheme2) => ({
     padding: ${theme.spacing(1.5)} ${theme.spacing(2)};
   `,
   label: css`
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     color: ${theme.colors.text.secondary};
     text-transform: uppercase;
     letter-spacing: 0.5px;
   `,
   value: css`
-    font-size: ${theme.typography.xl.fontSize};
+    font-size: ${typographyFontSize(theme, 'xl')};
     font-weight: ${theme.typography.fontWeightMedium};
     font-variant-numeric: tabular-nums;
   `,
@@ -166,7 +167,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     display: inline-flex;
     align-items: center;
     gap: ${theme.spacing(0.5)};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     color: ${theme.colors.text.secondary};
     font-variant-numeric: tabular-nums;
   `,
@@ -174,7 +175,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     display: inline-flex;
     align-items: center;
     gap: ${theme.spacing(0.5)};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     color: ${theme.colors.success.text};
     font-variant-numeric: tabular-nums;
   `,
@@ -182,7 +183,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     display: inline-flex;
     align-items: center;
     gap: ${theme.spacing(0.5)};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     color: ${theme.colors.warning.text};
     font-variant-numeric: tabular-nums;
     font-weight: ${theme.typography.fontWeightMedium};
@@ -191,7 +192,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     display: inline-flex;
     align-items: center;
     gap: ${theme.spacing(0.5)};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     color: ${theme.colors.error.text};
     font-variant-numeric: tabular-nums;
     font-weight: ${theme.typography.fontWeightMedium};

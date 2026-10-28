@@ -3,6 +3,7 @@ import { useStyles2 } from '@grafana/ui';
 import { GrafanaTheme2 } from '@grafana/data';
 import { css } from '@emotion/css';
 import { BackButton } from './BackButton';
+import { typographyFontSize } from '../utils/themeTypography';
 
 interface PageHeaderProps {
   title: React.ReactNode;
@@ -45,7 +46,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   title: css`
     margin: 0;
-    font-size: ${theme.typography.xl.fontSize};
+    font-size: ${typographyFontSize(theme, 'xl')};
   `,
   controls: css`
     display: flex;

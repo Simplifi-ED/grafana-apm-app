@@ -15,6 +15,7 @@ import { escapeQueryString } from '../../utils/sanitize';
 import { useTimeRange } from '../../utils/timeRange';
 import { TraceBreakdowns } from './traces/TraceBreakdowns';
 import { ClickStackTracesPanel } from './traces/ClickStackTracesPanel';
+import { typographyFontSize } from '../../utils/themeTypography';
 
 /** Map OTel span kind values to TraceQL kind literals. */
 function mapSpanKindToTraceQL(raw: string): string {
@@ -232,7 +233,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   label: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
   `,
   durationInput: css`
     width: 70px;
@@ -241,6 +242,6 @@ const getStyles = (theme: GrafanaTheme2) => ({
     border-radius: ${theme.shape.radius.default};
     background: ${theme.colors.background.primary};
     color: ${theme.colors.text.primary};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
   `,
 });

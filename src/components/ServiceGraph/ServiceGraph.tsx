@@ -19,6 +19,7 @@ import { GroupNode } from './nodes/GroupNode';
 import { CollapseNode, type CollapseNodeData } from './nodes/CollapseNode';
 import { useELKLayout } from './useELKLayout';
 import { computeVisibility, isCollapseId, collapseSide, DORMANT_CALLERS_ID, DORMANT_TARGETS_ID } from './graphUtils';
+import { typographyFontSize } from '../../utils/themeTypography';
 
 export interface ServiceGraphNode {
   id: string;
@@ -320,6 +321,6 @@ const getStyles = (theme: GrafanaTheme2) => ({
     justify-content: center;
     height: 400px;
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.base.fontSize};
+    font-size: ${typographyFontSize(theme, 'base')};
   `,
 });

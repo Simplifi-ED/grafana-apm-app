@@ -32,6 +32,7 @@ import { useUserMutes } from '../../../../utils/userStorage';
 import { usePluginDatasources } from '../../../../utils/datasources';
 import { buildExceptionTracesExploreUrl } from '../../../../utils/explore';
 import { DataState } from '../../../../components/DataState';
+import { typographyFontSize } from '../../../../utils/themeTypography';
 
 interface IssuesTableProps {
   namespace: string;
@@ -566,14 +567,14 @@ const getStyles = (theme: GrafanaTheme2) => ({
     background: ${theme.colors.background.secondary};
     border: 1px solid ${theme.colors.border.weak};
     border-radius: ${theme.shape.radius.pill};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     color: ${theme.colors.text.secondary};
   `,
   clearAll: css`
     background: none;
     border: none;
     color: ${theme.colors.text.link};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     cursor: pointer;
     padding: ${theme.spacing(0.5)};
     &:hover {
@@ -582,16 +583,16 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   title: css`
     margin: 0;
-    font-size: ${theme.typography.base.fontSize};
+    font-size: ${typographyFontSize(theme, 'base')};
   `,
   subtitle: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
   `,
   table: css`
     width: 100%;
     border-collapse: collapse;
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     th {
       text-align: left;
       color: ${theme.colors.text.secondary};
@@ -657,7 +658,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   shareLabel: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
   `,
   actionsCol: css`
     white-space: nowrap;
@@ -672,7 +673,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     background: none;
     border: none;
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     cursor: pointer;
     padding: ${theme.spacing(0.5, 1)};
     &:hover {
@@ -687,6 +688,6 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   footerCount: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
   `,
 });

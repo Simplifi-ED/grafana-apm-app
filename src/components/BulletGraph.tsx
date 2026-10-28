@@ -2,6 +2,7 @@ import React from 'react';
 import { Icon, Tooltip, useTheme2 } from '@grafana/ui';
 import { GrafanaTheme2 } from '@grafana/data';
 import { css } from '@emotion/css';
+import { typographyFontSize } from '../utils/themeTypography';
 
 export interface BulletGraphThreshold {
   value: number;
@@ -174,7 +175,7 @@ function getStyles(theme: GrafanaTheme2) {
     }),
     abbreviation: css({
       fontWeight: theme.typography.fontWeightBold,
-      fontSize: theme.typography.md.fontSize,
+      fontSize: typographyFontSize(theme, 'md'),
       color: theme.colors.text.primary,
       lineHeight: 1.2,
     }),
@@ -184,7 +185,7 @@ function getStyles(theme: GrafanaTheme2) {
       display: 'flex',
     }),
     metricName: css({
-      fontSize: theme.typography.sm.fontSize,
+      fontSize: typographyFontSize(theme, 'sm'),
       color: theme.colors.text.secondary,
       lineHeight: 1.3,
     }),
@@ -193,17 +194,17 @@ function getStyles(theme: GrafanaTheme2) {
     }),
     bigValue: css({
       fontWeight: theme.typography.fontWeightBold,
-      fontSize: theme.typography.lg.fontSize,
+      fontSize: typographyFontSize(theme, 'lg'),
       fontVariantNumeric: 'tabular-nums',
       lineHeight: 1.2,
     }),
     ratingText: css({
-      fontSize: theme.typography.sm.fontSize,
+      fontSize: typographyFontSize(theme, 'sm'),
       fontWeight: theme.typography.fontWeightMedium,
       whiteSpace: 'nowrap' as const,
     }),
     noData: css({
-      fontSize: theme.typography.lg.fontSize,
+      fontSize: typographyFontSize(theme, 'lg'),
       color: theme.colors.text.disabled,
     }),
     barOuter: css({
@@ -232,7 +233,7 @@ function getStyles(theme: GrafanaTheme2) {
     ticks: css({
       position: 'relative' as const,
       height: theme.spacing(2.5),
-      fontSize: theme.typography.sm.fontSize,
+      fontSize: typographyFontSize(theme, 'sm'),
       color: theme.colors.text.secondary,
       marginTop: theme.spacing(0.25),
     }),

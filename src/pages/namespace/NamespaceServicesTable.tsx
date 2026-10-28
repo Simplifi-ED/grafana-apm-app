@@ -10,6 +10,7 @@ import { Sparkline } from '../../components/Sparkline';
 import { sparklineColors } from '../../utils/colors';
 import { getServiceHealth, deltaArrow } from '../../utils/health';
 import { HealthIndicator } from '../../components/HealthIndicator';
+import { typographyFontSize } from '../../utils/themeTypography';
 
 const PAGE_SIZE = 10;
 
@@ -172,7 +173,7 @@ const getLocalStyles = (theme: GrafanaTheme2) => ({
   `,
   arrow: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
   `,
   sparkContainer: css`
     display: flex;
@@ -187,7 +188,7 @@ const getLocalStyles = (theme: GrafanaTheme2) => ({
   `,
   count: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
   `,
   pagination: css`
     margin-top: ${theme.spacing(1.5)};

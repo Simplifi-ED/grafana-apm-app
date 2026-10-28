@@ -7,6 +7,7 @@ import { getTraceBreakdown } from '../../../api/analytics';
 import { useFetch } from '../../../utils/useFetch';
 import { DataState } from '../../../components/DataState';
 import { formatDuration, formatRate, formatErrorRate } from '../../../utils/format';
+import { typographyFontSize } from '../../../utils/themeTypography';
 
 /** Rows shown before the "show all" affordance reveals the rest (rule 5: keep the panel compact even expanded). */
 const TOP_N = 6;
@@ -211,12 +212,12 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   label: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
   `,
   modeBadge: css`
     margin-left: auto;
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     border: 1px solid ${theme.colors.border.weak};
     border-radius: ${theme.shape.radius.default};
     padding: ${theme.spacing(0, 0.75)};
@@ -225,7 +226,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   table: css`
     width: 100%;
     border-collapse: collapse;
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     th {
       text-align: left;
       color: ${theme.colors.text.secondary};

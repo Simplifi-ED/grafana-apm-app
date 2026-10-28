@@ -9,6 +9,7 @@ import { sparklineColors } from '../../utils/colors';
 import { getSectionStyles } from '../../utils/styles';
 import { Sparkline } from '../../components/Sparkline';
 import { HealthIndicator } from '../../components/HealthIndicator';
+import { typographyFontSize } from '../../utils/themeTypography';
 
 const MAX_ITEMS = 5;
 
@@ -143,14 +144,14 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   serviceName: css`
     font-weight: ${theme.typography.fontWeightMedium};
-    font-size: ${theme.typography.base.fontSize};
+    font-size: ${typographyFontSize(theme, 'base')};
     color: ${theme.colors.text.primary};
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   `,
   envBadge: css`
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     color: ${theme.colors.text.secondary};
     background: ${theme.colors.background.canvas};
     padding: 1px ${theme.spacing(0.75)};
@@ -164,12 +165,12 @@ const getStyles = (theme: GrafanaTheme2) => ({
     flex-wrap: wrap;
   `,
   metric: css`
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     color: ${theme.colors.text.primary};
     font-variant-numeric: tabular-nums;
   `,
   metricSecondary: css`
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     color: ${theme.colors.text.secondary};
     font-variant-numeric: tabular-nums;
   `,

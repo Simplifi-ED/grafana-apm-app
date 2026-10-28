@@ -35,6 +35,7 @@ import { usePluginDatasources, usePluginLabelOverrides } from '../utils/datasour
 import { useCapabilities } from '../utils/capabilities';
 import { escapePromQLRegex } from '../utils/debounce';
 import { otel } from '../otelconfig';
+import { typographyFontSize } from '../utils/themeTypography';
 
 /**
  * Build a PromQL regex that matches the normalized address and its raw forms.
@@ -423,7 +424,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   depName: css`
     margin: 0;
-    font-size: ${theme.typography.xl.fontSize};
+    font-size: ${typographyFontSize(theme, 'xl')};
   `,
   typeBadge: css`
     display: inline-flex;
@@ -447,15 +448,15 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   statLabel: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
   `,
   statValue: css`
-    font-size: ${theme.typography.md.fontSize};
+    font-size: ${typographyFontSize(theme, 'md')};
     font-weight: ${theme.typography.fontWeightMedium};
     font-variant-numeric: tabular-nums;
   `,
   statValueError: css`
-    font-size: ${theme.typography.md.fontSize};
+    font-size: ${typographyFontSize(theme, 'md')};
     font-weight: ${theme.typography.fontWeightMedium};
     font-variant-numeric: tabular-nums;
     color: ${theme.colors.error.text};

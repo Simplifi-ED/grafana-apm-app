@@ -4,6 +4,7 @@ import { GrafanaTheme2 } from '@grafana/data';
 import { Alert, Button, Input, Modal, useStyles2 } from '@grafana/ui';
 import { ServiceSummary } from '../api/client';
 import { OpsWatchlistEntry, watchlistKey } from '../utils/useOpsWatchlist';
+import { typographyFontSize } from '../utils/themeTypography';
 
 interface OpsServicePickerProps {
   isOpen: boolean;
@@ -146,7 +147,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   namespace: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     word-break: break-word;
   `,
 });

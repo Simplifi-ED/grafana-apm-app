@@ -31,6 +31,7 @@ import { BackendTab } from './tabs/BackendTab';
 import { FrontendTab } from './tabs/FrontendTab';
 import { DatabaseTab } from './tabs/DatabaseTab';
 import { ProfilingTab } from './tabs/ProfilingTab';
+import { typographyFontSize } from '../utils/themeTypography';
 
 // 'backend' merges the former Endpoints (RED) + Runtime (USE) tabs into one
 // tab (docs/ia-review-2.md). The legacy url values `tab=server` and
@@ -632,7 +633,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   controlLabel: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
   `,
 });
 

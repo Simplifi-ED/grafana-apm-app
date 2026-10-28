@@ -3,6 +3,7 @@ import { useStyles2, Icon } from '@grafana/ui';
 import { GrafanaTheme2 } from '@grafana/data';
 import { css } from '@emotion/css';
 import { useUrlString } from '../utils/useUrlState';
+import { typographyFontSize } from '../utils/themeTypography';
 
 // --- useTableSort hook ---
 
@@ -128,7 +129,7 @@ export const getTableStyles = (theme: GrafanaTheme2) => ({
       text-align: left;
       padding: ${theme.spacing(1)} ${theme.spacing(1.5)};
       color: ${theme.colors.text.secondary};
-      font-size: ${theme.typography.sm.fontSize};
+      font-size: ${typographyFontSize(theme, 'sm')};
       font-weight: ${theme.typography.fontWeightMedium};
       border-bottom: 1px solid ${theme.colors.border.medium};
       white-space: nowrap;
@@ -223,7 +224,7 @@ export const getTableStyles = (theme: GrafanaTheme2) => ({
     transition: width 0.3s ease;
   `,
   impactBarLabel: css`
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     color: ${theme.colors.text.secondary};
     min-width: 32px;
     text-align: right;

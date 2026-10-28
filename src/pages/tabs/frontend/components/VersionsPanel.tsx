@@ -6,6 +6,7 @@ import { getFrontendVersions, VersionStat } from '../../../../api/client';
 import { useFetch } from '../../../../utils/useFetch';
 import { useTimeRange } from '../../../../utils/timeRange';
 import { DataState } from '../../../../components/DataState';
+import { typographyFontSize } from '../../../../utils/themeTypography';
 
 interface VersionsPanelProps {
   namespace: string;
@@ -176,16 +177,16 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   title: css`
     margin: 0;
-    font-size: ${theme.typography.base.fontSize};
+    font-size: ${typographyFontSize(theme, 'base')};
   `,
   subtitle: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
   `,
   table: css`
     width: 100%;
     border-collapse: collapse;
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     th {
       text-align: left;
       color: ${theme.colors.text.secondary};
@@ -247,6 +248,6 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   shareLabel: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
   `,
 });

@@ -11,6 +11,7 @@ import { HealthSummarySection } from '../../components/HealthSummary/HealthSumma
 import { HealthHeaderRow } from './overview/HealthHeaderRow';
 import { SloPanel } from './overview/SloPanel';
 import { DependencySignal } from './overview/DependencySignal';
+import { typographyFontSize } from '../../utils/themeTypography';
 
 const MAX_OVERVIEW_OPS = 5;
 
@@ -205,7 +206,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     background: none;
     border: none;
     color: ${theme.colors.text.link};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     cursor: pointer;
     &:hover {
       text-decoration: underline;
@@ -226,7 +227,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
       text-align: left;
       padding: ${theme.spacing(1)} ${theme.spacing(1.5)};
       color: ${theme.colors.text.secondary};
-      font-size: ${theme.typography.sm.fontSize};
+      font-size: ${typographyFontSize(theme, 'sm')};
       font-weight: ${theme.typography.fontWeightMedium};
       border-bottom: 1px solid ${theme.colors.border.medium};
       white-space: nowrap;

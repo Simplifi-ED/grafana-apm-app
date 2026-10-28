@@ -15,6 +15,7 @@ import { QueryOperationsTable } from './database/QueryOperationsTable';
 import { ConnectionPoolSection } from './database/ConnectionPoolSection';
 import { TopQueriesSection } from './database/TopQueriesSection';
 import { NPlusOneSection } from './database/NPlusOneSection';
+import { typographyFontSize } from '../../utils/themeTypography';
 
 interface DatabaseTabProps {
   service: string;
@@ -363,7 +364,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     border-radius: 999px;
     background: ${theme.colors.background.secondary};
     border: 1px solid ${theme.colors.border.weak};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
   `,
   exploreLink: css`
     margin-left: auto;
@@ -373,13 +374,13 @@ const getStyles = (theme: GrafanaTheme2) => ({
     flex-direction: column;
   `,
   sectionTitle: css`
-    font-size: ${theme.typography.base.fontSize};
+    font-size: ${typographyFontSize(theme, 'base')};
     font-weight: ${theme.typography.fontWeightMedium};
     margin: 0 0 ${theme.spacing(0.5)} 0;
     color: ${theme.colors.text.primary};
   `,
   sectionSubtitle: css`
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     color: ${theme.colors.text.secondary};
     margin: 0 0 ${theme.spacing(1)} 0;
   `,

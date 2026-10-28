@@ -15,6 +15,7 @@ import { ServiceGraph, toGraphData } from '../components/ServiceGraph';
 import { CopyMermaidButton } from '../components/CopyMermaidButton';
 import { HeaderTimeControls } from '../components/HeaderTimeControls';
 import { DataState } from '../components/DataState';
+import { typographyFontSize } from '../utils/themeTypography';
 
 type MapView = 'namespaces' | 'services';
 
@@ -213,7 +214,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     color: ${theme.colors.text.secondary};
     margin: 0;
     max-width: 720px;
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
   `,
   headerRow: css`
     display: flex;
@@ -238,11 +239,11 @@ const getStyles = (theme: GrafanaTheme2) => ({
     flex-shrink: 0;
   `,
   counts: css`
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     color: ${theme.colors.text.secondary};
   `,
   warn: css`
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     color: ${theme.colors.warning.text};
     display: inline-flex;
     align-items: center;

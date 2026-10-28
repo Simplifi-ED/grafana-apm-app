@@ -7,6 +7,7 @@ import { DepTypeIcon, formatDepType } from '../../components/DepTypeIcon';
 import { formatDuration, formatRate, formatErrorRate } from '../../utils/format';
 import { SortHeader, ImpactBar, useTableSort, getTableStyles } from '../../components/SortableTable';
 import { groupDependencies, DepGroup } from '../../utils/depGroups';
+import { typographyFontSize } from '../../utils/themeTypography';
 
 interface DependenciesTabProps {
   service: string;
@@ -247,17 +248,17 @@ const getStyles = (theme: GrafanaTheme2) => ({
     }
   `,
   sectionTitle: css`
-    font-size: ${theme.typography.md.fontSize};
+    font-size: ${typographyFontSize(theme, 'md')};
     margin: 0 0 ${theme.spacing(0.5)} 0;
   `,
   sectionSubtitle: css`
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     color: ${theme.colors.text.secondary};
     margin: 0 0 ${theme.spacing(1)} 0;
   `,
   kindCell: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
   `,
   sidecarBadge: css`
     margin-left: ${theme.spacing(1)};
@@ -281,14 +282,14 @@ const getStyles = (theme: GrafanaTheme2) => ({
     }
   `,
   depGroupLabel: css`
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     font-weight: ${theme.typography.fontWeightMedium};
     color: ${theme.colors.text.secondary};
     text-transform: uppercase;
     letter-spacing: 0.5px;
   `,
   depGroupCount: css`
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     color: ${theme.colors.text.disabled};
   `,
 });

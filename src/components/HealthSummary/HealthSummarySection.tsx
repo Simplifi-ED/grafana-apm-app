@@ -4,6 +4,7 @@ import { GrafanaTheme2 } from '@grafana/data';
 import { css } from '@emotion/css';
 import { HealthSummary as HealthData, DegradedOperation, DegradedDependency } from '../../api/client';
 import { formatDuration } from '../../utils/format';
+import { typographyFontSize } from '../../utils/themeTypography';
 
 interface HealthSummaryProps {
   health: HealthData | null;
@@ -224,7 +225,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     margin-bottom: ${theme.spacing(0.5)};
   `,
   attentionSubtitle: css`
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     color: ${theme.colors.text.secondary};
     margin-bottom: ${theme.spacing(1.5)};
   `,
@@ -237,7 +238,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   attentionLabel: css`
     display: block;
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     color: ${theme.colors.text.secondary};
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -277,16 +278,16 @@ const getStyles = (theme: GrafanaTheme2) => ({
   attentionKind: css`
     font-weight: ${theme.typography.fontWeightRegular};
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
   `,
   attentionReason: css`
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     color: ${theme.colors.error.text};
     white-space: nowrap;
     flex-shrink: 0;
   `,
   attentionNote: css`
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     color: ${theme.colors.text.secondary};
     font-style: italic;
     margin-top: ${theme.spacing(1)};

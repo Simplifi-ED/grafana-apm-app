@@ -6,6 +6,7 @@ import { EndpointSummary } from '../../../api/client';
 import { formatDuration, formatRate, formatErrorRate } from '../../../utils/format';
 import { SortHeader, useTableSort, getTableStyles } from '../../../components/SortableTable';
 import { DepTypeIcon } from '../../../components/DepTypeIcon';
+import { typographyFontSize } from '../../../utils/themeTypography';
 
 type SortField = 'dbSystem' | 'spanName' | 'rate' | 'errorRate' | 'p50Duration' | 'p95Duration' | 'p99Duration';
 
@@ -94,7 +95,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     align-items: center;
     gap: ${theme.spacing(1)};
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     text-transform: capitalize;
   `,
 });

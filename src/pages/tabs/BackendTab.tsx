@@ -5,6 +5,7 @@ import { GrafanaTheme2 } from '@grafana/data';
 import { css } from '@emotion/css';
 import { ServerTab } from './ServerTab';
 import { RuntimeTab } from './RuntimeTab';
+import { typographyFontSize } from '../../utils/themeTypography';
 
 interface BackendTabProps {
   service: string;
@@ -80,12 +81,12 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   sectionTitle: css`
     margin: 0;
-    font-size: ${theme.typography.md.fontSize};
+    font-size: ${typographyFontSize(theme, 'md')};
     font-weight: ${theme.typography.fontWeightMedium};
     color: ${theme.colors.text.primary};
   `,
   sectionSubtitle: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
   `,
 });

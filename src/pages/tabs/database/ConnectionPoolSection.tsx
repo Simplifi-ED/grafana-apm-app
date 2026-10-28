@@ -4,6 +4,7 @@ import { GrafanaTheme2 } from '@grafana/data';
 import { css } from '@emotion/css';
 import { DBPoolRuntime } from '../../../api/client';
 import { getTableStyles } from '../../../components/SortableTable';
+import { typographyFontSize } from '../../../utils/themeTypography';
 
 interface ConnectionPoolSectionProps {
   dbPool: DBPoolRuntime;
@@ -160,7 +161,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     display: flex;
     align-items: center;
     gap: ${theme.spacing(1)};
-    font-size: ${theme.typography.base.fontSize};
+    font-size: ${typographyFontSize(theme, 'base')};
     font-weight: ${theme.typography.fontWeightMedium};
     margin-bottom: ${theme.spacing(1)};
     color: ${theme.colors.text.primary};
@@ -182,7 +183,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     background: ${theme.colors.warning.transparent};
     border: 1px solid ${theme.colors.warning.borderTransparent};
     color: ${theme.colors.text.primary};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     svg {
       color: ${theme.colors.warning.text};
       flex-shrink: 0;
@@ -223,7 +224,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     transition: width 0.3s ease;
   `,
   utilLabel: css`
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     color: ${theme.colors.text.secondary};
     min-width: 36px;
     text-align: right;

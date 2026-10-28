@@ -13,6 +13,7 @@ import {
 import { sanitizeLabelValue } from '../../utils/sanitize';
 import { useTimeRange } from '../../utils/timeRange';
 import { useSceneTimeSync } from '../../utils/useSceneTimeSync';
+import { typographyFontSize } from '../../utils/themeTypography';
 
 interface ProfilingTabProps {
   service: string;
@@ -157,7 +158,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   label: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
   `,
   sceneWrapper: css`
     flex: 1;

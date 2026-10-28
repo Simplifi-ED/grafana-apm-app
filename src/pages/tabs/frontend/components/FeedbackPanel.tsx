@@ -6,6 +6,7 @@ import { getFeedback, FeedbackEntry } from '../../../../api/client';
 import { useFetch } from '../../../../utils/useFetch';
 import { useTimeRange } from '../../../../utils/timeRange';
 import { DataState } from '../../../../components/DataState';
+import { typographyFontSize } from '../../../../utils/themeTypography';
 
 interface FeedbackPanelProps {
   namespace: string;
@@ -140,11 +141,11 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   title: css`
     margin: 0;
-    font-size: ${theme.typography.base.fontSize};
+    font-size: ${typographyFontSize(theme, 'base')};
   `,
   subtitle: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
   `,
   list: css`
     list-style: none;
@@ -163,7 +164,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     align-items: center;
     gap: ${theme.spacing(1)};
     margin-bottom: ${theme.spacing(0.5)};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
   `,
   time: css`
     color: ${theme.colors.text.secondary};
@@ -182,7 +183,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     gap: ${theme.spacing(1.5)};
     margin-top: ${theme.spacing(0.5)};
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
   `,
   session: css`
     font-family: ${theme.typography.fontFamilyMonospace};

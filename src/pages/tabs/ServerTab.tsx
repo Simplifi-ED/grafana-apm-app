@@ -13,6 +13,7 @@ import {
 import { formatDuration } from '../../utils/format';
 import { useFetch } from '../../utils/useFetch';
 import { useUrlString, useUrlNumber } from '../../utils/useUrlState';
+import { typographyFontSize } from '../../utils/themeTypography';
 
 interface ServerTabProps {
   service: string;
@@ -742,14 +743,14 @@ const getStyles = (theme: GrafanaTheme2) => ({
     display: flex;
     align-items: center;
     gap: ${theme.spacing(1)};
-    font-size: ${theme.typography.base.fontSize};
+    font-size: ${typographyFontSize(theme, 'base')};
     font-weight: ${theme.typography.fontWeightMedium};
     margin-bottom: ${theme.spacing(1)};
     color: ${theme.colors.text.primary};
   `,
   sectionSubtitle: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     font-weight: normal;
   `,
   countBadge: css`
@@ -782,7 +783,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
       text-align: left;
       padding: ${theme.spacing(1)} ${theme.spacing(1.5)};
       color: ${theme.colors.text.secondary};
-      font-size: ${theme.typography.sm.fontSize};
+      font-size: ${typographyFontSize(theme, 'sm')};
       font-weight: ${theme.typography.fontWeightMedium};
       border-bottom: 1px solid ${theme.colors.border.medium};
       white-space: nowrap;
@@ -865,7 +866,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     align-items: center;
     gap: 2px;
     font-family: ${theme.typography.fontFamilyMonospace};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
   `,
   grpcService: css`
     color: ${theme.colors.text.secondary};
@@ -878,11 +879,11 @@ const getStyles = (theme: GrafanaTheme2) => ({
     align-items: center;
     gap: ${theme.spacing(1)};
     font-family: ${theme.typography.fontFamilyMonospace};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
   `,
   gqlOpName: css`
     font-family: ${theme.typography.fontFamilyMonospace};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
   `,
   tableControls: css`
     display: flex;
@@ -893,7 +894,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   filterCount: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
   `,
   pagination: css`
     display: flex;
@@ -903,7 +904,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   pageInfo: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     white-space: nowrap;
   `,
   bottomPagination: css`

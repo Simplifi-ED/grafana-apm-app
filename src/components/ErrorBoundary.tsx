@@ -3,6 +3,7 @@ import { ErrorBoundary as GrafanaErrorBoundary, useStyles2, Button, Icon } from 
 import { getAppEvents } from '@grafana/runtime';
 import { AppEvents, GrafanaTheme2 } from '@grafana/data';
 import { css } from '@emotion/css';
+import { typographyFontSize } from '../utils/themeTypography';
 
 interface ErrorBoundaryProps {
   /** Human-readable name of the section being guarded, e.g. "Traces tab". */
@@ -111,11 +112,11 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   message: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
   `,
   details: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
   `,
   pre: css`
     white-space: pre-wrap;

@@ -24,6 +24,7 @@ import { HeaderTimeControls } from '../components/HeaderTimeControls';
 import { useOpsWatchlist, watchlistToSet, watchlistKey } from '../utils/useOpsWatchlist';
 import { useUrlNumber } from '../utils/useUrlState';
 import { OpsServicePicker } from '../components/OpsServicePicker';
+import { typographyFontSize } from '../utils/themeTypography';
 
 /** Grid gap in pixels (matches theme.spacing(1.5) ≈ 12px). */
 const GRID_GAP = 12;
@@ -488,7 +489,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   title: css`
     margin: 0;
-    font-size: ${theme.typography.md.fontSize};
+    font-size: ${typographyFontSize(theme, 'md')};
     font-weight: ${theme.typography.fontWeightMedium};
   `,
   attentionBadge: css`
@@ -498,11 +499,11 @@ const getStyles = (theme: GrafanaTheme2) => ({
     border-radius: ${theme.shape.radius.pill};
     background: ${theme.colors.warning.transparent};
     color: ${theme.colors.warning.text};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     font-weight: ${theme.typography.fontWeightMedium};
   `,
   watchlistCount: css`
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     color: ${theme.colors.text.secondary};
   `,
   controls: css`
@@ -580,7 +581,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     padding: 0;
   `,
   pageLabel: css`
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     color: ${theme.colors.text.secondary};
     margin-left: ${theme.spacing(1)};
     font-variant-numeric: tabular-nums;

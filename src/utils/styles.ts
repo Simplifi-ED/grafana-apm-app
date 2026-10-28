@@ -1,5 +1,6 @@
 import { GrafanaTheme2 } from '@grafana/data';
 import { css } from '@emotion/css';
+import { typographyFontSize } from '../utils/themeTypography';
 
 /** Shared styles for content sections with title + optional subtitle. */
 export const getSectionStyles = (theme: GrafanaTheme2) => ({
@@ -8,11 +9,11 @@ export const getSectionStyles = (theme: GrafanaTheme2) => ({
   `,
   sectionTitle: css`
     margin-bottom: ${theme.spacing(1)};
-    font-size: ${theme.typography.md.fontSize};
+    font-size: ${typographyFontSize(theme, 'md')};
   `,
   sectionSubtitle: css`
     margin: 0 0 ${theme.spacing(1.5)} 0;
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
   `,
 });

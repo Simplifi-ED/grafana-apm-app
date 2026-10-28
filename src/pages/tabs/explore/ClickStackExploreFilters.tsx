@@ -4,6 +4,7 @@ import { GrafanaTheme2 } from '@grafana/data';
 import { css } from '@emotion/css';
 import { CollapsibleSection } from '../../../components/CollapsibleSection';
 import { ExploreFieldFilter } from '../../../api/analytics';
+import { typographyFontSize } from '../../../utils/themeTypography';
 
 export const LOG_FIELD_KEYS = [
   'k8s.pod.name',
@@ -159,7 +160,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   label: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
   `,
   chip: css`
     display: inline-flex;
@@ -170,7 +171,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     background: ${theme.colors.background.secondary};
     border: 1px solid ${theme.colors.border.weak};
     font-family: ${theme.typography.fontFamilyMonospace};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
   `,
   sqlBody: css`
     display: flex;
@@ -181,7 +182,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   hint: css`
     margin: 0;
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
   `,
   sqlActions: css`
     display: flex;

@@ -13,6 +13,7 @@ import { HeaderTimeControls } from '../components/HeaderTimeControls';
 import { usePluginDatasources } from '../utils/datasources';
 import { buildLokiExploreUrl } from '../utils/explore';
 import { createServiceSearchIndex, searchServices } from '../utils/serviceSearch';
+import { typographyFontSize } from '../utils/themeTypography';
 
 type SortField = 'name' | 'namespace' | 'cluster' | 'schedule' | 'lastRun' | 'nextRun' | 'streak';
 type SortDir = 'asc' | 'desc';
@@ -484,7 +485,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
       text-align: left;
       padding: ${theme.spacing(1)} ${theme.spacing(1.5)};
       color: ${theme.colors.text.secondary};
-      font-size: ${theme.typography.sm.fontSize};
+      font-size: ${typographyFontSize(theme, 'sm')};
       font-weight: ${theme.typography.fontWeightMedium};
       border-bottom: 1px solid ${theme.colors.border.medium};
       white-space: nowrap;
@@ -558,7 +559,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   schedule: css`
     font-family: ${theme.typography.fontFamilyMonospace};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     color: ${theme.colors.text.secondary};
     white-space: nowrap;
   `,

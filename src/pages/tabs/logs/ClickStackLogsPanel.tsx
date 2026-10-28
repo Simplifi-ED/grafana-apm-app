@@ -7,6 +7,7 @@ import { useFetch } from '../../../utils/useFetch';
 import { DataState } from '../../../components/DataState';
 import { buildLokiExploreUrl } from '../../../utils/explore';
 import { ClickStackExploreFilters, LOG_FIELD_KEYS } from '../explore/ClickStackExploreFilters';
+import { typographyFontSize } from '../../../utils/themeTypography';
 
 interface ClickStackLogsPanelProps {
   namespace: string;
@@ -150,7 +151,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   table: css`
     width: 100%;
     border-collapse: collapse;
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     table-layout: fixed;
     th,
     td {

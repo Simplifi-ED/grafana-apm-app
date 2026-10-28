@@ -50,6 +50,7 @@ import {
 } from '../exception-utils';
 import { probeReplay, ReplayProbeResult } from '../replay/fetchReplay';
 import { ReplaySection } from '../replay/ReplaySection';
+import { typographyFontSize } from '../../../../utils/themeTypography';
 
 /**
  * Pad session-scoped queries (breadcrumbs, replay chunks) by an hour on both
@@ -1039,7 +1040,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   triageMeta: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     margin-left: auto;
   `,
   container: css`
@@ -1057,7 +1058,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   loadingText: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
   `,
   actions: css`
     display: flex;
@@ -1073,7 +1074,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     align-items: center;
     gap: ${theme.spacing(1)};
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
   `,
   impactDivider: css`
     color: ${theme.colors.border.medium};
@@ -1099,16 +1100,16 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   feedbackTime: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
   `,
   feedbackEmail: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     margin-left: auto;
   `,
   feedbackMessage: css`
     color: ${theme.colors.text.primary};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     white-space: pre-wrap;
     word-break: break-word;
   `,
@@ -1119,12 +1120,12 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   feedbackMore: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     text-align: center;
     padding-top: ${theme.spacing(0.5)};
   `,
   sectionTitle: css`
-    font-size: ${theme.typography.base.fontSize};
+    font-size: ${typographyFontSize(theme, 'base')};
     font-weight: ${theme.typography.fontWeightMedium};
     margin: 0;
     border-bottom: 1px solid ${theme.colors.border.weak};
@@ -1147,7 +1148,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   metaItem: css`
     display: flex;
     gap: ${theme.spacing(1)};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
   `,
   metaLabel: css`
     color: ${theme.colors.text.secondary};
@@ -1198,7 +1199,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     }
   `,
   subSectionTitle: css`
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     font-weight: ${theme.typography.fontWeightBold};
     color: ${theme.colors.text.secondary};
     margin: 0 0 ${theme.spacing(0.5)} 0;
@@ -1215,13 +1216,13 @@ const getStyles = (theme: GrafanaTheme2) => ({
     border-radius: ${theme.shape.radius.default};
     padding: ${theme.spacing(2)};
     font-family: ${theme.typography.fontFamilyMonospace};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     overflow-x: auto;
     white-space: pre-wrap;
     line-height: 1.6;
   `,
   bcLoading: css`
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     color: ${theme.colors.text.secondary};
     display: flex;
     align-items: center;
@@ -1236,7 +1237,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     border-radius: ${theme.shape.radius.default};
     padding: ${theme.spacing(1)};
     font-family: ${theme.typography.fontFamilyMonospace};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
   `,
   breadcrumbItem: css`
     display: flex;
@@ -1317,7 +1318,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   footerLink: css`
     color: ${theme.colors.text.link};
     text-decoration: underline;
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     display: flex;
     align-items: center;
     gap: 6px;
@@ -1327,7 +1328,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   footerDivider: css`
     color: ${theme.colors.border.weak};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
   `,
   footerDocsLink: css`
     margin-left: auto;
@@ -1342,13 +1343,13 @@ const getStyles = (theme: GrafanaTheme2) => ({
     display: flex;
     flex-direction: column;
     gap: ${theme.spacing(1)};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
   `,
   thinShapeHint: css`
     display: flex;
     flex-direction: column;
     gap: ${theme.spacing(0.5)};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
   `,
   minifiedActions: css`
     display: flex;
@@ -1357,7 +1358,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   minifiedError: css`
     color: ${theme.colors.error.text};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
   `,
   checklist: css`
     display: flex;

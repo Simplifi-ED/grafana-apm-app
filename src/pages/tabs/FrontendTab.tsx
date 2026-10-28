@@ -37,6 +37,7 @@ import {
 } from './frontend';
 import { buildAttributionSection } from './frontend/attribution';
 import { buildClickStackFrontendScene } from '../buildClickStackFrontendScene';
+import { typographyFontSize } from '../../utils/themeTypography';
 
 interface FrontendTabProps {
   service: string;
@@ -430,7 +431,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     display: flex;
     align-items: center;
     gap: ${theme.spacing(1)};
-    font-size: ${theme.typography.base.fontSize};
+    font-size: ${typographyFontSize(theme, 'base')};
     font-weight: ${theme.typography.fontWeightMedium};
     color: ${theme.colors.text.primary};
     margin: 0;
@@ -461,7 +462,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     margin-bottom: 4px;
   `,
   cardDescription: css`
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     color: ${theme.colors.text.secondary};
   `,
 });

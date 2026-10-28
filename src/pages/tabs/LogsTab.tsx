@@ -19,6 +19,7 @@ import { buildLogsDrilldownUrl } from '../../utils/explore';
 import { otel } from '../../otelconfig';
 import { PatternsPanel } from './logs/PatternsPanel';
 import { ClickStackLogsPanel } from './logs/ClickStackLogsPanel';
+import { typographyFontSize } from '../../utils/themeTypography';
 
 interface LogsTabProps {
   service: string;
@@ -345,14 +346,14 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   label: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
   `,
   toggle: css`
     display: flex;
     align-items: center;
     gap: ${theme.spacing(0.75)};
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     cursor: pointer;
     margin-left: ${theme.spacing(0.5)};
   `,

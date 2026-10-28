@@ -17,6 +17,7 @@ import { css } from '@emotion/css';
 import RrwebPlayer from '@grafana/rrweb-player';
 import '@grafana/rrweb-player/dist/style.css';
 import type { ReplayPlayerProps } from './types';
+import { typographyFontSize } from '../../../../utils/themeTypography';
 
 /** Instance surface we use — the package types the component as a bare Svelte component. */
 interface PlayerHandle {
@@ -106,7 +107,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   privacyNotice: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     display: inline-flex;
     align-items: center;
     gap: 4px;

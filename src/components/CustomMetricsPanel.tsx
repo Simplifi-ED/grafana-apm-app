@@ -20,6 +20,7 @@ import { escapeQueryString } from '../utils/sanitize';
 import { otel } from '../otelconfig';
 import { customMetricExploreQuery, customMetricPanels } from './customMetricQueries';
 import { DataState } from './DataState';
+import { typographyFontSize } from '../utils/themeTypography';
 
 interface CustomMetricsPanelProps {
   namespace: string;
@@ -229,16 +230,16 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   title: css`
     margin: 0;
-    font-size: ${theme.typography.base.fontSize};
+    font-size: ${typographyFontSize(theme, 'base')};
   `,
   subtitle: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
   `,
   table: css`
     width: 100%;
     border-collapse: collapse;
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     th {
       text-align: left;
       color: ${theme.colors.text.secondary};
@@ -263,12 +264,12 @@ const getStyles = (theme: GrafanaTheme2) => ({
   unit: css`
     margin-left: ${theme.spacing(1)};
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
   `,
   cardinalityHint: css`
     display: block;
     color: ${theme.colors.warning.text};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
   `,
   num: css`
     text-align: right;
@@ -283,6 +284,6 @@ const getStyles = (theme: GrafanaTheme2) => ({
   hint: css`
     padding: ${theme.spacing(0.5, 1)};
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
   `,
 });

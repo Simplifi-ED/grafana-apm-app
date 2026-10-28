@@ -19,6 +19,7 @@ import {
   formatSloTarget,
   sloSelector,
 } from './sloData';
+import { typographyFontSize } from '../../../utils/themeTypography';
 
 interface SloPanelProps {
   namespace: string;
@@ -244,11 +245,11 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   title: css`
     margin: 0;
-    font-size: ${theme.typography.base.fontSize};
+    font-size: ${typographyFontSize(theme, 'base')};
   `,
   subtitle: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
   `,
   targetGroup: css`
     display: flex;
@@ -256,7 +257,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     gap: ${theme.spacing(1)};
   `,
   targetLabel: css`
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     color: ${theme.colors.text.secondary};
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -275,23 +276,23 @@ const getStyles = (theme: GrafanaTheme2) => ({
     gap: ${theme.spacing(0.5)};
   `,
   tileLabel: css`
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     color: ${theme.colors.text.secondary};
     text-transform: uppercase;
     letter-spacing: 0.5px;
   `,
   tileValue: css`
-    font-size: ${theme.typography.xl.fontSize};
+    font-size: ${typographyFontSize(theme, 'xl')};
     font-weight: ${theme.typography.fontWeightMedium};
     font-variant-numeric: tabular-nums;
   `,
   burnHint: css`
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     color: ${theme.colors.text.secondary};
     font-weight: ${theme.typography.fontWeightRegular};
   `,
   notEnough: css`
-    font-size: ${theme.typography.base.fontSize};
+    font-size: ${typographyFontSize(theme, 'base')};
     color: ${theme.colors.text.secondary};
   `,
   barTrack: css`
@@ -326,7 +327,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     flex-wrap: wrap;
   `,
   actionsLabel: css`
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     color: ${theme.colors.text.secondary};
   `,
   infoIcon: css`
@@ -338,6 +339,6 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   message: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
   `,
 });

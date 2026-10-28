@@ -6,6 +6,7 @@ import { Button, Icon, Toggletip, useStyles2 } from '@grafana/ui';
 import { getScorecard, ScorecardCheck, ScorecardResponse } from '../api/scorecard';
 import { buildAlertRuleUrl, getAlertTemplate } from '../api/client';
 import { useFetch } from '../utils/useFetch';
+import { typographyFontSize } from '../utils/themeTypography';
 
 interface ScorecardBadgeProps {
   namespace: string;
@@ -126,7 +127,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     gap: ${theme.spacing(0.5)};
     padding: 1px 8px;
     border-radius: ${theme.shape.radius.pill};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     border: 1px solid transparent;
     background: none;
     cursor: pointer;
@@ -149,7 +150,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   details: css`
     max-width: 360px;
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
   `,
   sectionTitle: css`
     font-weight: ${theme.typography.fontWeightMedium};
@@ -182,7 +183,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   naTag: css`
     margin-left: ${theme.spacing(0.5)};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     color: ${theme.colors.text.disabled};
   `,
   hint: css`

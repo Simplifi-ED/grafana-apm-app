@@ -3,6 +3,7 @@ import { useStyles2 } from '@grafana/ui';
 import { GrafanaTheme2 } from '@grafana/data';
 import { css } from '@emotion/css';
 import { ConnectedServicesResponse, DependencySummary, HealthSummary } from '../../../api/client';
+import { typographyFontSize } from '../../../utils/themeTypography';
 
 interface DependencySignalProps {
   connected?: ConnectedServicesResponse;
@@ -64,7 +65,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     border: 1px solid ${theme.colors.border.weak};
     border-radius: ${theme.shape.radius.default};
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     cursor: pointer;
     &:hover {
       background: ${theme.colors.action.hover};
@@ -82,7 +83,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     border: 1px solid ${theme.colors.warning.border};
     border-radius: ${theme.shape.radius.default};
     color: ${theme.colors.warning.text};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     font-weight: ${theme.typography.fontWeightMedium};
     cursor: pointer;
     &:hover {

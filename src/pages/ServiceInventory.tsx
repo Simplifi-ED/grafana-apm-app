@@ -31,6 +31,7 @@ import { AppTimeRangePicker } from '../components/AppTimeRangePicker';
 import { RefreshControl } from '../components/RefreshControl';
 import { useFavorites, serviceKey } from '../utils/useFavorites';
 import { createServiceSearchIndex, searchServices } from '../utils/serviceSearch';
+import { typographyFontSize } from '../utils/themeTypography';
 
 type SortField = 'name' | 'namespace' | 'environment' | 'p95Duration' | 'errorRate' | 'rate';
 type SortDir = 'asc' | 'desc';
@@ -697,7 +698,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
       text-align: left;
       padding: ${theme.spacing(1)} ${theme.spacing(1.5)};
       color: ${theme.colors.text.secondary};
-      font-size: ${theme.typography.sm.fontSize};
+      font-size: ${typographyFontSize(theme, 'sm')};
       font-weight: ${theme.typography.fontWeightMedium};
       border-bottom: 1px solid ${theme.colors.border.medium};
       white-space: nowrap;
@@ -730,7 +731,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   groupHeaderCell: css`
     padding: ${theme.spacing(0.75)} ${theme.spacing(1.5)} !important;
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     font-weight: ${theme.typography.fontWeightMedium};
     color: ${theme.colors.text.secondary};
     letter-spacing: 0.5px;
@@ -853,7 +854,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     align-items: center;
     gap: ${theme.spacing(1)};
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
   `,
 });
 

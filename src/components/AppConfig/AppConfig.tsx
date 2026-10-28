@@ -7,6 +7,7 @@ import { Alert, Button, Field, FieldSet, IconButton, Input, SecretInput, Combobo
 import { testIds } from '../testIds';
 import { Capabilities, getCapabilities, OpsWatchlistEntry } from '../../api/client';
 import { AppPluginSettings, DsRef, EnvAwareDs, LabelOverrides } from '../../types/plugin';
+import { typographyFontSize } from '../../utils/themeTypography';
 
 interface GrafanaDataSource {
   uid: string;
@@ -927,7 +928,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   description: css`
     color: ${theme.colors.text.secondary};
     margin-bottom: ${theme.spacing(2)};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
   `,
   envRow: css`
     display: flex;

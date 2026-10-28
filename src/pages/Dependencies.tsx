@@ -13,6 +13,7 @@ import { SortHeader, ImpactBar, useTableSort, getTableStyles } from '../componen
 import { useFetch } from '../utils/useFetch';
 import { useConfiguredEnvironments } from '../utils/datasources';
 import { useSearchParams } from 'react-router-dom';
+import { typographyFontSize } from '../utils/themeTypography';
 
 function Dependencies() {
   const styles = useStyles2(getStyles);
@@ -294,7 +295,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     display: flex;
     align-items: center;
     gap: ${theme.spacing(0.75)};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     color: ${theme.colors.text.secondary};
     cursor: pointer;
     white-space: nowrap;
@@ -304,7 +305,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     }
   `,
   resultCount: css`
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     color: ${theme.colors.text.secondary};
     margin-bottom: ${theme.spacing(1)};
   `,

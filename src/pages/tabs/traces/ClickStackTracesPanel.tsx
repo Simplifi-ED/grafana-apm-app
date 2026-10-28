@@ -14,6 +14,7 @@ import { DataState } from '../../../components/DataState';
 import { formatDuration } from '../../../utils/format';
 import { buildTempoExploreUrl } from '../../../utils/explore';
 import { ClickStackExploreFilters, TRACE_FIELD_KEYS } from '../explore/ClickStackExploreFilters';
+import { typographyFontSize } from '../../../utils/themeTypography';
 
 interface ClickStackTracesPanelProps {
   namespace: string;
@@ -259,7 +260,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   table: css`
     width: 100%;
     border-collapse: collapse;
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     th,
     td {
       padding: ${theme.spacing(0.75, 1)};
@@ -330,7 +331,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   spanMeta: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
   `,
   barTrack: css`
     position: relative;

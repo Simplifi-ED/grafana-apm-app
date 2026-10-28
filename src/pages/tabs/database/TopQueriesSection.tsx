@@ -9,6 +9,7 @@ import { SortHeader, useTableSort, getTableStyles } from '../../../components/So
 import { DepTypeIcon } from '../../../components/DepTypeIcon';
 import { formatDuration } from '../../../utils/format';
 import { buildExploreUrl } from '../../../utils/explore';
+import { typographyFontSize } from '../../../utils/themeTypography';
 
 type SortField = 'statement' | 'dbSystem' | 'count' | 'totalTimeMs' | 'avgTimeMs' | 'p95Ms';
 
@@ -218,13 +219,13 @@ const getStyles = (theme: GrafanaTheme2) => ({
     flex-direction: column;
   `,
   sectionTitle: css`
-    font-size: ${theme.typography.base.fontSize};
+    font-size: ${typographyFontSize(theme, 'base')};
     font-weight: ${theme.typography.fontWeightMedium};
     margin: 0 0 ${theme.spacing(0.5)} 0;
     color: ${theme.colors.text.primary};
   `,
   sectionSubtitle: css`
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     color: ${theme.colors.text.secondary};
     margin: 0 0 ${theme.spacing(1)} 0;
   `,
@@ -238,7 +239,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     margin: 0;
     cursor: pointer;
     font-family: ${theme.typography.fontFamilyMonospace};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     color: ${theme.colors.text.primary};
     white-space: nowrap;
     overflow: hidden;
@@ -257,7 +258,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     margin: 0;
     cursor: pointer;
     font-family: ${theme.typography.fontFamilyMonospace};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     color: ${theme.colors.text.primary};
     white-space: pre-wrap;
     word-break: break-word;
@@ -270,7 +271,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     background: ${theme.colors.background.secondary};
     border: 1px solid ${theme.colors.border.weak};
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     font-family: ${theme.typography.fontFamilyMonospace};
   `,
   systemCell: css`
@@ -278,7 +279,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     align-items: center;
     gap: ${theme.spacing(0.75)};
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     text-transform: capitalize;
   `,
   linkCell: css`
@@ -299,11 +300,11 @@ const getStyles = (theme: GrafanaTheme2) => ({
     border-radius: ${theme.shape.radius.default};
     background: ${theme.colors.background.secondary};
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
   `,
   footnote: css`
     margin: ${theme.spacing(1)} 0 0 0;
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     color: ${theme.colors.text.secondary};
   `,
 });

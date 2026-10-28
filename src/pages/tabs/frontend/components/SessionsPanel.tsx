@@ -8,6 +8,7 @@ import { useTimeRange } from '../../../../utils/timeRange';
 import { useUrlParams } from '../../../../utils/useUrlState';
 import { useDebouncedValue } from '../../../../utils/debounce';
 import { DataState } from '../../../../components/DataState';
+import { typographyFontSize } from '../../../../utils/themeTypography';
 
 interface SessionsPanelProps {
   namespace: string;
@@ -221,11 +222,11 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   title: css`
     margin: 0;
-    font-size: ${theme.typography.base.fontSize};
+    font-size: ${typographyFontSize(theme, 'base')};
   `,
   subtitle: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
   `,
   search: css`
     margin-left: auto;
@@ -233,7 +234,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   table: css`
     width: 100%;
     border-collapse: collapse;
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     th {
       text-align: left;
       color: ${theme.colors.text.secondary};
@@ -283,6 +284,6 @@ const getStyles = (theme: GrafanaTheme2) => ({
   footerNote: css`
     padding: ${theme.spacing(0.75, 1)};
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
   `,
 });

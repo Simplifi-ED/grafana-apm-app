@@ -15,6 +15,7 @@ import { PageHeader } from '../components/PageHeader';
 import { DataState } from '../components/DataState';
 import { HeaderTimeControls } from '../components/HeaderTimeControls';
 import { useUrlNumber } from '../utils/useUrlState';
+import { typographyFontSize } from '../utils/themeTypography';
 
 /** How long to keep showing disappeared services (30 minutes). */
 const LAST_SEEN_TTL_MS = 30 * 60 * 1000;
@@ -508,7 +509,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     padding: 0;
   `,
   pageLabel: css`
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     color: ${theme.colors.text.secondary};
     margin-left: ${theme.spacing(1)};
     font-variant-numeric: tabular-nums;

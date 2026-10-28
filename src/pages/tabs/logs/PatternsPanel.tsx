@@ -6,6 +6,7 @@ import { css } from '@emotion/css';
 import { getLogPatterns, LogPatternsMode } from '../../../api/analytics';
 import { useFetch } from '../../../utils/useFetch';
 import { DataState } from '../../../components/DataState';
+import { typographyFontSize } from '../../../utils/themeTypography';
 
 /** Patterns shown before the "show all" affordance reveals the rest (rule 5: keep the panel compact even expanded). */
 const TOP_N = 6;
@@ -159,7 +160,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   modeBadge: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     border: 1px solid ${theme.colors.border.weak};
     border-radius: ${theme.shape.radius.default};
     padding: ${theme.spacing(0, 0.75)};
@@ -167,7 +168,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   subtitle: css`
     color: ${theme.colors.text.secondary};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     margin-left: auto;
   `,
   docsLink: css`
@@ -221,7 +222,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   `,
   pattern: css`
     font-family: ${theme.typography.fontFamilyMonospace};
-    font-size: ${theme.typography.sm.fontSize};
+    font-size: ${typographyFontSize(theme, 'sm')};
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
