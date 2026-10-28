@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.27.0](https://github.com/Simplifi-ED/grafana-apm-app/compare/clickhouse-apm-app-v0.26.1...clickhouse-apm-app-v0.27.0) (2026-10-28)
+
+
+### Features
+
+* **alerts:** post-parity B+C — Alerts UX + volume regression template ([#6](https://github.com/Simplifi-ED/grafana-apm-app/issues/6)) ([4e42836](https://github.com/Simplifi-ED/grafana-apm-app/commit/4e42836bc8f2edffbaab001946b8b56df14ddd69))
+* **custom-metrics:** clickstack overview auto-charts via ch sql ([#9](https://github.com/Simplifi-ED/grafana-apm-app/issues/9)) ([c263035](https://github.com/Simplifi-ED/grafana-apm-app/commit/c2630359018fd74adc8adc58e11ed26f2a1e15dd))
+* **FrameworkBadge:** add tests and refactor badge implementation ([07ea03a](https://github.com/Simplifi-ED/grafana-apm-app/commit/07ea03ad3204d60a5c760a331148713833050ab3))
+* **issues:** server notify flags, Returned badge, Overview attention strip ([#7](https://github.com/Simplifi-ED/grafana-apm-app/issues/7)) ([5192f5c](https://github.com/Simplifi-ED/grafana-apm-app/commit/5192f5cbe3905ff57c7081a2635ee8a6bf23df37))
+* **scorecard:** post-parity F — clickstack v2 readiness checks ([#10](https://github.com/Simplifi-ED/grafana-apm-app/issues/10)) ([8131673](https://github.com/Simplifi-ED/grafana-apm-app/commit/8131673827aae72bfeccd824b892331dc861f2b4))
+* **skeleton:** add CardGridSkeleton and PanelSkeleton components for loading states ([ddad3c4](https://github.com/Simplifi-ED/grafana-apm-app/commit/ddad3c4d816fc840c0bb74529fe5b3d52ad5a0e2))
+* **skeleton:** add SkeletonBar and TableSkeleton components for loading states ([aec8281](https://github.com/Simplifi-ED/grafana-apm-app/commit/aec828156c067f5416a428088b7816a59fb73006))
+
+
+### Bug Fixes
+
+* page triage annotations correctly + run CI for release-please PRs (spine A) ([#5](https://github.com/Simplifi-ED/grafana-apm-app/issues/5)) ([25b6415](https://github.com/Simplifi-ED/grafana-apm-app/commit/25b64150d95b5698bbec60c3e762d27524c0aea0))
+
+
+### Documentation
+
+* sync feature-matrix to post-parity spine A→F ([#11](https://github.com/Simplifi-ED/grafana-apm-app/issues/11)) ([25d9481](https://github.com/Simplifi-ED/grafana-apm-app/commit/25d94812f7792b7cdd59e9f096695651e6d663ad))
+
 ## [0.26.1](https://github.com/Simplifi-ED/grafana-apm-app/compare/clickhouse-apm-app-v0.26.0...clickhouse-apm-app-v0.26.1) (2026-10-28)
 
 
