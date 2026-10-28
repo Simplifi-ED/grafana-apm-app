@@ -15,7 +15,7 @@ import {
 describe('clickstack frontend SQL builders', () => {
   it('scopes service and optional cluster', () => {
     expect(clickStackFrontendWhere('nova-frontend')).toContain("ServiceName = 'nova-frontend'");
-    expect(clickStackFrontendWhere('nova-frontend', "prod-k3s-omnivya")).toContain(
+    expect(clickStackFrontendWhere('nova-frontend', 'prod-k3s-omnivya')).toContain(
       "ResourceAttributes['cluster'] = 'prod-k3s-omnivya'"
     );
   });
@@ -56,7 +56,7 @@ describe('clickstack frontend SQL builders', () => {
   it('browser breakdown joins session UA', () => {
     const sql = browserBreakdownSql('nova-frontend');
     expect(sql).toContain('ua_by_session');
-    expect(sql).toContain("http.user_agent");
+    expect(sql).toContain('http.user_agent');
     expect(sql).toContain('rum.sessionId');
     expect(browserFromUaExpr('ua')).toContain('Chrome');
     expect(browserFromUaExpr('ua')).toContain('Edge');

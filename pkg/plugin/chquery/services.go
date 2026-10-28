@@ -614,7 +614,71 @@ LIMIT 200`,
 	)
 }
 
-// OperationLatencySQL returns p50/p95/p99 per span name from raw spans.
+// OperationLatencyHistogramSQL returns p50/p95/p99 per operation from
+// traces.spanmetrics.duration (ADR 0003 histogram-primary). Same GROUP BY dims
+// as OperationsSQL so ParseOperations can join without attribute drift.
+func OperationLatencyHistogramSQL(service string, from, to time.Time, environment string) string {
+	filt := FilterClause("", environment, service, "ResourceAttributes")
+	return fmt.Sprintf(`
+WITH latest AS (
+  SELECT
+    Attributes['%s'] AS span_name,
+    Attributes['%s'] AS span_kind,
+    Attributes['%s'] AS http_method,
+    Attributes['%s'] AS http_route,
+    Attributes['%s'] AS rpc_service,
+    Attributes['%s'] AS rpc_method,
+    Attributes['%s'] AS db_system,
+    Attributes['%s'] AS messaging_system,
+    Attributes['%s'] AS status_code,
+    Attributes['collector.instance.id'] AS collector,
+    ResourceAttributes['service.instance.id'] AS instance,
+    argMax(BucketCounts, TimeUnix) AS bc,
+    anyLast(ExplicitBounds) AS bounds
+  FROM %s
+  WHERE MetricName = %s
+    AND %s
+    AND (%s)
+  GROUP BY span_name, span_kind, http_method, http_route, rpc_service, rpc_method, db_system, messaging_system, status_code, collector, instance
+),
+merged AS (
+  SELECT
+    span_name, span_kind, http_method, http_route, rpc_service, rpc_method, db_system, messaging_system,
+    any(bounds) AS bounds,
+    sumForEach(arrayMap(x -> toFloat64(x), bc)) AS bc_sum
+  FROM latest
+  GROUP BY span_name, span_kind, http_method, http_route, rpc_service, rpc_method, db_system, messaging_system
+),
+exploded AS (
+  SELECT
+    span_name, span_kind, http_method, http_route, rpc_service, rpc_method, db_system, messaging_system,
+    arrayJoin(arrayZip(
+      arrayConcat(bounds, [CAST('+Inf' AS Float64)]),
+      arrayCumSum(bc_sum)
+    )) AS pair
+  FROM merged
+)
+SELECT
+  span_name, span_kind, http_method, http_route, rpc_service, rpc_method, db_system, messaging_system,
+  quantilePrometheusHistogram(0.50)(pair.1, pair.2) AS p50_ms,
+  quantilePrometheusHistogram(0.95)(pair.1, pair.2) AS p95_ms,
+  quantilePrometheusHistogram(0.99)(pair.1, pair.2) AS p99_ms
+FROM exploded
+GROUP BY span_name, span_kind, http_method, http_route, rpc_service, rpc_method, db_system, messaging_system
+ORDER BY p95_ms DESC
+LIMIT 200`,
+		AttrSpanName, AttrSpanKind,
+		AttrHTTPMethod, AttrHTTPRoute, AttrRPCService, AttrRPCMethod, AttrDBSystem, AttrMessagingSystem,
+		AttrStatusCode,
+		table(queries.CHTableMetricsHistogram),
+		q(MetricSpanDuration),
+		MetricTimeFilter(from, to),
+		filt,
+	)
+}
+
+// OperationLatencySQL returns p50/p95/p99 per span name from raw traces.
+// Fallback when spanmetrics duration histograms are absent.
 func OperationLatencySQL(service string, from, to time.Time, environment string) string {
 	where := fmt.Sprintf(`%s
   AND ServiceName = %s`, TimestampFilter(from, to), q(service))
@@ -643,7 +707,11 @@ LIMIT 200`,
 }
 
 // ParseOperations merges call and latency maps into OperationSummary.
+// SpanKind is normalized so SPAN_KIND_CLIENT joins Client (traces fallback).
 func ParseOperations(callRows, latencyRows []map[string]any, windowSec float64) []queries.OperationSummary {
+	if windowSec < 1 {
+		windowSec = 1
+	}
 	lat := make(map[operationKey][3]float64, len(latencyRows))
 	for _, r := range latencyRows {
 		k := operationKeyFromMap(r)
@@ -689,13 +757,31 @@ type operationKey struct {
 func operationKeyFromMap(r map[string]any) operationKey {
 	return operationKey{
 		name:            ParseString(r["span_name"]),
-		kind:            ParseString(r["span_kind"]),
+		kind:            normalizeSpanKindKey(ParseString(r["span_kind"])),
 		httpMethod:      ParseString(r["http_method"]),
 		httpRoute:       ParseString(r["http_route"]),
 		rpcService:      ParseString(r["rpc_service"]),
 		rpcMethod:       ParseString(r["rpc_method"]),
 		dbSystem:        ParseString(r["db_system"]),
 		messagingSystem: ParseString(r["messaging_system"]),
+	}
+}
+
+// normalizeSpanKindKey maps SPAN_KIND_* and short enum labels to one join key.
+func normalizeSpanKindKey(raw string) string {
+	switch friendlySpanKind(raw) {
+	case "Server":
+		return SpanKindServer
+	case "Client":
+		return SpanKindClient
+	case "Internal":
+		return "SPAN_KIND_INTERNAL"
+	case "Producer":
+		return "SPAN_KIND_PRODUCER"
+	case "Consumer":
+		return "SPAN_KIND_CONSUMER"
+	default:
+		return raw
 	}
 }
 

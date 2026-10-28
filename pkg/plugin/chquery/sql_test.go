@@ -72,6 +72,51 @@ func TestServiceGraphSQL_BothMetrics(t *testing.T) {
 	}
 }
 
+func TestOperationLatencyHistogramSQL(t *testing.T) {
+	sql := OperationLatencyHistogramSQL("nova-api", time.Now().Add(-time.Hour), time.Now(), "prod")
+	for _, want := range []string{
+		MetricSpanDuration,
+		"otel_metrics_histogram",
+		"quantilePrometheusHistogram",
+		"nova-api",
+		"prod",
+		"p95_ms",
+	} {
+		if !strings.Contains(sql, want) {
+			t.Errorf("missing %q\n%s", want, sql)
+		}
+	}
+	if strings.Contains(sql, "otel_traces") {
+		t.Fatal("histogram-primary latency must not query otel_traces")
+	}
+}
+
+func TestParseOperations_JoinsNormalizedSpanKind(t *testing.T) {
+	// Calls use SPAN_KIND_*; traces latency fallback uses short "Client".
+	calls := []map[string]any{
+		{"span_name": "GET", "span_kind": SpanKindServer, "calls": 120.0, "errors": 0.0},
+		{"span_name": "evalsha", "span_kind": SpanKindClient, "calls": 60.0, "errors": 6.0},
+	}
+	lat := []map[string]any{
+		{"span_name": "GET", "span_kind": TraceSpanKindServer, "p50_ms": 10.0, "p95_ms": 40.0, "p99_ms": 80.0},
+		{"span_name": "evalsha", "span_kind": TraceSpanKindClient, "p50_ms": 1.0, "p95_ms": 5.0, "p99_ms": 9.0},
+	}
+	got := ParseOperations(calls, lat, 60)
+	if len(got) != 2 {
+		t.Fatalf("len=%d", len(got))
+	}
+	byName := map[string]queries.OperationSummary{}
+	for _, op := range got {
+		byName[op.SpanName] = op
+	}
+	if byName["GET"].P95Duration != 40.0 || byName["GET"].SpanKind != "Server" {
+		t.Fatalf("GET=%+v", byName["GET"])
+	}
+	if byName["evalsha"].P95Duration != 5.0 || byName["evalsha"].ErrorRate != 0.1 {
+		t.Fatalf("evalsha=%+v", byName["evalsha"])
+	}
+}
+
 func TestParseInventoryMaps_RateAndError(t *testing.T) {
 	calls := []map[string]any{
 		{"service": "nova-api", "namespace": "sanad", "environment": "prod", "calls": 120.0, "errors": 12.0},

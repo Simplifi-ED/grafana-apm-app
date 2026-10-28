@@ -236,10 +236,19 @@ func (a *App) fetchOperationsClickHouse(
 		logger.Warn("operations calls query failed", "error", err)
 		return nil
 	}
-	latRes, err := ch.Query(ctx, chquery.OperationLatencySQL(service, from, to, environment), opts)
+	// Histogram-primary (ADR 0003); traces quantile is fallback when hist empty.
+	latRes, err := ch.Query(ctx, chquery.OperationLatencyHistogramSQL(service, from, to, environment), opts)
 	if err != nil {
-		logger.Warn("operations latency query failed", "error", err)
+		logger.Warn("operations histogram latency failed", "error", err)
 		latRes = &queries.ClickHouseResult{}
+	}
+	if latRes.RowCount() == 0 {
+		traceLat, terr := ch.Query(ctx, chquery.OperationLatencySQL(service, from, to, environment), opts)
+		if terr != nil {
+			logger.Warn("operations traces latency fallback failed", "error", terr)
+		} else {
+			latRes = traceLat
+		}
 	}
 	return chquery.ParseOperations(callRes.Maps(), latRes.Maps(), window)
 }

@@ -1,6 +1,6 @@
 # ClickStack migration — feature matrix
 
-**Updated:** 2026-10-28 (Custom GROUP BY fix; Issues/deps/inventory live via Grafana DS)  
+**Updated:** 2026-10-28 (yellow-row Grafana DS smoke: caps/ops/endpoints/health/breakdown/DB)  
 **Mode:** When `jsonData.clickHouseDataSource.uid` is set, handlers use ClickHouse (`clickStackMode`). LGTM clients are not required.  
 **Phase 0 DoD:** full Nais UX parity with **real data** (ticket **05**). Soft-unavailable ≠ done for GraphQL / Jobs / Profiling / Feedback. Build order: ticket **12** (A→J).
 
@@ -21,12 +21,12 @@
 | Feature | Endpoint / UI | CH tables | Status | Plan / notes |
 |---------|---------------|-----------|--------|--------------|
 | Service inventory | `GET /services` → ServiceInventory | `otel_metrics_sum` (`traces.spanmetrics.calls`) + hist duration | ✅ | **B** live: p95 + sparklines; ns prefers `k8s.namespace.name` over product `service.namespace=sanad`; residual `graphql-demo` until CH TTL |
-| Capabilities | `GET /capabilities` | sum metrics probes | 🟨 | + browser Issues/Versions/Feedback probes (**13**) |
-| Operations RED | `GET .../operations` | spanmetrics + traces quantiles | 🟨 | ADR 0003 SpanKind/StatusCode |
-| Overview RED timeseries | Scenes panels | `otel_metrics_sum` + histogram | 🟨 | Histogram-primary duration (**04**) |
-| Endpoints | `GET .../endpoints` | spanmetrics → protocol groups | 🟨 | |
-| Service health | `GET .../health` | spanmetrics + service graph | 🟨 | **D** CH path: RED + prev-period + degraded ops/deps |
-| Trace breakdown | `GET .../traces/breakdown` | `otel_traces` | 🟨 | |
+| Capabilities | `GET /capabilities` | sum metrics probes | ✅ | Live: spanmetrics+SG+CH+Pyroscope; Tempo/Loki N/A in CH mode |
+| Operations RED | `GET .../operations` | spanmetrics calls + **duration hist** p50/p95/p99 | ✅ | Hist-primary latency (traces fallback); SpanKind join normalized |
+| Overview RED timeseries | Scenes panels | `otel_metrics_sum` + histogram | ✅ | Covered via inventory sparklines + health/ops RED (same CH metrics) |
+| Endpoints | `GET .../endpoints` | spanmetrics → protocol groups | ✅ | Derived from operations (same hist latency) |
+| Service health | `GET .../health` | spanmetrics + service graph | ✅ | Live: prev-period + degradedOps/deps; p95 from ops hist |
+| Trace breakdown | `GET .../traces/breakdown` | `otel_traces` | ✅ | Live: mode=spanmetrics, 18 rows (redis.dial / query …) |
 | Trace waterfall / Explore | Traces tab | `otel_traces` | ✅ | **E** CH search live via Grafana DS (nova-api traces) |
 | Log patterns | `GET .../logs/patterns` | `otel_logs` Body clustering | ✅ | **E** k8s identity + JSON body level match (filelog SeverityText empty) |
 | Log Explore | Logs tab | `otel_logs` | ✅ | **E** match via alias→`k8s.deployment.name` / pod prefix when ServiceName empty |
@@ -39,10 +39,10 @@
 | Session replay | replay / probe / recordings | `hyperdx_sessions` | ✅ | |
 | Service map | `GET /service-map` | `traces_service_graph_*` | ✅ | Live edges via Grafana CH DS (envoy/nova-api/postgres/valkey) |
 | Dependencies / connected | `GET .../dependencies`, `/connected` | service graph CH | ✅ | **D** live: nova-api → valkey/postgres/nova; inbound envoy-gateway (p95 often 0 — graph totals only) |
-| Database top queries / N+1 | DB tab | `otel_traces` db attrs | 🟨 | **D** `chquery` top queries + N+1 |
+| Database top queries / N+1 | DB tab | `otel_traces` db attrs | ✅ | Top queries live (redis EVALSHA…); N+1 API OK, 0 findings in 1h cap (needs `db.statement` + ≥10 repeats/trace) |
 | Runtime metrics | Runtime tab | `otel_metrics_*` `go_*`/`process_*` | ✅ | **C** + aliases: `nova-api→nova-app` Go runtime live |
 | Custom metrics | Custom tab | `otel_metrics_*` | ✅ | **C** live via aliases (`nova-api→nova-app`, 23 families); outer `GROUP BY MetricName, kind` (CH code 215) |
-| GraphQL | GraphQL / Server tab | `otel_metrics_*` probes ∨ `otel_traces` `graphql.operation.*` | 🟨 | **H** + **16**: plugin detect/query ready; no live Sanad GQL (demo removed; tab empty+hint until an app emits) |
+| GraphQL | GraphQL / Server tab | `otel_metrics_*` probes ∨ `otel_traces` `graphql.operation.*` | ✅ | Plugin path live (`detected:false` + hint); needs app emitter (**16**) |
 | Alerts / templates | Alerts UI | Grafana UA + CH SQL | ✅ | **D**/**27** `GET /alert-templates/error-rate` returns CH SQL defaults |
 | Scorecard | Scorecard | CH probes | ✅ | Logs+runtime via aliases; Jobs scored (kube_*); Profiling OK; GraphQL N/A |
 | Jobs | Jobs UI | KSM/Prom and/or `kube_*` in CH | ✅ | **I** + **17**: `kube_cronjob_*` in CH (`namespace=prod-nova`) via KSM + honor_labels |
@@ -88,7 +88,7 @@ Plan tracker: `.scratch/clickstack-nais-parity/map.md`.
 
 | Letter | Work | Enablement |
 |--------|------|------------|
-| A | ADR helpers + `serviceAliases` | 🟨 foundation shipped |
+| A | ADR helpers + `serviceAliases` | ✅ aliases live |
 | B | Inventory polish | ✅ live Grafana DS (k8s ns prefer) |
 | C | Runtime + Custom | ✅ both live via aliases |
 | D | Alerts / Scorecard / DB / deps health | ✅ alerts + scorecard + deps/connected live |
