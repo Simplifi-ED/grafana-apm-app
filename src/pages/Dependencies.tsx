@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { PluginPage } from '@grafana/runtime';
-import { useStyles2, Icon, LoadingPlaceholder, Alert, Input, RadioButtonGroup, Combobox } from '@grafana/ui';
+import { useStyles2, Icon, Alert, Input, RadioButtonGroup, Combobox } from '@grafana/ui';
 import { GrafanaTheme2, PageLayoutType } from '@grafana/data';
 import { css } from '@emotion/css';
 import { getGlobalDependencies, DependencySummary, DependenciesResponse } from '../api/client';
@@ -9,6 +9,7 @@ import { useTimeRange } from '../utils/timeRange';
 import { useAppNavigate, sanitizeParam } from '../utils/navigation';
 import { DepTypeIcon, formatDepType } from '../components/DepTypeIcon';
 import { HeaderTimeControls } from '../components/HeaderTimeControls';
+import { SkeletonBar, TableSkeleton } from '../components/Skeleton';
 import { SortHeader, ImpactBar, useTableSort, getTableStyles } from '../components/SortableTable';
 import { useFetch } from '../utils/useFetch';
 import { useConfiguredEnvironments } from '../utils/datasources';
@@ -119,6 +120,27 @@ function Dependencies() {
           </div>
         </div>
 
+        {loading && (
+          <>
+            <div className={styles.filters} aria-hidden>
+              <SkeletonBar height={32} width={220} />
+              <SkeletonBar height={32} width={160} />
+              <SkeletonBar height={28} width={200} />
+            </div>
+            <TableSkeleton
+              rows={10}
+              columns={[
+                { width: '1.6fr' },
+                { width: 88 },
+                { width: '1fr' },
+                { width: '1fr' },
+                { width: '1fr' },
+                { width: '1.2fr' },
+              ]}
+            />
+          </>
+        )}
+
         {!loading && !error && deps.length > 0 && (
           <div className={styles.filters}>
             <Input
@@ -149,8 +171,6 @@ function Dependencies() {
             </label>
           </div>
         )}
-
-        {loading && <LoadingPlaceholder text="Loading dependencies..." />}
 
         {error && (
           <Alert severity="error" title="Error loading dependencies">

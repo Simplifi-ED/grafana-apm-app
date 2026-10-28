@@ -15,6 +15,7 @@ import { ServiceGraph, toGraphData } from '../components/ServiceGraph';
 import { CopyMermaidButton } from '../components/CopyMermaidButton';
 import { HeaderTimeControls } from '../components/HeaderTimeControls';
 import { DataState } from '../components/DataState';
+import { PanelSkeleton } from '../components/Skeleton';
 import { typographyFontSize } from '../utils/themeTypography';
 
 type MapView = 'namespaces' | 'services';
@@ -178,7 +179,7 @@ function ServiceMap() {
           empty={!loading && graphNodes.length === 0}
           emptyTitle="No topology data"
           emptyMessage="No service-to-service traffic found for the selected time range and environment."
-          loadingText="Loading service map..."
+          skeleton={<PanelSkeleton height="100%" className={styles.graphPanel} />}
         >
           {/* Fills remaining viewport like Explore's node graph — not a fixed
               node-count height that leaves empty chrome under a small map. */}

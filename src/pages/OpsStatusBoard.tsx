@@ -1,16 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { PluginPage } from '@grafana/runtime';
-import {
-  Alert,
-  Button,
-  Combobox,
-  Icon,
-  LoadingPlaceholder,
-  MultiCombobox,
-  RadioButtonGroup,
-  useStyles2,
-} from '@grafana/ui';
+import { Alert, Button, Combobox, Icon, MultiCombobox, RadioButtonGroup, useStyles2 } from '@grafana/ui';
 import { GrafanaTheme2, PageLayoutType } from '@grafana/data';
 import { css } from '@emotion/css';
 import { getServices, ServiceSummary } from '../api/client';
@@ -20,6 +11,7 @@ import { extractEnvironmentOptions } from '../utils/options';
 import { useFetch } from '../utils/useFetch';
 import { getServiceHealth, healthSeverity } from '../utils/health';
 import { StatusCard, CardStatus, CardSize, CARD_DIMENSIONS } from '../components/StatusCard';
+import { CardGridSkeleton } from '../components/Skeleton';
 import { HeaderTimeControls } from '../components/HeaderTimeControls';
 import { useOpsWatchlist, watchlistToSet, watchlistKey } from '../utils/useOpsWatchlist';
 import { useUrlNumber } from '../utils/useUrlState';
@@ -377,7 +369,11 @@ function OpsStatusBoard() {
 
         <div className={styles.gridViewport} ref={gridRef}>
           {servicesLoading || watchlistLoading ? (
-            <LoadingPlaceholder text="Loading ops status..." />
+            <CardGridSkeleton
+              cards={8}
+              minCardWidth={CARD_DIMENSIONS[cardSize].width}
+              cardHeight={CARD_DIMENSIONS[cardSize].height}
+            />
           ) : servicesError ? (
             <Alert severity="error" title="Error loading services">
               {servicesError}

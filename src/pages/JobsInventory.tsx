@@ -6,6 +6,7 @@ import { GrafanaTheme2, dateTime } from '@grafana/data';
 import { css } from '@emotion/css';
 import { getJobs, JobEntry } from '../api/jobs';
 import { DataState } from '../components/DataState';
+import { SkeletonBar, TableSkeleton } from '../components/Skeleton';
 import { useTimeRange } from '../utils/timeRange';
 import { useAppNavigate, sanitizeParam } from '../utils/navigation';
 import { useFetch } from '../utils/useFetch';
@@ -256,7 +257,34 @@ function JobsInventory() {
           loading={loading}
           error={error}
           empty={!available}
-          loadingText="Loading jobs..."
+          skeleton={
+            <>
+              <div className={styles.toolbar} aria-hidden>
+                <div className={styles.scopeRow}>
+                  <div className={styles.filterGroup}>
+                    <div className={styles.filterItem}>
+                      <SkeletonBar height={32} width="100%" />
+                    </div>
+                    <div className={styles.filterItem}>
+                      <SkeletonBar height={32} width="100%" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <TableSkeleton
+                rows={10}
+                columns={[
+                  { width: 24 },
+                  { width: '1.4fr' },
+                  { width: '1fr' },
+                  { width: '1fr' },
+                  { width: '1fr' },
+                  { width: '1fr' },
+                  { width: '0.8fr' },
+                ]}
+              />
+            </>
+          }
           emptyTitle="Job metrics not available"
           emptyMessage={
             data?.note ??
