@@ -652,6 +652,19 @@ export interface UnifiedIssue {
   truncated?: boolean;
   source: IssueSource;
   impact?: IssueImpact;
+  /** On-read: absent from preceding equal-length window (server-derived). */
+  isNew?: boolean;
+  /**
+   * On-read: triage resolved before newest deploy, still occurring.
+   * UI: "Returned after resolve" — not alert volume regression.
+   */
+  returnedAfterResolve?: boolean;
+}
+
+/** Counts for Overview attention strips (post-parity letter D). */
+export interface IssuesAttention {
+  new: number;
+  returnedAfterResolve: number;
 }
 
 /** One discovered facet value with its occurrence count in range. */
@@ -693,6 +706,8 @@ export interface IssuesResponse {
    * probe found no HyperDX exception signal (ticket 13).
    */
   hint?: string;
+  /** New / returned-after-resolve counts for attention strips. */
+  attention?: IssuesAttention;
 }
 
 export async function getIssues(

@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { OverviewTab } from './OverviewTab';
 import { ConnectedServicesResponse, DependencySummary, HealthSummary } from '../../api/client';
 
@@ -17,6 +18,19 @@ jest.mock('../../components/HealthSummary/HealthSummarySection', () => ({
 jest.mock('./overview/SloPanel', () => ({
   SloPanel: () => <div data-testid="slo-panel" />,
 }));
+jest.mock('../../api/client', () => ({
+  ...jest.requireActual('../../api/client'),
+  getIssues: jest.fn().mockResolvedValue({
+    fingerprintVersion: 'v1',
+    sources: { browser: true, serverLogs: true },
+    issues: [],
+    attention: { new: 0, returnedAfterResolve: 0 },
+  }),
+}));
+
+function renderOverview(ui: React.ReactElement) {
+  return render(<MemoryRouter>{ui}</MemoryRouter>);
+}
 
 function baseProps() {
   return {
@@ -53,7 +67,7 @@ const HEALTH: HealthSummary = {
 
 describe('OverviewTab section structure', () => {
   it('renders the health header row above the RED panels scene', () => {
-    render(<OverviewTab {...baseProps()} health={HEALTH} healthLoading={false} />);
+    renderOverview(<OverviewTab {...baseProps()} health={HEALTH} healthLoading={false} />);
 
     const container = screen.getByTestId('scene-red-panels').closest('body') as HTMLElement;
     const html = container.innerHTML;
@@ -64,7 +78,7 @@ describe('OverviewTab section structure', () => {
   });
 
   it('passes the health prop through to the header row', () => {
-    render(<OverviewTab {...baseProps()} health={HEALTH} healthLoading={false} />);
+    renderOverview(<OverviewTab {...baseProps()} health={HEALTH} healthLoading={false} />);
 
     expect(screen.getByText('50.00 req/s')).toBeInTheDocument();
     expect(screen.getByText('1.2%')).toBeInTheDocument();
@@ -72,14 +86,14 @@ describe('OverviewTab section structure', () => {
   });
 
   it('still renders the attention section and the (collapsible) custom metrics section', () => {
-    render(<OverviewTab {...baseProps()} health={HEALTH} healthLoading={false} />);
+    renderOverview(<OverviewTab {...baseProps()} health={HEALTH} healthLoading={false} />);
 
     expect(screen.getByTestId('health-summary-section')).toBeInTheDocument();
     expect(screen.getByTestId('custom-metrics-panel')).toBeInTheDocument();
   });
 
   it('renders no health header row when health data is unavailable and not loading', () => {
-    render(<OverviewTab {...baseProps()} health={null} healthLoading={false} />);
+    renderOverview(<OverviewTab {...baseProps()} health={null} healthLoading={false} />);
 
     expect(screen.queryByText('Request rate')).not.toBeInTheDocument();
   });
@@ -87,7 +101,7 @@ describe('OverviewTab section structure', () => {
 
 describe('OverviewTab dependency signal (IA review 2, rule 3)', () => {
   it('renders a one-line count summary instead of the topology graph or callers/dependencies tables', () => {
-    render(
+    renderOverview(
       <OverviewTab
         {...baseProps()}
         health={HEALTH}
@@ -126,7 +140,7 @@ describe('OverviewTab dependency signal (IA review 2, rule 3)', () => {
       ],
     };
 
-    render(
+    renderOverview(
       <OverviewTab
         {...baseProps()}
         health={unhealthyHealth}
@@ -142,7 +156,7 @@ describe('OverviewTab dependency signal (IA review 2, rule 3)', () => {
 
   it('links to the Dependencies tab when clicked', () => {
     const onViewAllDependencies = jest.fn();
-    render(
+    renderOverview(
       <OverviewTab
         {...baseProps()}
         health={HEALTH}
@@ -158,7 +172,7 @@ describe('OverviewTab dependency signal (IA review 2, rule 3)', () => {
   });
 
   it('renders nothing when there are no dependencies and no callers (content-gated)', () => {
-    render(
+    renderOverview(
       <OverviewTab
         {...baseProps()}
         health={HEALTH}

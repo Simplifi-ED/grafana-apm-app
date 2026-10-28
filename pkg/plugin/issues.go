@@ -74,6 +74,14 @@ type Issue struct {
 	Source string `json:"source"`
 	// Impact is set for server issues only (browser issues carry Sessions).
 	Impact *IssueImpact `json:"impact,omitempty"`
+	// IsNew is set on-read when the fingerprint was absent from the preceding
+	// equal-length window and that baseline window was non-empty (ticket 07).
+	IsNew bool `json:"isNew,omitempty"`
+	// ReturnedAfterResolve is set on-read when triage status is resolved, the
+	// resolve predates the newest deploy annotation, and the fingerprint still
+	// occurs in range — UI label "Returned after resolve" (not alert volume
+	// regression).
+	ReturnedAfterResolve bool `json:"returnedAfterResolve,omitempty"`
 }
 
 // IssueSources reports which telemetry sides answered without error.
@@ -137,6 +145,9 @@ type IssuesResponse struct {
 	// Hint is set when ClickStack browser Issues need a serviceAliases entry
 	// and none is configured (server Issues still use inventory ServiceName).
 	Hint string `json:"hint,omitempty"`
+	// Attention holds new / returned-after-resolve counts for Overview strips
+	// (post-parity letter D). Nil when no issues or flags were not computed.
+	Attention *IssuesAttention `json:"attention,omitempty"`
 }
 
 // handleIssues returns the unified issues list (#63 Phase 1): Faro frontend
@@ -161,7 +172,17 @@ func (a *App) handleIssues(w http.ResponseWriter, req *http.Request) {
 	}
 
 	if a.clickStackMode() {
-		writeJSON(w, a.fetchIssuesClickHouse(ctx, a.chForRequest(req), service, env, from, to))
+		ch := a.chForRequest(req)
+		resp := a.fetchIssuesClickHouse(ctx, ch, service, env, from, to)
+		var prev map[string]bool
+		if span := to.Sub(from); span > 0 && len(resp.Issues) > 0 {
+			baseline := a.fetchIssuesClickHouse(ctx, ch, service, env, from.Add(-span), from)
+			if len(baseline.Issues) > 0 {
+				prev = issueFingerprintSet(baseline.Issues)
+			}
+		}
+		a.attachIssuesNotifyFlags(ctx, namespace, service, env, from, to, &resp, prev)
+		writeJSON(w, resp)
 		return
 	}
 
@@ -176,7 +197,16 @@ func (a *App) handleIssues(w http.ResponseWriter, req *http.Request) {
 		facets.Version, facets.Browser, facets.Page)
 	dsClient := queries.NewDsQueryClient(a.grafanaURL, a.resolveServiceToken(ctx)).WithAuthHeaders(req.Header)
 	a.writeCached(w, ck, "querying issues failed", func() (any, error) {
-		return a.queryIssues(ctx, dsClient, lokiUID, service, env, from, to, facets), nil
+		resp := a.queryIssues(ctx, dsClient, lokiUID, service, env, from, to, facets)
+		var prev map[string]bool
+		if span := to.Sub(from); span > 0 && len(resp.Issues) > 0 {
+			baseline := a.queryIssues(ctx, dsClient, lokiUID, service, env, from.Add(-span), from, browserFacets{})
+			if len(baseline.Issues) > 0 {
+				prev = issueFingerprintSet(baseline.Issues)
+			}
+		}
+		a.attachIssuesNotifyFlags(ctx, namespace, service, env, from, to, &resp, prev)
+		return resp, nil
 	})
 }
 

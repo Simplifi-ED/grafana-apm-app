@@ -67,6 +67,8 @@ telemetry only (server side is skipped) and `facetedSource` is `"browser"`.
 | `memberHashes` | array&lt;string&gt; | Upstream Alloy hashes (browser only, cap 50). |
 | `truncated` | bool? | Member-hash cap hit. |
 | `source` | string | `"browser"` or `"server"`. |
+| `isNew` | bool | Absent from preceding equal-length window (only when that baseline held issues). |
+| `returnedAfterResolve` | bool | Triage resolved before newest deploy; still occurring. UI: "Returned after resolve". |
 | `impact` | object? | Server issues only: `{ "pods": int, "versions": [] }`. |
 
 **facets** (`IssueFacets`) — each list is capped at 15 values:

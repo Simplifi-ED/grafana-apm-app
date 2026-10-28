@@ -67,8 +67,8 @@ const SOURCE_OPTIONS: Array<{ label: string; value: SourceFilter }> = [
  * Fingerprint-grouped exception list (#62 Phase 0) with triage (#57):
  * resolve/ignore/mute state per issue, shared across users via the backend's
  * annotations event log (mutes are per-user). The default view hides
- * resolved, ignored, and muted issues; resolved issues that reappear after a
- * newer deploy bubble to the top as Regressed.
+ * resolved, ignored, and muted issues; returned-after-resolve and new issues
+ * bubble to the top (server flags on `/issues`, ticket 07).
  */
 export function IssuesTable({ namespace, service, environment, compact = false }: IssuesTableProps) {
   const styles = useStyles2(getStyles);
@@ -131,20 +131,23 @@ export function IssuesTable({ namespace, service, environment, compact = false }
   const groups = data?.issues ?? [];
   const totalCount = groups.reduce((sum, g) => sum + g.count, 0);
 
-  // Latest deploy timestamp — the naive Phase 1 regression rule (#57/#64):
-  // an issue resolved BEFORE the newest deploy that still occurs in the
-  // current result set is treated as Regressed. Approximation documented in
-  // the PRD: occurrences in a historical window may predate the resolve.
+  // Fallback when `/issues` lacks returnedAfterResolve (older backend): same
+  // Phase 1 rule as docs/triage.md using local triage + deploy markers.
   const latestDeployMs = useMemo(() => {
     const latest = versions?.versions.find((v) => v.version === versions.latestVersion);
     return latest?.deployedAtMs ?? 0;
   }, [versions]);
 
   const stateOf = (fp: string): TriageState | undefined => overrides[fp] ?? triageStates?.[fp];
-  const isRegressed = (g: UnifiedIssue): boolean => {
+  const isReturnedAfterResolve = (g: UnifiedIssue): boolean => {
+    if (g.returnedAfterResolve) {
+      return true;
+    }
+    // Fallback / optimistic: local triage + deploy when server flag absent.
     const st = stateOf(g.fingerprint);
     return !!st && st.status === 'resolved' && latestDeployMs > 0 && st.updatedAt < latestDeployMs;
   };
+  const isNewIssue = (g: UnifiedIssue): boolean => Boolean(g.isNew);
 
   const { rows, mutedCount } = useMemo(() => {
     let mutedCount = 0;
@@ -155,14 +158,14 @@ export function IssuesTable({ namespace, service, environment, compact = false }
       }
       const st = stateOf(g.fingerprint);
       const status = st?.status ?? 'active';
-      const regressed = isRegressed(g);
+      const returned = isReturnedAfterResolve(g);
       if (filter === 'unresolved') {
         if (mutes.has(g.fingerprint) && !showMuted) {
           mutedCount++;
           continue;
         }
-        // Regressed issues re-surface in the default view despite 'resolved'.
-        if ((status === 'resolved' && !regressed) || status === 'ignored') {
+        // Returned-after-resolve re-surfaces in the default view despite 'resolved'.
+        if ((status === 'resolved' && !returned) || status === 'ignored') {
           continue;
         }
       } else if (filter === 'resolved' && status !== 'resolved') {
@@ -172,8 +175,11 @@ export function IssuesTable({ namespace, service, environment, compact = false }
       }
       visible.push(g);
     }
-    // Regressed bubbles to the top regardless of count order.
-    visible.sort((a, b) => Number(isRegressed(b)) - Number(isRegressed(a)));
+    // Server already sorts notify-first; keep New + Returned on top after filters.
+    visible.sort((a, b) => {
+      const score = (g: UnifiedIssue) => (isReturnedAfterResolve(g) ? 2 : 0) + (isNewIssue(g) ? 1 : 0);
+      return score(b) - score(a);
+    });
     return { rows: visible, mutedCount };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [groups, triageStates, overrides, mutes, filter, effectiveSource, showMuted, latestDeployMs]);
@@ -207,6 +213,11 @@ export function IssuesTable({ namespace, service, environment, compact = false }
       <div className={styles.header}>
         <h6 className={styles.title}>Top Exceptions</h6>
         <span className={styles.subtitle}>Frontend and backend errors grouped by stable fingerprint</span>
+        {!compact && (
+          <Button size="sm" variant="secondary" fill="text" icon="bell" onClick={() => updateParams({ tab: 'alerts' })}>
+            Alert templates
+          </Button>
+        )}
         <div className={styles.headerSpacer} />
         {!compact &&
           (facetsActive ? (
@@ -337,7 +348,8 @@ export function IssuesTable({ namespace, service, environment, compact = false }
                     : undefined
                 }
                 state={stateOf(g.fingerprint)}
-                regressed={isRegressed(g)}
+                returnedAfterResolve={isReturnedAfterResolve(g)}
+                isNew={isNewIssue(g)}
                 muted={mutes.has(g.fingerprint)}
                 totalCount={totalCount}
                 sessionsUnavailable={data?.sessionsUnavailable}
@@ -391,7 +403,8 @@ function IssueRow({
   group,
   tracesUrl,
   state,
-  regressed,
+  returnedAfterResolve,
+  isNew,
   muted,
   totalCount,
   sessionsUnavailable,
@@ -403,7 +416,8 @@ function IssueRow({
   /** Explore deep link to traces carrying this issue's exception events (#63 P2, server issues). */
   tracesUrl?: string;
   state?: TriageState;
-  regressed: boolean;
+  returnedAfterResolve: boolean;
+  isNew: boolean;
   muted: boolean;
   totalCount: number;
   sessionsUnavailable?: boolean;
@@ -438,9 +452,16 @@ function IssueRow({
             <Badge className={styles.badge} text={`merged ×${group.memberHashes.length}`} color="purple" />
           </Tooltip>
         )}
-        {regressed ? (
-          <Tooltip content={`Resolved by ${state?.updatedBy}, but occurrences continue after a newer deploy.`}>
-            <Badge className={styles.badge} text="Regressed" color="red" icon="repeat" />
+        {isNew && (
+          <Tooltip content="Not seen in the preceding equal-length window (approximate).">
+            <Badge className={styles.badge} text="New" color="blue" icon="plus-circle" />
+          </Tooltip>
+        )}
+        {returnedAfterResolve ? (
+          <Tooltip
+            content={`Resolved by ${state?.updatedBy ?? 'someone'}, but occurrences continue after a newer deploy. Not the same as alert "Exception volume regression".`}
+          >
+            <Badge className={styles.badge} text="Returned after resolve" color="red" icon="repeat" />
           </Tooltip>
         ) : (
           <>

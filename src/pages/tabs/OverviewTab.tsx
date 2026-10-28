@@ -3,15 +3,25 @@ import { useStyles2, LoadingPlaceholder, Alert } from '@grafana/ui';
 import { GrafanaTheme2 } from '@grafana/data';
 import { css } from '@emotion/css';
 import { EmbeddedScene } from '@grafana/scenes';
-import { OperationSummary, ConnectedServicesResponse, DependencySummary, HealthSummary } from '../../api/client';
+import {
+  OperationSummary,
+  ConnectedServicesResponse,
+  DependencySummary,
+  HealthSummary,
+  getIssues,
+} from '../../api/client';
 import { formatDuration } from '../../utils/format';
 import { CustomMetricsPanel } from '../../components/CustomMetricsPanel';
+import { IssuesAttentionStrip } from '../../components/IssuesAttentionStrip';
 import { getSectionStyles } from '../../utils/styles';
 import { HealthSummarySection } from '../../components/HealthSummary/HealthSummarySection';
 import { HealthHeaderRow } from './overview/HealthHeaderRow';
 import { SloPanel } from './overview/SloPanel';
 import { DependencySignal } from './overview/DependencySignal';
 import { typographyFontSize } from '../../utils/themeTypography';
+import { useFetch } from '../../utils/useFetch';
+import { useTimeRange } from '../../utils/timeRange';
+import { useUrlParams } from '../../utils/useUrlState';
 
 const MAX_OVERVIEW_OPS = 5;
 
@@ -53,6 +63,12 @@ export function OverviewTab({
   onNavigateDependency,
 }: OverviewTabProps) {
   const styles = useStyles2(getStyles);
+  const { fromMs, toMs } = useTimeRange();
+  const updateParams = useUrlParams();
+  const { data: issuesData, loading: issuesLoading } = useFetch(
+    () => getIssues(namespace, service, fromMs, toMs, environment),
+    [namespace, service, fromMs, toMs, environment]
+  );
 
   const overviewOps = useMemo(() => {
     const byRate = [...operations].sort((a, b) => b.rate - a.rate);
@@ -73,6 +89,13 @@ export function OverviewTab({
           previous period, so "is this OK right now?" doesn't require reading
           the timeseries below. */}
       <HealthHeaderRow health={health ?? null} loading={healthLoading ?? false} />
+
+      <IssuesAttentionStrip
+        attention={issuesData?.attention}
+        loading={issuesLoading}
+        onViewIssues={() => updateParams({ tab: 'issues' })}
+        onViewAlerts={() => updateParams({ tab: 'alerts' })}
+      />
 
       {/* Error-budget / SLO panel (M7): 30d compliance, remaining budget and
           current burn rate off the RED error ratio, plus multi-window

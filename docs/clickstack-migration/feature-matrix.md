@@ -100,3 +100,19 @@ Plan tracker: `.scratch/clickstack-nais-parity/map.md`.
 | J | Profiling | ✅ plugin + local Pyroscope DS (**18**) |
 
 Platform **17/18/21** live (DEV/local); **16** plugin-ready without demo. Core spine A→J verified via Grafana CH DS on Local-ClickHouse.
+
+---
+
+## Post-parity hardening (plan spine A→F)
+
+Tracker: `.scratch/post-parity-hardening/map.md`.
+
+| Letter | Work | Status |
+|--------|------|--------|
+| **A** | Triage pagination + release-please CI | 🚧 PR #5 |
+| **B+C** | Alerts UX + `regressing-exceptions` template | 🚧 PR #6 |
+| **D** | `/issues` isNew + returnedAfterResolve; badges; Overview strip; Alerts CTA | 🚧 this branch |
+| **E** | Custom signals CH Overview auto-charts | 🚧 |
+| **F** | Scorecard v2 depth | 🚧 |
+
+Namespace-wide attention strip deferred (would N+1 `/issues` per service).
