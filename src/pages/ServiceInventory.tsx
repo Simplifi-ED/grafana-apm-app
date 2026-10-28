@@ -430,7 +430,7 @@ function ServiceInventory() {
             <table className={styles.table}>
               <colgroup>
                 <col style={{ width: '32px' }} />
-                <col style={{ width: '80px' }} />
+                <col style={{ width: '1%' }} />
                 <col style={{ width: '22%' }} />
                 {showNsColumn && <col style={{ width: '14%' }} />}
                 {showEnvColumn && <col style={{ width: '10%' }} />}
@@ -750,7 +750,9 @@ const getStyles = (theme: GrafanaTheme2) => ({
     white-space: nowrap;
     color: ${theme.colors.text.secondary};
     font-weight: ${theme.typography.fontWeightMedium};
-    padding-right: ${theme.spacing(0.5)} !important;
+    padding-left: ${theme.spacing(0.5)} !important;
+    padding-right: ${theme.spacing(1)} !important;
+    text-align: left;
   `,
   starColHeader: css`
     width: 32px;
@@ -789,14 +791,15 @@ const getStyles = (theme: GrafanaTheme2) => ({
   typeCell: css`
     width: 1%;
     white-space: nowrap;
-    padding-right: ${theme.spacing(0.5)} !important;
-    text-align: right;
+    padding-left: ${theme.spacing(0.5)} !important;
+    padding-right: ${theme.spacing(1)} !important;
+    text-align: left;
     vertical-align: middle;
   `,
   typeCellInner: css`
     display: inline-flex;
     align-items: center;
-    justify-content: flex-end;
+    justify-content: flex-start;
     gap: ${theme.spacing(0.75)};
   `,
   nsCell: css`

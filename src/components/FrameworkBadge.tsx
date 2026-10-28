@@ -13,9 +13,13 @@ export const FRAMEWORK_BADGES: Record<string, { label: string; bg: string }> = {
   Python: { label: 'Python', bg: '#3776AB' },
   '.NET': { label: '.NET', bg: '#512BD4' },
   Rust: { label: 'Rust', bg: '#DEA584' },
-  'C++': { label: 'C++', bg: '#00599C' },
+  // Pink-purple (Envoy / native C++)
+  'C++': { label: 'C++', bg: '#C026D3' },
+  cpp: { label: 'C++', bg: '#C026D3' },
   C: { label: 'C', bg: '#A8B9CC' },
-  Browser: { label: 'Browser', bg: '#CA8A04' },
+  // Navy (HyperDX / Faro browser RUM)
+  Browser: { label: 'Browser', bg: '#1E3A8A' },
+  webjs: { label: 'Browser', bg: '#1E3A8A' },
   TypeScript: { label: 'TypeScript', bg: '#3178C6' },
   PHP: { label: 'PHP', bg: '#777BB4' },
   Ruby: { label: 'Ruby', bg: '#CC342D' },
@@ -30,7 +34,7 @@ export function FrameworkBadge({ framework, className }: { framework?: string; c
   if (!framework) {
     return null;
   }
-  const info = FRAMEWORK_BADGES[framework];
+  const info = FRAMEWORK_BADGES[framework] ?? FRAMEWORK_BADGES[framework.trim()];
   if (!info) {
     return <span className={`${badgeStyle('#888')}${className ? ` ${className}` : ''}`}>{framework}</span>;
   }
