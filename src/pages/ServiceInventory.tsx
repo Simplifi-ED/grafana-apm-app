@@ -8,7 +8,6 @@ import {
   Icon,
   IconButton,
   Input,
-  LoadingPlaceholder,
   MultiCombobox,
   Pagination,
   Combobox,
@@ -26,6 +25,7 @@ import { sparklineColors } from '../utils/colors';
 import { extractEnvironmentOptions, extractNamespaceOptions } from '../utils/options';
 import { useFetch } from '../utils/useFetch';
 import { FrameworkBadge } from '../components/FrameworkBadge';
+import { SkeletonBar, TableSkeleton } from '../components/Skeleton';
 import { Sparkline } from '../components/Sparkline';
 import { AppTimeRangePicker } from '../components/AppTimeRangePicker';
 import { RefreshControl } from '../components/RefreshControl';
@@ -332,7 +332,6 @@ function ServiceInventory() {
             {error}
           </Alert>
         )}
-        {loading && <LoadingPlaceholder text="Loading services..." />}
         {!loading && caps?.clickHouse && !caps.clickHouse.available && (
           <Alert severity="error" title="ClickHouse unreachable">
             {caps.clickHouse.error || 'The ClickHouse datasource is not reachable.'} Then refresh this page.
@@ -344,6 +343,25 @@ function ServiceInventory() {
               ? 'ClickHouse is up, but no traces.spanmetrics.calls series were found in the last hour. Confirm the OTel Collector spanmetrics connector writes into ClickHouse.'
               : 'Ensure the OpenTelemetry Collector spanmetrics connector is configured and sending data to your metrics datasource.'}
           </Alert>
+        )}
+
+        {loading && (
+          <div className={styles.toolbar} aria-hidden>
+            <div className={styles.scopeRow}>
+              <div className={styles.filterGroup}>
+                <div className={styles.filterItem}>
+                  <SkeletonBar height={32} width="100%" />
+                </div>
+                <div className={styles.filterItem}>
+                  <SkeletonBar height={32} width="100%" />
+                </div>
+              </div>
+              <div className={styles.timeControls}>
+                <SkeletonBar height={32} width={180} />
+                <SkeletonBar height={32} width={32} />
+              </div>
+            </div>
+          </div>
         )}
 
         {!loading && (services.length > 0 || caps?.spanMetrics.detected) && (
@@ -425,6 +443,8 @@ function ServiceInventory() {
             </div>
           </div>
         )}
+
+        {loading && <TableSkeleton rows={10} />}
 
         {!loading && services.length > 0 && (
           <>

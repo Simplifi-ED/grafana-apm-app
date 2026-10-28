@@ -251,7 +251,7 @@ describe('ServiceInventory — Fuzzy search', () => {
 
   it('shows no rows for a query that matches nothing', async () => {
     renderInventory('/services?q=zzzznonexistentzzzz');
-    await waitFor(() => expect(screen.queryByText(/Loading services/i)).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByLabelText(/Loading/i)).not.toBeInTheDocument());
     expect(screen.queryByText('my-api')).not.toBeInTheDocument();
     expect(screen.queryByText('payment')).not.toBeInTheDocument();
     expect(screen.queryByText('frontend')).not.toBeInTheDocument();

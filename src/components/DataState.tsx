@@ -6,6 +6,8 @@ interface DataStateProps {
   error?: string | null;
   empty?: boolean;
   loadingText?: string;
+  /** When set, shown instead of LoadingPlaceholder while loading (optimistic skeleton). */
+  skeleton?: React.ReactNode;
   errorTitle?: string;
   emptyTitle?: string;
   emptyMessage?: React.ReactNode;
@@ -22,6 +24,7 @@ export function DataState({
   error,
   empty,
   loadingText = 'Loading…',
+  skeleton,
   errorTitle = 'Error',
   emptyTitle = 'No data',
   emptyMessage = 'No data found.',
@@ -35,7 +38,7 @@ export function DataState({
     );
   }
   if (loading) {
-    return <LoadingPlaceholder text={loadingText} />;
+    return <>{skeleton ?? <LoadingPlaceholder text={loadingText} />}</>;
   }
   if (empty) {
     return (
