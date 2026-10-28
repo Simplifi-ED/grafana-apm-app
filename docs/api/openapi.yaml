@@ -828,7 +828,7 @@ paths:
   /services/{namespace}/{service}/scorecard:
     get:
       tags: [experimental]
-      summary: Observability-readiness scorecard + Console enrichment.
+      summary: Observability-readiness scorecard (applicable checks only).
       parameters:
         - { $ref: "#/components/parameters/namespacePath" }
         - { $ref: "#/components/parameters/servicePath" }
@@ -1562,14 +1562,7 @@ components:
                   label: { type: string }
                   ok: { type: boolean }
                   hint: { type: string }
-        console:
-          type: object
-          properties:
-            configured: { type: boolean }
-            teamSlug: { type: string }
-            slackChannel: { type: string }
-            repositoryUrl: { type: string }
-            ingresses: { type: array, items: { type: string } }
+                  notApplicable: { type: boolean }
     JobsResponse:
       type: object
       properties:

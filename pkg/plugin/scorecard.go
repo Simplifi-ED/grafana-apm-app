@@ -141,6 +141,15 @@ func scorecardBaseChecks() []ScorecardCheck {
 		// Letter J / ticket 18: scored from detectPyroscope (see applyProfilingCheck).
 		{Key: "profiling", Label: "Profiling",
 			Hint: "Install grafana-pyroscope-datasource and provision a Pyroscope DS (ticket 18)."},
+		// Letter F / ticket 05 — ClickStack v2 depth (LGTM marks these N/A).
+		{Key: "sourcemaps", Label: "Source maps",
+			Hint: "Publish .map next to the bundle; diagnose a minified frame with Sourcemap doctor."},
+		{Key: "database", Label: "Database usage",
+			Hint: "No db.system spans — emit OpenTelemetry DB client instrumentation when this service talks to a database."},
+		{Key: "messagingOrWorkflow", Label: "Messaging / workflow",
+			Hint: "No messaging.system or Temporal/workflow spans — instrument Kafka/Temporal clients when present."},
+		{Key: "structuredLogs", Label: "Structured logging (exceptions)",
+			Hint: "Export exceptions via OTLP with exception.type/message/stacktrace (ADR-0002 shape A)."},
 	}
 }
 
@@ -196,11 +205,12 @@ func (a *App) computeReadiness(ctx context.Context, headers http.Header, namespa
 	wg.Wait()
 
 	a.applyProfilingCheck(ctx, headers, token, checks)
+	markScorecardV2NotApplicable(checks, "LGTM path — scorecard v2 depth is ClickStack-only.")
 	return tallyScorecard(checks)
 }
 
 // computeReadinessClickHouse runs ticket-22 CH probes for the Nais 6 keys,
-// scores Jobs (I/17) + Profiling (J/18), and keeps graphql as N/A until 16.
+// scores Jobs (I/17) + Profiling (J/18), v2 depth (F/05), and keeps graphql as N/A until 16.
 func (a *App) computeReadinessClickHouse(ctx context.Context, headers http.Header, namespace, service, env string) ScorecardReadiness {
 	now := time.Now()
 	from := now.Add(-scorecardTraceLookback)
@@ -273,7 +283,162 @@ func (a *App) computeReadinessClickHouse(ctx context.Context, headers http.Heade
 
 	a.applyJobsCheck(ctx, headers, token, checks)
 	a.applyProfilingCheck(ctx, headers, token, checks)
+	a.applyScorecardV2ClickHouse(ctx, headers, token, service, env, from, now, checks)
 	return tallyScorecard(checks)
+}
+
+// scorecardV2Keys are letter-F checks: data-driven applicability on ClickStack.
+var scorecardV2Keys = []string{"sourcemaps", "database", "messagingOrWorkflow", "structuredLogs"}
+
+func markScorecardV2NotApplicable(checks []ScorecardCheck, hint string) {
+	for i := range checks {
+		for _, key := range scorecardV2Keys {
+			if checks[i].Key == key {
+				checks[i].NotApplicable = true
+				checks[i].OK = false
+				checks[i].Hint = hint
+				break
+			}
+		}
+	}
+}
+
+func scorecardCheckByKey(checks []ScorecardCheck, key string) *ScorecardCheck {
+	for i := range checks {
+		if checks[i].Key == key {
+			return &checks[i]
+		}
+	}
+	return nil
+}
+
+// applyScorecardV2ClickHouse scores letter-F checks with live presence probes.
+// Applicability is data-driven (N/A excluded from total); see ticket 05.
+func (a *App) applyScorecardV2ClickHouse(
+	ctx context.Context,
+	headers http.Header,
+	token, service, env string,
+	from, to time.Time,
+	checks []ScorecardCheck,
+) {
+	ch := a.chClient
+	if ch != nil {
+		ch = ch.WithServiceToken(token).WithAuthHeaders(headers)
+	}
+
+	browser := scorecardCheckByKey(checks, "browserTelemetry")
+	logs := scorecardCheckByKey(checks, "logs")
+	scrape, _ := a.ResolveServiceAlias(service)
+	browserAlias, hasBrowserAlias := a.ResolveServiceAlias(service)
+
+	var (
+		dbPresent, msgPresent, structuredOK bool
+		browserErrors, sourcemapsOK         bool
+	)
+	var wg sync.WaitGroup
+	wg.Add(4)
+	go func() {
+		defer wg.Done()
+		dbPresent = a.chProbeNonEmpty(ctx, ch, chquery.DatabasePresenceProbeSQL(service, env, from, to))
+	}()
+	go func() {
+		defer wg.Done()
+		msgPresent = a.chProbeNonEmpty(ctx, ch, chquery.MessagingOrWorkflowPresenceProbeSQL(service, env, from, to))
+	}()
+	go func() {
+		defer wg.Done()
+		structuredOK = a.chProbeNonEmpty(ctx, ch, chquery.StructuredLogProbeSQL(service, scrape, env, from, to))
+	}()
+	go func() {
+		defer wg.Done()
+		if !hasBrowserAlias {
+			return
+		}
+		browserErrors = a.chProbeNonEmpty(ctx, ch, chquery.BrowserErrorPresenceProbeSQL(browserAlias, env, from, to))
+		if browserErrors {
+			sourcemapsOK = a.chProbeNonEmpty(ctx, ch, chquery.SourcemapsProbeSQL(browserAlias, env, from, to))
+		}
+	}()
+	wg.Wait()
+
+	applySourcemapsCheck(scorecardCheckByKey(checks, "sourcemaps"), browser, browserErrors, sourcemapsOK)
+	applyDatabaseCheck(scorecardCheckByKey(checks, "database"), dbPresent)
+	applyMessagingOrWorkflowCheck(scorecardCheckByKey(checks, "messagingOrWorkflow"), msgPresent)
+	applyStructuredLogsCheck(scorecardCheckByKey(checks, "structuredLogs"), logs != nil && logs.OK, structuredOK)
+}
+
+func applySourcemapsCheck(c *ScorecardCheck, browser *ScorecardCheck, hasErrors, symbolicated bool) {
+	if c == nil {
+		return
+	}
+	if browser == nil || browser.NotApplicable {
+		c.NotApplicable = true
+		c.OK = false
+		c.Hint = "Not applicable — no browser frontend for this service."
+		return
+	}
+	if !hasErrors {
+		c.NotApplicable = true
+		c.OK = false
+		c.Hint = "Not applicable — no browser exceptions in the lookback window to verify source maps."
+		return
+	}
+	c.NotApplicable = false
+	c.OK = symbolicated
+	if symbolicated {
+		c.Hint = "Browser exception stacks look deminified (source maps working)."
+	} else {
+		c.Hint = "Browser stacks look minified — publish .map next to the bundle; diagnose a frame URL with Sourcemap doctor."
+	}
+}
+
+func applyDatabaseCheck(c *ScorecardCheck, present bool) {
+	if c == nil {
+		return
+	}
+	if !present {
+		c.NotApplicable = true
+		c.OK = false
+		c.Hint = "Not applicable — no db.system client spans for this service."
+		return
+	}
+	c.NotApplicable = false
+	c.OK = true
+	c.Hint = "db.system spans present."
+}
+
+func applyMessagingOrWorkflowCheck(c *ScorecardCheck, present bool) {
+	if c == nil {
+		return
+	}
+	if !present {
+		c.NotApplicable = true
+		c.OK = false
+		c.Hint = "Not applicable — no messaging.system or Temporal/workflow client signals."
+		return
+	}
+	c.NotApplicable = false
+	c.OK = true
+	c.Hint = "Messaging or Temporal/workflow spans present."
+}
+
+func applyStructuredLogsCheck(c *ScorecardCheck, logsPresent, hasSemconv bool) {
+	if c == nil {
+		return
+	}
+	if !logsPresent {
+		c.NotApplicable = true
+		c.OK = false
+		c.Hint = "Not applicable — no logs for this service."
+		return
+	}
+	c.NotApplicable = false
+	c.OK = hasSemconv
+	if hasSemconv {
+		c.Hint = "Logs include ADR-0002 exception.type + exception.stacktrace."
+	} else {
+		c.Hint = "Logs lack ADR-0002 exception.type/stacktrace — export exceptions via OTLP (shape A)."
+	}
 }
 
 // applyJobsCheck scores the Jobs slot from live kube_cronjob_*/kube_job_* in CH
