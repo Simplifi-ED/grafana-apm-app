@@ -150,8 +150,16 @@ func scorecardBaseChecks() []ScorecardCheck {
 			Hint: "No messaging.system or Temporal/workflow spans — instrument Kafka/Temporal clients when present."},
 		{Key: "structuredLogs", Label: "Structured logging (exceptions)",
 			Hint: "Export exceptions via OTLP with exception.type/message/stacktrace (ADR-0002 shape A)."},
+		// Deploy markers (#64 / deferred scorecard): Grafana annotations tagged
+		// clickhouse-apm:deploy — no Nais Console required.
+		{Key: "deployMarkers", Label: "Deploy markers",
+			Hint: "Publish Grafana annotations tagged clickhouse-apm:deploy and service:<name> (CI or nais sync) so Versions and triage can correlate deploys."},
 	}
 }
+
+// scorecardDeployLookback is how far back the deploy-markers check looks for
+// at least one annotation. Aligns with typical release cadence, not query range.
+const scorecardDeployLookback = 30 * 24 * time.Hour
 
 func tallyScorecard(checks []ScorecardCheck) ScorecardReadiness {
 	score, total := 0, 0
@@ -205,6 +213,7 @@ func (a *App) computeReadiness(ctx context.Context, headers http.Header, namespa
 	wg.Wait()
 
 	a.applyProfilingCheck(ctx, headers, token, checks)
+	a.applyDeployMarkersCheck(ctx, service, env, now, checks)
 	markScorecardV2NotApplicable(checks, "LGTM path — scorecard v2 depth is ClickStack-only.")
 	return tallyScorecard(checks)
 }
@@ -283,6 +292,7 @@ func (a *App) computeReadinessClickHouse(ctx context.Context, headers http.Heade
 
 	a.applyJobsCheck(ctx, headers, token, checks)
 	a.applyProfilingCheck(ctx, headers, token, checks)
+	a.applyDeployMarkersCheck(ctx, service, env, now, checks)
 	a.applyScorecardV2ClickHouse(ctx, headers, token, service, env, from, now, checks)
 	return tallyScorecard(checks)
 }
@@ -485,6 +495,30 @@ func (a *App) applyProfilingCheck(ctx context.Context, headers http.Header, toke
 	checks[profilingIdx].OK = pyro.Available
 	if !pyro.Available {
 		checks[profilingIdx].Hint = "Waiting on Pyroscope datasource enablement (ticket 18)."
+	}
+}
+
+// applyDeployMarkersCheck scores deployMarkers from Grafana annotations
+// (clickhouse-apm:deploy). N/A when the annotations API is unreachable.
+func (a *App) applyDeployMarkersCheck(ctx context.Context, service, env string, now time.Time, checks []ScorecardCheck) {
+	c := scorecardCheckByKey(checks, "deployMarkers")
+	if c == nil {
+		return
+	}
+	if a.healthClient == nil || a.grafanaURL == "" {
+		c.NotApplicable = true
+		c.OK = false
+		c.Hint = "Not applicable — Grafana annotations API is not configured for this plugin."
+		return
+	}
+	c.NotApplicable = false
+	from := now.Add(-scorecardDeployLookback)
+	deploys, _, latestMs := a.fetchDeployAnnotations(ctx, service, env, from, now)
+	c.OK = len(deploys) > 0 || latestMs > 0
+	if c.OK {
+		c.Hint = "Deploy annotations (clickhouse-apm:deploy) found in the last 30 days."
+	} else {
+		c.Hint = "No deploy annotations in the last 30 days — tag releases with clickhouse-apm:deploy and service:<name> (CI or nais sync)."
 	}
 }
 

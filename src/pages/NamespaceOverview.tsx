@@ -33,6 +33,8 @@ import { NeedsAttention } from './namespace/NeedsAttention';
 import { NamespaceServicesTable } from './namespace/NamespaceServicesTable';
 import { NamespaceDependencies } from './namespace/NamespaceDependencies';
 import { NamespaceAlerts } from './namespace/NamespaceAlerts';
+import { NamespaceScorecardRollup } from './namespace/NamespaceScorecardRollup';
+import { getNamespaceScorecard, NamespaceScorecardResponse } from '../api/scorecard';
 
 function NamespaceOverview() {
   const { namespace = '' } = useParams<{ namespace: string }>();
@@ -111,6 +113,15 @@ function NamespaceOverview() {
     [decodedNs, fromMs, toMs, attentionEnv]
   );
 
+  const {
+    data: nsScorecard,
+    loading: nsScorecardLoading,
+    refetch: refetchNsScorecard,
+  } = useFetch<NamespaceScorecardResponse>(
+    () => getNamespaceScorecard(decodedNs, fromMs, toMs, attentionEnv),
+    [decodedNs, fromMs, toMs, attentionEnv]
+  );
+
   // Auto-refresh. For relative ranges (now-1h), re-resolving the range updates
   // fromMs/toMs and every time-scoped useFetch above refetches via its deps.
   // Alerts have no time-range dependency, so they are refetched explicitly.
@@ -125,6 +136,7 @@ function NamespaceOverview() {
     refetchMap();
     refetchDeps();
     refetchIssuesAttention();
+    refetchNsScorecard();
   }, [
     isRelativeRange,
     refreshTimeRange,
@@ -134,6 +146,7 @@ function NamespaceOverview() {
     refetchMap,
     refetchDeps,
     refetchIssuesAttention,
+    refetchNsScorecard,
   ]);
 
   const allServices = useMemo(() => (fetchResult ?? []).filter((s) => !s.isSidecar), [fetchResult]);
@@ -302,6 +315,15 @@ function NamespaceOverview() {
             scanned={issuesAttention?.scanned}
             viewLabel="Open top service"
             onViewIssues={handleViewAttentionIssues}
+          />
+
+          <NamespaceScorecardRollup
+            data={nsScorecard ?? null}
+            loading={nsScorecardLoading}
+            onServiceClick={(svc) => {
+              const match = services.find((s) => s.name === svc);
+              handleServiceClick(decodedNs, svc, match?.environment || attentionEnv);
+            }}
           />
 
           {/* Needs attention — unhealthy services */}

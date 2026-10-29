@@ -10,9 +10,12 @@ import {
 import { DashboardCursorSync } from '@grafana/schema';
 import {
   browserBreakdownSql,
+  browserEventsTopSql,
+  browserEventsVolumeSql,
   interactivitySql,
   jsExceptionsSql,
   layoutStabilitySql,
+  longtaskP75Sql,
   measurementsVolumeSql,
   pageLoadVitalsSql,
   perPageSql,
@@ -149,6 +152,40 @@ export function buildClickStackFrontendScene({
     ],
   });
 
+  // Frontend measurements/events beyond Overview CWV charts (deferred follow-on).
+  const eventsRow = new SceneFlexLayout({
+    direction: 'row',
+    children: [
+      new SceneFlexItem({
+        minHeight: 220,
+        body: PanelBuilders.timeseries()
+          .setTitle('Browser Events')
+          .setDescription('UX event volume (click, navigation, routeChange, …) excluding webvitals/HTTP/errors')
+          .setData(chQuery(clickHouseUid, browserEventsVolumeSql(service, env)))
+          .setUnit('short')
+          .setCustomFieldConfig('fillOpacity', 15)
+          .build(),
+      }),
+      new SceneFlexItem({
+        minHeight: 220,
+        body: PanelBuilders.timeseries()
+          .setTitle('Long Tasks (P75)')
+          .setDescription('P75 duration of longtask spans (main-thread blocks)')
+          .setData(chQuery(clickHouseUid, longtaskP75Sql(service, env)))
+          .setUnit('ms')
+          .build(),
+      }),
+      new SceneFlexItem({
+        minHeight: 220,
+        body: PanelBuilders.table()
+          .setTitle('Top Browser Events')
+          .setDescription('SpanName breakdown for HyperDX UX events')
+          .setData(chQuery(clickHouseUid, browserEventsTopSql(service, env), 1))
+          .build(),
+      }),
+    ],
+  });
+
   return new EmbeddedScene({
     $timeRange: new SceneTimeRange({ from, to }),
     $behaviors: [new behaviors.CursorSync({ sync: DashboardCursorSync.Crosshair })],
@@ -159,6 +196,7 @@ export function buildClickStackFrontendScene({
         new SceneFlexItem({ body: trendsRow }),
         new SceneFlexItem({ body: trafficRow }),
         new SceneFlexItem({ body: tablesRow }),
+        new SceneFlexItem({ body: eventsRow }),
       ],
     }),
   });

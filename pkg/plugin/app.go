@@ -484,6 +484,7 @@ func (a *App) routes() []appRoute {
 		{"/namespaces/{namespace}/dependencies", a.handleNamespaceDependencies},
 		{"/namespaces/{namespace}/alerts", a.handleNamespaceAlerts},
 		{"/namespaces/{namespace}/issues-attention", a.handleNamespaceIssuesAttention},
+		{"/namespaces/{namespace}/scorecard", a.handleNamespaceScorecard},
 		{"/alert-templates/{kind}", a.handleAlertTemplate},
 		{"/ops-watchlist", a.handleOpsWatchlist},
 		{"/ping", a.handlePing},
