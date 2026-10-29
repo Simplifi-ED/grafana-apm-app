@@ -102,15 +102,16 @@ function NamespaceOverview() {
     [decodedNs]
   );
 
-  // Issues attention rollup (server-side capped fan-out — no client N+1)
-  const attentionEnv = envFilters.length === 1 ? envFilters[0] : undefined;
+  // Issues attention / scorecard rollup — pass all selected envs (comma-joined),
+  // not only when exactly one is selected (CodeRabbit: multi-env was ignored).
+  const rollupEnv = envFilters.length > 0 ? envFilters.join(',') : undefined;
   const {
     data: issuesAttention,
     loading: issuesAttentionLoading,
     refetch: refetchIssuesAttention,
   } = useFetch<NamespaceIssuesAttentionResponse>(
-    () => getNamespaceIssuesAttention(decodedNs, fromMs, toMs, attentionEnv),
-    [decodedNs, fromMs, toMs, attentionEnv]
+    () => getNamespaceIssuesAttention(decodedNs, fromMs, toMs, rollupEnv),
+    [decodedNs, fromMs, toMs, rollupEnv]
   );
 
   const {
@@ -118,8 +119,8 @@ function NamespaceOverview() {
     loading: nsScorecardLoading,
     refetch: refetchNsScorecard,
   } = useFetch<NamespaceScorecardResponse>(
-    () => getNamespaceScorecard(decodedNs, fromMs, toMs, attentionEnv),
-    [decodedNs, fromMs, toMs, attentionEnv]
+    () => getNamespaceScorecard(decodedNs, fromMs, toMs, rollupEnv),
+    [decodedNs, fromMs, toMs, rollupEnv]
   );
 
   // Auto-refresh. For relative ranges (now-1h), re-resolving the range updates
@@ -250,18 +251,20 @@ function NamespaceOverview() {
   }, [appNavigate, decodedNs, envFilters]);
 
   const handleViewAttentionIssues = useCallback(() => {
-    const top = issuesAttention?.byService?.[0]?.service;
-    if (!top) {
+    const top = issuesAttention?.byService?.[0];
+    if (!top?.service) {
       handleStatusBoard();
       return;
     }
-    const svc = services.find((s) => s.name === top);
-    const env = svc?.environment || attentionEnv || (envFilters.length === 1 ? envFilters[0] : undefined);
-    appNavigate(`namespaces/${encodeURIComponent(decodedNs)}/services/${encodeURIComponent(top)}`, {
+    // Prefer env from the rollup row; else a single selected filter.
+    // When the name spans several envs and the row has no env, omit it so the
+    // issues tab matches the rollup (all envs) instead of an arbitrary one.
+    const env = top.environment || (envFilters.length === 1 ? envFilters[0] : undefined);
+    appNavigate(`services/${encodeURIComponent(decodedNs || '_')}/${encodeURIComponent(top.service)}`, {
       tab: 'issues',
       ...(env ? { environment: env } : {}),
     });
-  }, [issuesAttention, services, appNavigate, decodedNs, attentionEnv, envFilters, handleStatusBoard]);
+  }, [issuesAttention, appNavigate, decodedNs, envFilters, handleStatusBoard]);
 
   return (
     <PluginPage layout={PageLayoutType.Canvas}>
@@ -322,7 +325,8 @@ function NamespaceOverview() {
             loading={nsScorecardLoading}
             onServiceClick={(svc) => {
               const match = services.find((s) => s.name === svc);
-              handleServiceClick(decodedNs, svc, match?.environment || attentionEnv);
+              const env = match?.environment || (envFilters.length === 1 ? envFilters[0] : undefined);
+              handleServiceClick(decodedNs, svc, env);
             }}
           />
 

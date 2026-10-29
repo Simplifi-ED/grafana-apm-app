@@ -440,6 +440,8 @@ export async function getNamespaceAlerts(namespace: string): Promise<NamespaceAl
 
 export interface NamespaceServiceAttention {
   service: string;
+  /** Inventory environment for this rollup row (when known). */
+  environment?: string;
   new: number;
   returnedAfterResolve: number;
 }

@@ -1,11 +1,21 @@
+import { config } from '@grafana/runtime';
 import { ScorecardCheck, ScorecardReadiness, ScorecardResponse } from '../api/scorecard';
 
 const STORAGE_KEY = 'clickstack-apm:scorecard-na-overrides';
 
 type OverrideMap = Record<string, string[]>;
 
+function activeOrgId(): string {
+  const orgId = config?.bootData?.user?.orgId;
+  return orgId === undefined || orgId === null ? '' : String(orgId);
+}
+
 function serviceKey(namespace: string, service: string, environment?: string): string {
-  return `${namespace || '_'}|${service}|${environment || ''}`;
+  return `${activeOrgId()}|${namespace || '_'}|${service}|${environment || ''}`;
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === 'string');
 }
 
 function readAll(): OverrideMap {
@@ -15,10 +25,20 @@ function readAll(): OverrideMap {
       return {};
     }
     const parsed = JSON.parse(raw) as unknown;
-    if (!parsed || typeof parsed !== 'object') {
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
       return {};
     }
-    return parsed as OverrideMap;
+    const out: OverrideMap = {};
+    for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
+      if (typeof key !== 'string' || !isStringArray(value)) {
+        continue;
+      }
+      const cleaned = value.map((v) => v.trim()).filter((v) => v.length > 0);
+      if (cleaned.length > 0) {
+        out[key] = cleaned;
+      }
+    }
+    return out;
   } catch {
     return {};
   }
@@ -34,7 +54,7 @@ export function getScorecardNaOverrides(namespace: string, service: string, envi
   return new Set(list);
 }
 
-/** Persist a manual N/A mark (or clear it). */
+/** Persist a manual N/A mark (or clear it). Throws if storage is unavailable. */
 export function setScorecardNaOverride(
   namespace: string,
   service: string,

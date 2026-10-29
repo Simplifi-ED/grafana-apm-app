@@ -41,7 +41,7 @@ export function DataState({
     );
   }
   if (loading) {
-    return <>{skeleton ?? <TableSkeleton />}</>;
+    return <>{skeleton ?? <TableSkeleton aria-label="Loading data" />}</>;
   }
   if (empty) {
     return (

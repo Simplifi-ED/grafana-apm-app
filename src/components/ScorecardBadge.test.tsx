@@ -112,12 +112,12 @@ describe('ScorecardBadge', () => {
     mockGetScorecard.mockResolvedValue(allFailing);
     render(<ScorecardBadge namespace="team-a" service="my-app" environment="prod-gcp" />);
     const badge = await screen.findByTestId('scorecard-badge');
-    const totalBefore = badge.textContent;
+    expect(badge).toHaveTextContent('0/6 observability checks');
     fireEvent.click(badge);
     await screen.findByTestId('scorecard-details');
     fireEvent.click(within(screen.getByTestId('check-na-browserTelemetry')).getByRole('button', { name: /Mark N\/A/ }));
     await waitFor(() => {
-      expect(screen.getByTestId('scorecard-badge').textContent).not.toBe(totalBefore);
+      expect(screen.getByTestId('scorecard-badge')).toHaveTextContent('0/5 observability checks');
     });
     expect(screen.getByText(/Local override/)).toBeInTheDocument();
   });

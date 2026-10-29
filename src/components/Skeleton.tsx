@@ -26,17 +26,20 @@ interface TableSkeletonProps {
   rows?: number;
   /** Column flex/widths for each cell (defaults to a services-table-like layout). */
   columns?: Array<{ width: number | string }>;
+  /** Accessible name for the busy region (defaults to "Loading"). */
+  'aria-label'?: string;
 }
 
 /** Optimistic table body: header-free rows of skeleton cells. */
 export function TableSkeleton({
   rows = 8,
   columns = [{ width: 32 }, { width: 72 }, { width: '1.4fr' }, { width: '1fr' }, { width: '1fr' }, { width: '1fr' }],
+  'aria-label': ariaLabel = 'Loading',
 }: TableSkeletonProps) {
   const styles = useStyles2(getStyles);
   const template = columns.map((c) => (typeof c.width === 'number' ? `${c.width}px` : c.width)).join(' ');
   return (
-    <div className={styles.table} role="status" aria-busy="true" aria-label="Loading">
+    <div className={styles.table} role="status" aria-busy="true" aria-label={ariaLabel}>
       {Array.from({ length: rows }, (_, row) => (
         <div key={row} className={styles.row} style={{ gridTemplateColumns: template }}>
           {columns.map((col, i) => (

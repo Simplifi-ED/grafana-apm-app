@@ -173,10 +173,10 @@ func (a *App) handleIssues(w http.ResponseWriter, req *http.Request) {
 
 	if a.clickStackMode() {
 		ch := a.chForRequest(req)
-		resp := a.fetchIssuesClickHouse(ctx, ch, service, env, from, to)
+		resp := a.fetchIssuesClickHouse(ctx, ch, service, env, namespace, from, to)
 		var prev map[string]bool
 		if span := to.Sub(from); span > 0 && len(resp.Issues) > 0 {
-			baseline := a.fetchIssuesClickHouse(ctx, ch, service, env, from.Add(-span), from)
+			baseline := a.fetchIssuesClickHouse(ctx, ch, service, env, namespace, from.Add(-span), from)
 			if len(baseline.Issues) > 0 {
 				prev = issueFingerprintSet(baseline.Issues)
 			}

@@ -49,7 +49,14 @@ func (a *App) handleNamespaceScorecard(w http.ResponseWriter, req *http.Request)
 	env := parseEnvironment(req)
 	from, to := parseTimeRange(req)
 	orgID := req.Header.Get("X-Grafana-Org-Id")
-	ck := cacheKey("ns-scorecard", orgID, namespace, env, roundedUnix(from), roundedUnix(to))
+	caller := ""
+	if a.resolveServiceToken(ctx) == "" {
+		caller = req.Header.Get("X-Grafana-Id")
+		if caller == "" {
+			caller = req.Header.Get("X-Grafana-User")
+		}
+	}
+	ck := cacheKey("ns-scorecard", orgID, caller, namespace, env, roundedUnix(from), roundedUnix(to))
 	cache := a.scorecardResponseCache()
 	if cached, ok := cache.get(ck); ok {
 		w.Header().Set("Content-Type", "application/json")

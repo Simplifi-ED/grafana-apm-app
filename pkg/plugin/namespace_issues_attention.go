@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -21,6 +22,7 @@ const (
 // NamespaceServiceAttention is per-service attention inside a namespace rollup.
 type NamespaceServiceAttention struct {
 	Service              string `json:"service"`
+	Environment          string `json:"environment,omitempty"`
 	New                  int    `json:"new"`
 	ReturnedAfterResolve int    `json:"returnedAfterResolve"`
 }
@@ -32,6 +34,12 @@ type NamespaceIssuesAttentionResponse struct {
 	// Truncated is true when the namespace had more services than the probe cap.
 	Truncated bool `json:"truncated,omitempty"`
 	Scanned   int  `json:"scanned"`
+}
+
+// namespaceServiceRef is one inventory row to probe (name + optional env).
+type namespaceServiceRef struct {
+	Name string
+	Env  string
 }
 
 // handleNamespaceIssuesAttention aggregates new / returned-after-resolve issue
@@ -51,7 +59,16 @@ func (a *App) handleNamespaceIssuesAttention(w http.ResponseWriter, req *http.Re
 	from, to := parseTimeRange(req)
 
 	orgID := req.Header.Get("X-Grafana-Org-Id")
-	ck := cacheKey("ns-issues-attention", orgID, namespace, env, roundedUnix(from), roundedUnix(to))
+	// When probes forward caller auth (no SA token), include caller identity so
+	// per-user datasource permissions cannot leak via a shared cache entry.
+	caller := ""
+	if a.resolveServiceToken(ctx) == "" {
+		caller = req.Header.Get("X-Grafana-Id")
+		if caller == "" {
+			caller = req.Header.Get("X-Grafana-User")
+		}
+	}
+	ck := cacheKey("ns-issues-attention", orgID, caller, namespace, env, roundedUnix(from), roundedUnix(to))
 	a.writeCached(w, ck, "computing namespace issues attention failed", func() (any, error) {
 		return a.computeNamespaceIssuesAttention(ctx, req, namespace, env, from, to), nil
 	})
@@ -63,35 +80,36 @@ func (a *App) computeNamespaceIssuesAttention(
 	namespace, env string,
 	from, to time.Time,
 ) NamespaceIssuesAttentionResponse {
-	names, truncated := a.namespaceServiceNames(ctx, req, namespace, env, from, to)
-	if len(names) == 0 {
+	refs, truncated := a.namespaceServiceRefs(ctx, req, namespace, env, from, to, maxNamespaceAttentionServices)
+	if len(refs) == 0 {
 		return NamespaceIssuesAttentionResponse{ByService: []NamespaceServiceAttention{}}
 	}
 
 	type result struct {
-		svc string
+		ref namespaceServiceRef
 		att IssuesAttention
 	}
-	results := make([]result, 0, len(names))
+	results := make([]result, 0, len(refs))
 	var mu sync.Mutex
 	sem := make(chan struct{}, namespaceAttentionConcurrency)
 	var wg sync.WaitGroup
 
-	for _, svc := range names {
+	for _, r := range refs {
 		wg.Add(1)
-		go func(service string) {
+		go func(ref namespaceServiceRef) {
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
 
-			att := a.probeServiceIssuesAttention(ctx, req, namespace, service, env, from, to)
+			probeEnv := probeEnvironment(env, ref.Env)
+			att := a.probeServiceIssuesAttention(ctx, req, namespace, ref.Name, probeEnv, from, to)
 			if att.New == 0 && att.ReturnedAfterResolve == 0 {
 				return
 			}
 			mu.Lock()
-			results = append(results, result{svc: service, att: att})
+			results = append(results, result{ref: ref, att: att})
 			mu.Unlock()
-		}(svc)
+		}(r)
 	}
 	wg.Wait()
 
@@ -101,19 +119,23 @@ func (a *App) computeNamespaceIssuesAttention(
 		if si != sj {
 			return si > sj
 		}
-		return results[i].svc < results[j].svc
+		if results[i].ref.Name != results[j].ref.Name {
+			return results[i].ref.Name < results[j].ref.Name
+		}
+		return results[i].ref.Env < results[j].ref.Env
 	})
 
 	out := NamespaceIssuesAttentionResponse{
 		ByService: make([]NamespaceServiceAttention, 0, len(results)),
 		Truncated: truncated,
-		Scanned:   len(names),
+		Scanned:   len(refs),
 	}
 	for _, r := range results {
 		out.Attention.New += r.att.New
 		out.Attention.ReturnedAfterResolve += r.att.ReturnedAfterResolve
 		out.ByService = append(out.ByService, NamespaceServiceAttention{
-			Service:              r.svc,
+			Service:              r.ref.Name,
+			Environment:          r.ref.Env,
 			New:                  r.att.New,
 			ReturnedAfterResolve: r.att.ReturnedAfterResolve,
 		})
@@ -121,12 +143,29 @@ func (a *App) computeNamespaceIssuesAttention(
 	return out
 }
 
-func (a *App) namespaceServiceNames(
+// probeEnvironment prefers a single request filter; otherwise uses the inventory row's env
+// so multi-env / empty filters still hit the correct per-environment Loki UID.
+func probeEnvironment(requestEnv, rowEnv string) string {
+	requestEnv = strings.TrimSpace(requestEnv)
+	if requestEnv == "" {
+		return rowEnv
+	}
+	if !strings.Contains(requestEnv, ",") {
+		return requestEnv
+	}
+	if rowEnv != "" {
+		return rowEnv
+	}
+	return requestEnv
+}
+
+func (a *App) namespaceServiceRefs(
 	ctx context.Context,
 	req *http.Request,
 	namespace, env string,
 	from, to time.Time,
-) (names []string, truncated bool) {
+	cap int,
+) (refs []namespaceServiceRef, truncated bool) {
 	step := 60 * time.Second
 	var summaries []queries.ServiceSummary
 	if a.clickStackMode() {
@@ -138,30 +177,54 @@ func (a *App) namespaceServiceNames(
 		}
 		summaries = a.fetchServiceSummaries(ctx, caps, from, to, step, false, namespace, env, "", req.Header)
 	}
-	return capNamespaceServiceNames(summaries, maxNamespaceAttentionServices)
+	return capNamespaceServiceRefs(summaries, cap)
 }
 
-// capNamespaceServiceNames sorts by rate desc, dedupes, and truncates to cap.
-func capNamespaceServiceNames(summaries []queries.ServiceSummary, cap int) (names []string, truncated bool) {
+// capNamespaceServiceRefs sorts by rate desc, dedupes name+env, truncates to cap.
+func capNamespaceServiceRefs(summaries []queries.ServiceSummary, cap int) (refs []namespaceServiceRef, truncated bool) {
 	sorted := append([]queries.ServiceSummary(nil), summaries...)
 	sort.Slice(sorted, func(i, j int) bool {
 		if sorted[i].Rate != sorted[j].Rate {
 			return sorted[i].Rate > sorted[j].Rate
 		}
-		return sorted[i].Name < sorted[j].Name
+		if sorted[i].Name != sorted[j].Name {
+			return sorted[i].Name < sorted[j].Name
+		}
+		return sorted[i].Environment < sorted[j].Environment
 	})
 	seen := make(map[string]bool, len(sorted))
 	for _, s := range sorted {
-		if s.Name == "" || seen[s.Name] {
+		if s.Name == "" {
 			continue
 		}
-		seen[s.Name] = true
-		names = append(names, s.Name)
+		key := s.Name + "\x00" + s.Environment
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		refs = append(refs, namespaceServiceRef{Name: s.Name, Env: s.Environment})
+	}
+	if cap > 0 && len(refs) > cap {
+		return refs[:cap], true
+	}
+	return refs, false
+}
+
+// capNamespaceServiceNames sorts by rate desc, dedupes by name, truncates to cap.
+func capNamespaceServiceNames(summaries []queries.ServiceSummary, cap int) (names []string, truncated bool) {
+	refs, truncated := capNamespaceServiceRefs(summaries, 0)
+	seen := make(map[string]bool, len(refs))
+	for _, r := range refs {
+		if seen[r.Name] {
+			continue
+		}
+		seen[r.Name] = true
+		names = append(names, r.Name)
 	}
 	if cap > 0 && len(names) > cap {
 		return names[:cap], true
 	}
-	return names, false
+	return names, truncated
 }
 
 func (a *App) probeServiceIssuesAttention(
@@ -173,7 +236,7 @@ func (a *App) probeServiceIssuesAttention(
 	var resp IssuesResponse
 	if a.clickStackMode() {
 		ch := a.chForRequest(req)
-		resp = a.fetchIssuesClickHouse(ctx, ch, service, env, from, to)
+		resp = a.fetchIssuesClickHouse(ctx, ch, service, env, namespace, from, to)
 	} else {
 		lokiUID := a.settings.LogsDataSource.Resolve(env).UID
 		if lokiUID == "" {
@@ -189,7 +252,7 @@ func (a *App) probeServiceIssuesAttention(
 	if span := to.Sub(from); span > 0 {
 		var baseline IssuesResponse
 		if a.clickStackMode() {
-			baseline = a.fetchIssuesClickHouse(ctx, a.chForRequest(req), service, env, from.Add(-span), from)
+			baseline = a.fetchIssuesClickHouse(ctx, a.chForRequest(req), service, env, namespace, from.Add(-span), from)
 		} else {
 			lokiUID := a.settings.LogsDataSource.Resolve(env).UID
 			dsClient := queries.NewDsQueryClient(a.grafanaURL, a.resolveServiceToken(ctx)).WithAuthHeaders(req.Header)

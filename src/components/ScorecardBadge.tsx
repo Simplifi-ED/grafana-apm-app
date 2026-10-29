@@ -36,13 +36,21 @@ export function ScorecardBadge({ namespace, service, environment }: ScorecardBad
 
   const onToggleNa = useCallback(
     (checkKey: string, notApplicable: boolean) => {
-      setScorecardNaOverride(namespace, service, checkKey, notApplicable, environment);
-      setOverrideTick((n) => n + 1);
+      try {
+        setScorecardNaOverride(namespace, service, checkKey, notApplicable, environment);
+        setOverrideTick((n) => n + 1);
+      } catch (err) {
+        getAppEvents().publish({
+          type: AppEvents.alertError.name,
+          payload: ['Could not save scorecard override', err instanceof Error ? err.message : String(err)],
+        });
+      }
     },
     [namespace, service, environment]
   );
 
-  if (!display || !display.readiness || display.readiness.total === 0) {
+  // Keep the badge when every check is N/A via local overrides so Clear stays reachable.
+  if (!display || !display.readiness || (display.readiness.total === 0 && overrides.size === 0)) {
     return null;
   }
   const { score, total } = display.readiness;

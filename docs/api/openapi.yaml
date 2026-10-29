@@ -1023,6 +1023,7 @@ paths:
                       type: object
                       properties:
                         service: { type: string }
+                        environment: { type: string }
                         new: { type: integer }
                         returnedAfterResolve: { type: integer }
                   truncated: { type: boolean }

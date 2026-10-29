@@ -2,6 +2,7 @@ package chquery
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/nais/grafana-otel-plugin/pkg/plugin/queries"
@@ -71,7 +72,33 @@ func tracesEnvFilter(environment string) string {
 	if environment == "" {
 		return ""
 	}
-	return fmt.Sprintf(" AND ResourceAttributes['%s'] = %s", ResCluster, q(environment))
+	envs := strings.Split(environment, ",")
+	quoted := make([]string, 0, len(envs))
+	for _, e := range envs {
+		e = strings.TrimSpace(e)
+		if e != "" {
+			quoted = append(quoted, q(e))
+		}
+	}
+	if len(quoted) == 0 {
+		return ""
+	}
+	if len(quoted) == 1 {
+		return fmt.Sprintf(" AND ResourceAttributes['%s'] = %s", ResCluster, quoted[0])
+	}
+	return fmt.Sprintf(" AND ResourceAttributes['%s'] IN (%s)", ResCluster, strings.Join(quoted, ", "))
+}
+
+// tracesNamespaceFilter scopes exception/issue queries to a k8s / OTel namespace
+// so same-named services in other namespaces do not leak into a rollup.
+func tracesNamespaceFilter(namespace string) string {
+	if namespace == "" {
+		return ""
+	}
+	return fmt.Sprintf(
+		" AND (ResourceAttributes['%s'] = %s OR ResourceAttributes['%s'] = %s)",
+		ResK8sNamespace, q(namespace), ResServiceNamespace, q(namespace),
+	)
 }
 
 func clampIssueLimit(limit int) int {
@@ -83,11 +110,11 @@ func clampIssueLimit(limit int) int {
 
 // BrowserExceptionGroupsSQL groups HyperDX browser errors by type+message.
 // service must already be the resolved browser ServiceName (via serviceAliases).
-func BrowserExceptionGroupsSQL(service string, from, to time.Time, environment string, limit int) string {
+func BrowserExceptionGroupsSQL(service string, from, to time.Time, environment, namespace string, limit int) string {
 	limit = clampIssueLimit(limit)
 	where := fmt.Sprintf(`%s
   AND ServiceName = %s
-  AND %s%s`, TimestampFilter(from, to), q(service), BrowserHyperDXErrorFilter(), tracesEnvFilter(environment))
+  AND %s%s%s`, TimestampFilter(from, to), q(service), BrowserHyperDXErrorFilter(), tracesEnvFilter(environment), tracesNamespaceFilter(namespace))
 	return fmt.Sprintf(`
 SELECT
   %s AS exception_type,
@@ -107,10 +134,10 @@ LIMIT %d`,
 }
 
 // BrowserIssuesProbeSQL returns count()>0 when HyperDX browser exception spans exist.
-func BrowserIssuesProbeSQL(service, environment string, from, to time.Time) string {
+func BrowserIssuesProbeSQL(service, environment, namespace string, from, to time.Time) string {
 	where := fmt.Sprintf(`%s
   AND ServiceName = %s
-  AND %s%s`, TimestampFilter(from, to), q(service), BrowserHyperDXErrorFilter(), tracesEnvFilter(environment))
+  AND %s%s%s`, TimestampFilter(from, to), q(service), BrowserHyperDXErrorFilter(), tracesEnvFilter(environment), tracesNamespaceFilter(namespace))
 	return fmt.Sprintf(`
 SELECT count() AS c
 FROM %s
@@ -154,11 +181,11 @@ LIMIT %d`,
 
 // ServerExceptionGroupsSQL groups server otel_traces exception events by type+message.
 // service is the inventory / spanmetrics ServiceName (not the browser alias).
-func ServerExceptionGroupsSQL(service string, from, to time.Time, environment string, limit int) string {
+func ServerExceptionGroupsSQL(service string, from, to time.Time, environment, namespace string, limit int) string {
 	limit = clampIssueLimit(limit)
 	where := fmt.Sprintf(`%s
   AND ServiceName = %s
-  AND %s%s`, TimestampFilter(from, to), q(service), ServerExceptionEventFilter(), tracesEnvFilter(environment))
+  AND %s%s%s`, TimestampFilter(from, to), q(service), ServerExceptionEventFilter(), tracesEnvFilter(environment), tracesNamespaceFilter(namespace))
 	return fmt.Sprintf(`
 SELECT
   %s AS exception_type,

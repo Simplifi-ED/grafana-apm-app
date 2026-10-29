@@ -881,7 +881,7 @@ func (a *App) fetchTraceBreakdownClickHouse(
 func (a *App) fetchIssuesClickHouse(
 	ctx context.Context,
 	ch *queries.ClickHouseClient,
-	service, environment string,
+	service, environment, namespace string,
 	from, to time.Time,
 ) IssuesResponse {
 	if ch == nil {
@@ -905,14 +905,14 @@ func (a *App) fetchIssuesClickHouse(
 	if !aliasOK {
 		resp.Hint = AliasMissingHint(service)
 	} else {
-		probeRes, probeErr := ch.Query(ctx, chquery.BrowserIssuesProbeSQL(browserName, environment, from, to), opts)
+		probeRes, probeErr := ch.Query(ctx, chquery.BrowserIssuesProbeSQL(browserName, environment, namespace, from, to), opts)
 		if probeErr != nil {
 			logger.Warn("browser issues probe failed", "error", probeErr)
 		} else if probeRes.RowCount() > 0 && chquery.ParseFloat(probeRes.Maps()[0]["c"]) >= 1 {
 			resp.Sources.Browser = true
 		}
 		if resp.Sources.Browser {
-			bRes, bErr := ch.Query(ctx, chquery.BrowserExceptionGroupsSQL(browserName, from, to, environment, 50), opts)
+			bRes, bErr := ch.Query(ctx, chquery.BrowserExceptionGroupsSQL(browserName, from, to, environment, namespace, 50), opts)
 			if bErr != nil {
 				logger.Warn("browser issues CH query failed", "error", bErr)
 				resp.Sources.Browser = false
@@ -942,7 +942,7 @@ func (a *App) fetchIssuesClickHouse(
 	}
 
 	// Server secondary feed: inventory ServiceName + Events.Name=exception, badged server.
-	sRes, sErr := ch.Query(ctx, chquery.ServerExceptionGroupsSQL(service, from, to, environment, 50), opts)
+	sRes, sErr := ch.Query(ctx, chquery.ServerExceptionGroupsSQL(service, from, to, environment, namespace, 50), opts)
 	if sErr != nil {
 		logger.Warn("server issues CH query failed", "error", sErr)
 	} else {
