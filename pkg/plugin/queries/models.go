@@ -107,6 +107,10 @@ type PluginSettings struct {
 	// browser Issues). Key: inventory name, Value: scrape/browser name.
 	// Missing entry → empty panels + operator hint (no silent -api↔-app heuristic).
 	ServiceAliases map[string]string `json:"serviceAliases,omitempty"`
+
+	// KnownTeams is an optional allow-list for owner.team values (docs/ownership.md).
+	// Empty = free text. When set, unknown teams still display but teamKnown=false.
+	KnownTeams []string `json:"knownTeams,omitempty"`
 }
 
 // Capabilities represents the detected OTel data capabilities.

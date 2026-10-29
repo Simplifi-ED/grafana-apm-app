@@ -58,4 +58,9 @@ export interface AppPluginSettings {
   serviceAliases?: Record<string, string>;
   /** Global ops watchlist — services monitored on the Ops Status Board. Editable by any user via the backend API. */
   opsWatchlist?: OpsWatchlistEntry[];
+  /**
+   * Optional allow-list for owner.team (docs/ownership.md). Empty = free text.
+   * Unknown teams still display with teamKnown=false.
+   */
+  knownTeams?: string[];
 }

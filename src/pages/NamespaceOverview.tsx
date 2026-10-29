@@ -20,6 +20,7 @@ import { useTimeRange } from '../utils/timeRange';
 import { useAppNavigate, sanitizeParam } from '../utils/navigation';
 import { extractEnvironmentOptions } from '../utils/options';
 import { getSectionStyles } from '../utils/styles';
+import { typographyFontSize } from '../utils/themeTypography';
 import { useFetch } from '../utils/useFetch';
 import { ServiceGraph, toGraphData } from '../components/ServiceGraph';
 import { CopyMermaidButton } from '../components/CopyMermaidButton';
@@ -35,6 +36,7 @@ import { NamespaceDependencies } from './namespace/NamespaceDependencies';
 import { NamespaceAlerts } from './namespace/NamespaceAlerts';
 import { NamespaceScorecardRollup } from './namespace/NamespaceScorecardRollup';
 import { getNamespaceScorecard, NamespaceScorecardResponse } from '../api/scorecard';
+import { getNamespaceOwnership, NamespaceOwnershipResponse } from '../api/ownership';
 
 function NamespaceOverview() {
   const { namespace = '' } = useParams<{ namespace: string }>();
@@ -124,6 +126,17 @@ function NamespaceOverview() {
     [decodedNs, fromMs, toMs, rollupEnv]
   );
 
+  const {
+    data: nsOwnership,
+    loading: nsOwnershipLoading,
+    refetch: refetchNsOwnership,
+  } = useFetch<NamespaceOwnershipResponse>(
+    () => getNamespaceOwnership(decodedNs, fromMs, toMs, rollupEnv),
+    [decodedNs, fromMs, toMs, rollupEnv]
+  );
+
+  const teamFilters = useMemo(() => searchParams.getAll('team').filter(Boolean), [searchParams]);
+
   // Auto-refresh. For relative ranges (now-1h), re-resolving the range updates
   // fromMs/toMs and every time-scoped useFetch above refetches via its deps.
   // Alerts have no time-range dependency, so they are refetched explicitly.
@@ -139,6 +152,7 @@ function NamespaceOverview() {
     refetchDeps();
     refetchIssuesAttention();
     refetchNsScorecard();
+    refetchNsOwnership();
   }, [
     isRelativeRange,
     refreshTimeRange,
@@ -149,6 +163,7 @@ function NamespaceOverview() {
     refetchDeps,
     refetchIssuesAttention,
     refetchNsScorecard,
+    refetchNsOwnership,
   ]);
 
   const allServices = useMemo(() => (fetchResult ?? []).filter((s) => !s.isSidecar), [fetchResult]);
@@ -331,6 +346,25 @@ function NamespaceOverview() {
             }}
           />
 
+          {!nsOwnershipLoading && nsOwnership && nsOwnership.total > 0 && (
+            <div className={styles.ownershipBanner} data-testid="namespace-ownership-coverage">
+              <strong>{Math.round(nsOwnership.coverage * 100)}% owned</strong>
+              <span>
+                {nsOwnership.owned}/{nsOwnership.total} services have <code>owner.team</code>
+              </span>
+              {nsOwnership.truncated && (
+                <span className={styles.unownedHint}>
+                  Partial scan: counts cover only the {nsOwnership.scanned} scanned services.
+                </span>
+              )}
+              {nsOwnership.owned < nsOwnership.total && !nsOwnership.truncated && (
+                <span className={styles.unownedHint}>
+                  {nsOwnership.total - nsOwnership.owned} unowned — add owner.team on the workload
+                </span>
+              )}
+            </div>
+          )}
+
           {/* Needs attention — unhealthy services */}
           <NeedsAttention
             services={services}
@@ -380,6 +414,29 @@ function NamespaceOverview() {
               services={services}
               sparklineMap={sparklineMap}
               previousMap={previousMap}
+              ownershipByService={nsOwnership?.services}
+              teamFilters={nsOwnership?.truncated ? [] : teamFilters}
+              ownershipTruncated={Boolean(nsOwnership?.truncated)}
+              onTeamFiltersChange={
+                nsOwnership?.truncated
+                  ? undefined
+                  : (teams) => {
+                      setSearchParams(
+                        (prev) => {
+                          const next = new URLSearchParams(prev);
+                          next.delete('team');
+                          for (const t of teams) {
+                            if (t) {
+                              next.append('team', t);
+                            }
+                          }
+                          next.delete('svcPage');
+                          return next;
+                        },
+                        { replace: true }
+                      );
+                    }
+              }
               showEnvironment={envFilters.length === 0 && envOptions.length > 1}
               search={svcSearch}
               healthFilter={healthFilter}
@@ -439,6 +496,20 @@ const getStyles = (theme: GrafanaTheme2) => ({
     border-radius: ${theme.shape.radius.default};
     padding: ${theme.spacing(1)};
     overflow: hidden;
+  `,
+  ownershipBanner: css`
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: ${theme.spacing(1.5)};
+    padding: ${theme.spacing(1, 1.5)};
+    margin-bottom: ${theme.spacing(2)};
+    background: ${theme.colors.background.secondary};
+    border-radius: ${theme.shape.radius.default};
+    font-size: ${typographyFontSize(theme, 'sm')};
+  `,
+  unownedHint: css`
+    color: ${theme.colors.warning.text};
   `,
 });
 

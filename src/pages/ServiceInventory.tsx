@@ -18,6 +18,7 @@ import {
 import { dateMath, GrafanaTheme2 } from '@grafana/data';
 import { css } from '@emotion/css';
 import { getServices, getCapabilities, ServiceSummary, Capabilities } from '../api/client';
+import { getFleetOwnership, FleetOwnershipResponse } from '../api/ownership';
 import { describeTimeRange } from '../utils/timeRangeOptions';
 import { useAppNavigate, sanitizeParam } from '../utils/navigation';
 import { formatDuration } from '../utils/format';
@@ -96,6 +97,12 @@ function ServiceInventory() {
     const [capsResult, servicesResult] = await Promise.all([getCapabilities(), getServices(fromMs, toMs, 60, false)]);
     return { caps: capsResult, services: servicesResult };
   }, [fromMs, toMs]);
+
+  const { data: fleetOwnership } = useFetch<FleetOwnershipResponse>(
+    () => getFleetOwnership(fromMs, toMs),
+    [fromMs, toMs],
+    { skip: !fetchResult }
+  );
 
   const services = useMemo(() => fetchResult?.services ?? [], [fetchResult]);
   const caps = fetchResult?.caps ?? null;
@@ -342,6 +349,27 @@ function ServiceInventory() {
             {caps.clickHouse
               ? 'ClickHouse is up, but no traces.spanmetrics.calls series were found in the last hour. Confirm the OTel Collector spanmetrics connector writes into ClickHouse.'
               : 'Ensure the OpenTelemetry Collector spanmetrics connector is configured and sending data to your metrics datasource.'}
+          </Alert>
+        )}
+
+        {fleetOwnership && fleetOwnership.total > 0 && (
+          <Alert
+            severity={fleetOwnership.coverage < 1 ? 'info' : 'success'}
+            title={`Ownership coverage ${Math.round(fleetOwnership.coverage * 100)}%`}
+          >
+            {fleetOwnership.owned}/{fleetOwnership.total} services have <code>owner.team</code>.
+            {fleetOwnership.unowned.length > 0 && (
+              <>
+                {' '}
+                Unowned ({Math.min(fleetOwnership.unowned.length, 8)}
+                {fleetOwnership.unowned.length > 8 ? '+' : ''}):{' '}
+                {fleetOwnership.unowned
+                  .slice(0, 8)
+                  .map((u) => (u.namespace ? `${u.namespace}/${u.service}` : u.service))
+                  .join(', ')}
+                {fleetOwnership.unowned.length > 8 ? '…' : ''}
+              </>
+            )}
           </Alert>
         )}
 
