@@ -2,7 +2,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { getAppEvents, locationService } from '@grafana/runtime';
 import { AppEvents, GrafanaTheme2 } from '@grafana/data';
-import { Button, Icon, LoadingPlaceholder, RadioButtonGroup, Tooltip, useStyles2 } from '@grafana/ui';
+import { Button, Icon, RadioButtonGroup, Tooltip, useStyles2 } from '@grafana/ui';
 import { css } from '@emotion/css';
 import { buildAlertRuleUrl } from '../../../api/client';
 import { useFetch } from '../../../utils/useFetch';
@@ -20,6 +20,7 @@ import {
   sloSelector,
 } from './sloData';
 import { typographyFontSize } from '../../../utils/themeTypography';
+import { SkeletonBar } from '../../../components/Skeleton';
 
 interface SloPanelProps {
   namespace: string;
@@ -121,7 +122,11 @@ export function SloPanel({ namespace, service, environment }: SloPanelProps) {
       </div>
 
       {loading && !data ? (
-        <LoadingPlaceholder text="Computing error budget…" />
+        <div role="status" aria-busy="true" aria-label="Computing error budget">
+          <SkeletonBar width="40%" height={28} />
+          <div style={{ height: 8 }} />
+          <SkeletonBar width="70%" height={14} />
+        </div>
       ) : error ? (
         <div className={styles.message}>Could not compute the error budget from span metrics.</div>
       ) : computed ? (

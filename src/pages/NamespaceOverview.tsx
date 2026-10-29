@@ -9,10 +9,12 @@ import {
   getServiceMap,
   getNamespaceDependencies,
   getNamespaceAlerts,
+  getNamespaceIssuesAttention,
   ServiceSummary,
   ServiceMapResponse,
   NamespaceDependenciesResponse,
   NamespaceAlertsResponse,
+  NamespaceIssuesAttentionResponse,
 } from '../api/client';
 import { useTimeRange } from '../utils/timeRange';
 import { useAppNavigate, sanitizeParam } from '../utils/navigation';
@@ -24,11 +26,15 @@ import { CopyMermaidButton } from '../components/CopyMermaidButton';
 import { PageHeader } from '../components/PageHeader';
 import { HeaderTimeControls } from '../components/HeaderTimeControls';
 import { DataState } from '../components/DataState';
+import { IssuesAttentionStrip } from '../components/IssuesAttentionStrip';
+import { TableSkeleton } from '../components/Skeleton';
 import { NamespaceStats } from './namespace/NamespaceStats';
 import { NeedsAttention } from './namespace/NeedsAttention';
 import { NamespaceServicesTable } from './namespace/NamespaceServicesTable';
 import { NamespaceDependencies } from './namespace/NamespaceDependencies';
 import { NamespaceAlerts } from './namespace/NamespaceAlerts';
+import { NamespaceScorecardRollup } from './namespace/NamespaceScorecardRollup';
+import { getNamespaceScorecard, NamespaceScorecardResponse } from '../api/scorecard';
 
 function NamespaceOverview() {
   const { namespace = '' } = useParams<{ namespace: string }>();
@@ -96,6 +102,28 @@ function NamespaceOverview() {
     [decodedNs]
   );
 
+  // Issues attention / scorecard rollup — pass all selected envs (comma-joined),
+  // not only when exactly one is selected (CodeRabbit: multi-env was ignored).
+  const rollupEnv = envFilters.length > 0 ? envFilters.join(',') : undefined;
+  const {
+    data: issuesAttention,
+    loading: issuesAttentionLoading,
+    error: issuesAttentionError,
+    refetch: refetchIssuesAttention,
+  } = useFetch<NamespaceIssuesAttentionResponse>(
+    () => getNamespaceIssuesAttention(decodedNs, fromMs, toMs, rollupEnv),
+    [decodedNs, fromMs, toMs, rollupEnv]
+  );
+
+  const {
+    data: nsScorecard,
+    loading: nsScorecardLoading,
+    refetch: refetchNsScorecard,
+  } = useFetch<NamespaceScorecardResponse>(
+    () => getNamespaceScorecard(decodedNs, fromMs, toMs, rollupEnv),
+    [decodedNs, fromMs, toMs, rollupEnv]
+  );
+
   // Auto-refresh. For relative ranges (now-1h), re-resolving the range updates
   // fromMs/toMs and every time-scoped useFetch above refetches via its deps.
   // Alerts have no time-range dependency, so they are refetched explicitly.
@@ -109,7 +137,19 @@ function NamespaceOverview() {
     refetchSparklines();
     refetchMap();
     refetchDeps();
-  }, [isRelativeRange, refreshTimeRange, refetchAlerts, refetchServices, refetchSparklines, refetchMap, refetchDeps]);
+    refetchIssuesAttention();
+    refetchNsScorecard();
+  }, [
+    isRelativeRange,
+    refreshTimeRange,
+    refetchAlerts,
+    refetchServices,
+    refetchSparklines,
+    refetchMap,
+    refetchDeps,
+    refetchIssuesAttention,
+    refetchNsScorecard,
+  ]);
 
   const allServices = useMemo(() => (fetchResult ?? []).filter((s) => !s.isSidecar), [fetchResult]);
 
@@ -211,6 +251,22 @@ function NamespaceOverview() {
     );
   }, [appNavigate, decodedNs, envFilters]);
 
+  const handleViewAttentionIssues = useCallback(() => {
+    const top = issuesAttention?.byService?.[0];
+    if (!top?.service) {
+      handleStatusBoard();
+      return;
+    }
+    // Prefer env from the rollup row; else a single selected filter.
+    // When the name spans several envs and the row has no env, omit it so the
+    // issues tab matches the rollup (all envs) instead of an arbitrary one.
+    const env = top.environment || (envFilters.length === 1 ? envFilters[0] : undefined);
+    appNavigate(`services/${encodeURIComponent(decodedNs || '_')}/${encodeURIComponent(top.service)}`, {
+      tab: 'issues',
+      ...(env ? { environment: env } : {}),
+    });
+  }, [issuesAttention, appNavigate, decodedNs, envFilters, handleStatusBoard]);
+
   return (
     <PluginPage layout={PageLayoutType.Canvas}>
       <div className={styles.container}>
@@ -250,10 +306,30 @@ function NamespaceOverview() {
               .
             </>
           }
-          loadingText="Loading namespace data..."
+          skeleton={<TableSkeleton rows={10} />}
         >
           {/* Stats tiles */}
           <NamespaceStats services={services} previousMap={previousMap} sparklineMap={sparklineMap} />
+
+          <IssuesAttentionStrip
+            attention={issuesAttention?.attention}
+            loading={issuesAttentionLoading}
+            error={issuesAttentionError}
+            byService={issuesAttention?.byService}
+            truncated={issuesAttention?.truncated}
+            scanned={issuesAttention?.scanned}
+            viewLabel="Open top service"
+            onViewIssues={handleViewAttentionIssues}
+          />
+
+          <NamespaceScorecardRollup
+            data={nsScorecard ?? null}
+            loading={nsScorecardLoading}
+            onServiceClick={(svc, environment) => {
+              const env = environment || (envFilters.length === 1 ? envFilters[0] : undefined);
+              handleServiceClick(decodedNs, svc, env);
+            }}
+          />
 
           {/* Needs attention — unhealthy services */}
           <NeedsAttention

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useStyles2, Alert, LinkButton, Icon, LoadingPlaceholder } from '@grafana/ui';
+import { useStyles2, Alert, LinkButton, Icon } from '@grafana/ui';
 import { GrafanaTheme2 } from '@grafana/data';
 import { css } from '@emotion/css';
 import {
@@ -23,6 +23,7 @@ import { otel } from '../../otelconfig';
 import { buildDeployAnnotationsLayer } from '../buildServiceScene';
 import { ExceptionDrawer } from './frontend/components/ExceptionDrawer';
 import { useExceptionDrawerState } from './frontend/useExceptionDrawer';
+import { PanelSkeleton } from '../../components/Skeleton';
 
 import {
   WebVitalsBullets,
@@ -97,7 +98,7 @@ export function FrontendTab({ service, namespace, environment }: FrontendTabProp
   }, [service, namespace, environment]);
 
   if (available === null) {
-    return <LoadingPlaceholder text="Checking for browser telemetry..." />;
+    return <PanelSkeleton height={280} />;
   }
 
   if (!available) {

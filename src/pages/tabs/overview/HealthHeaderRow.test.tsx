@@ -24,7 +24,7 @@ describe('HealthHeaderRow', () => {
 
   it('shows a loading placeholder when loading and no data is available yet', () => {
     render(<HealthHeaderRow health={null} loading={true} />);
-    expect(screen.getByText(/loading health/i)).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: /loading health/i })).toBeInTheDocument();
   });
 
   it('renders the RED trio as formatted big numbers', () => {

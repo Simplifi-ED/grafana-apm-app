@@ -90,12 +90,7 @@ export function CustomMetricsPanel({ namespace, service, environment }: CustomMe
         </span>
       </div>
       {showBody && (
-        <DataState
-          loading={loading}
-          error={error ? 'Failed to load custom metrics' : null}
-          empty={false}
-          loadingText="Discovering custom metrics…"
-        >
+        <DataState loading={loading} error={error ? 'Failed to load custom metrics' : null} empty={false}>
           {aliasHint && metrics.length === 0 && <div className={styles.hint}>{aliasHint}</div>}
           {!collapsed && chartable.length > 0 && clickStackOnly && clickHouseUid && (
             <AutoChartsCH

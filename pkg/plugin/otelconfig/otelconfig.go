@@ -626,9 +626,18 @@ func (c *Config) AlloyHistogramFilter(service, environment string) string {
 //	{service_name="foo", kind="measurement"}
 //	{service_name="foo", kind="measurement", k8s_cluster_name="prod-gcp"}
 func (c *Config) LokiStreamSelector(service, kind string, cluster ...string) string {
+	return c.LokiStreamSelectorNS(service, kind, "", cluster...)
+}
+
+// LokiStreamSelectorNS is LokiStreamSelector with an optional service_namespace
+// matcher so same-named services in other namespaces do not leak into a query.
+func (c *Config) LokiStreamSelectorNS(service, kind, namespace string, cluster ...string) string {
 	sel := fmt.Sprintf(`{%s="%s"`, c.FaroLoki.ServiceName, service)
 	if kind != "" {
 		sel += fmt.Sprintf(`, %s="%s"`, c.FaroLoki.Kind, kind)
+	}
+	if namespace != "" {
+		sel += fmt.Sprintf(`, %s="%s"`, c.Labels.ServiceNamespace, namespace)
 	}
 	if len(cluster) > 0 && cluster[0] != "" {
 		// Environment supports comma-separated multi-select ("prod,prod-fss");

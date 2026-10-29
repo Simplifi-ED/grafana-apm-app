@@ -49,3 +49,35 @@ export async function getScorecard(
     environment ? { environment } : undefined
   );
 }
+
+export interface NamespaceServiceScorecard {
+  service: string;
+  environment?: string;
+  score: number;
+  total: number;
+}
+
+/** Namespace readiness rollup (team view without Console ownership). */
+export interface NamespaceScorecardResponse {
+  score: number;
+  total: number;
+  services: NamespaceServiceScorecard[];
+  scanned: number;
+  truncated?: boolean;
+}
+
+export async function getNamespaceScorecard(
+  namespace: string,
+  from: number,
+  to: number,
+  environment?: string
+): Promise<NamespaceScorecardResponse> {
+  const params: Record<string, string> = {
+    from: String(Math.floor(from / 1000)),
+    to: String(Math.floor(to / 1000)),
+  };
+  if (environment) {
+    params.environment = environment;
+  }
+  return fetchResource<NamespaceScorecardResponse>(`/namespaces/${nsParam(namespace)}/scorecard`, params);
+}

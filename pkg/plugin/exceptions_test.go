@@ -130,7 +130,7 @@ func TestQueryExceptionGroupsMergesDynamicMessages(t *testing.T) {
 		"count by": sessions,
 	}, nil)
 
-	resp := app.queryExceptionGroups(context.Background(), ds, "loki-uid", "my-app", "", time.Unix(1000, 0), time.Unix(4600, 0))
+	resp := app.queryExceptionGroups(context.Background(), ds, "loki-uid", "my-app", "", "", time.Unix(1000, 0), time.Unix(4600, 0))
 
 	if resp.FingerprintVersion != fingerprint.Version {
 		t.Errorf("fingerprintVersion = %q", resp.FingerprintVersion)
@@ -169,7 +169,7 @@ func TestQueryExceptionGroupsHashPassthrough(t *testing.T) {
 	}
 	app, ds := exceptionsTestApp(t, map[string][]queries.PromResult{"sum by": counts}, nil)
 
-	resp := app.queryExceptionGroups(context.Background(), ds, "loki-uid", "my-app", "", time.Unix(0, 0), time.Unix(60, 0))
+	resp := app.queryExceptionGroups(context.Background(), ds, "loki-uid", "my-app", "", "", time.Unix(0, 0), time.Unix(60, 0))
 
 	if len(resp.Groups) != 1 {
 		t.Fatalf("expected 1 group, got %d", len(resp.Groups))
@@ -209,7 +209,7 @@ func TestQueryExceptionGroupsSessionsFallbackWindow(t *testing.T) {
 	)
 
 	to := time.Unix(200000, 0)
-	resp := app.queryExceptionGroups(context.Background(), ds, "loki-uid", "my-app", "", to.Add(-24*time.Hour), to)
+	resp := app.queryExceptionGroups(context.Background(), ds, "loki-uid", "my-app", "", "", to.Add(-24*time.Hour), to)
 
 	if resp.SessionsUnavailable {
 		t.Fatal("sessions should be available via the fallback window")
@@ -234,7 +234,7 @@ func TestQueryExceptionGroupsSessionsUnavailable(t *testing.T) {
 	)
 
 	to := time.Unix(200000, 0)
-	resp := app.queryExceptionGroups(context.Background(), ds, "loki-uid", "my-app", "", to.Add(-24*time.Hour), to)
+	resp := app.queryExceptionGroups(context.Background(), ds, "loki-uid", "my-app", "", "", to.Add(-24*time.Hour), to)
 
 	if !resp.SessionsUnavailable {
 		t.Error("expected sessionsUnavailable")
@@ -265,7 +265,7 @@ func TestQueryExceptionGroupsSessionsFallbackDescendsBelowRange(t *testing.T) {
 	)
 
 	to := time.Unix(200000, 0)
-	resp := app.queryExceptionGroups(context.Background(), ds, "loki-uid", "my-app", "", to.Add(-30*time.Minute), to)
+	resp := app.queryExceptionGroups(context.Background(), ds, "loki-uid", "my-app", "", "", to.Add(-30*time.Minute), to)
 
 	if resp.SessionsUnavailable {
 		t.Fatal("sessions should be available via the 1m rung")

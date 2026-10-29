@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { useStyles2, LoadingPlaceholder, Alert } from '@grafana/ui';
+import { useStyles2, Alert } from '@grafana/ui';
 import { GrafanaTheme2 } from '@grafana/data';
 import { css } from '@emotion/css';
 import { EmbeddedScene } from '@grafana/scenes';
@@ -22,6 +22,7 @@ import { typographyFontSize } from '../../utils/themeTypography';
 import { useFetch } from '../../utils/useFetch';
 import { useTimeRange } from '../../utils/timeRange';
 import { useUrlParams } from '../../utils/useUrlState';
+import { TableSkeleton } from '../../components/Skeleton';
 
 const MAX_OVERVIEW_OPS = 5;
 
@@ -143,7 +144,7 @@ export function OverviewTab({
             {opsError}
           </Alert>
         )}
-        {opsLoading && <LoadingPlaceholder text="Loading operations..." />}
+        {opsLoading && <TableSkeleton rows={5} />}
         {!opsLoading && operations.length === 0 && (
           <Alert severity="info" title="No operations found">
             No span operations found for this service.

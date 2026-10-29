@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { useStyles2, LoadingPlaceholder, Alert, Badge } from '@grafana/ui';
+import { useStyles2, Alert, Badge } from '@grafana/ui';
 import { GrafanaTheme2 } from '@grafana/data';
 import { css } from '@emotion/css';
 import { ConnectedService, DependencySummary } from '../../api/client';
@@ -8,6 +8,7 @@ import { formatDuration, formatRate, formatErrorRate } from '../../utils/format'
 import { SortHeader, ImpactBar, useTableSort, getTableStyles } from '../../components/SortableTable';
 import { groupDependencies, DepGroup } from '../../utils/depGroups';
 import { typographyFontSize } from '../../utils/themeTypography';
+import { TableSkeleton } from '../../components/Skeleton';
 
 interface DependenciesTabProps {
   service: string;
@@ -39,7 +40,7 @@ export function DependenciesTab({
   const depGroups = useMemo(() => groupDependencies(depList), [depList]);
 
   if (loading && callerList.length === 0 && depList.length === 0) {
-    return <LoadingPlaceholder text="Loading callers and dependencies..." />;
+    return <TableSkeleton rows={8} />;
   }
 
   if (depsError) {

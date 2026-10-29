@@ -78,7 +78,6 @@ export function ClickStackLogsPanel({
         loading={loading}
         error={error ? 'Failed to load ClickStack logs' : data?.mode === 'unavailable' ? data.note : null}
         empty={logs.length === 0}
-        loadingText="Loading logs…"
         emptyTitle="No logs found"
         emptyMessage="No ClickHouse log entries match the selected filters and time range."
       >

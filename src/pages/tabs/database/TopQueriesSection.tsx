@@ -64,7 +64,6 @@ export function TopQueriesSection({ namespace, service, fromMs, toMs, tracesUid 
         loading={loading}
         error={fetchError ?? null}
         empty={isEmpty}
-        loadingText="Sampling traces for query statements…"
         emptyTitle="No query statements found"
         emptyMessage="No database client spans carrying db.statement were found in the sampled window. Widen the range, or check that the service exports CLIENT spans with a db.statement attribute."
       >

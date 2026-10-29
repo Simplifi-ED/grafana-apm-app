@@ -173,10 +173,10 @@ func (a *App) handleIssues(w http.ResponseWriter, req *http.Request) {
 
 	if a.clickStackMode() {
 		ch := a.chForRequest(req)
-		resp := a.fetchIssuesClickHouse(ctx, ch, service, env, from, to)
+		resp := a.fetchIssuesClickHouse(ctx, ch, service, env, namespace, from, to)
 		var prev map[string]bool
 		if span := to.Sub(from); span > 0 && len(resp.Issues) > 0 {
-			baseline := a.fetchIssuesClickHouse(ctx, ch, service, env, from.Add(-span), from)
+			baseline := a.fetchIssuesClickHouse(ctx, ch, service, env, namespace, from.Add(-span), from)
 			if len(baseline.Issues) > 0 {
 				prev = issueFingerprintSet(baseline.Issues)
 			}
@@ -197,10 +197,10 @@ func (a *App) handleIssues(w http.ResponseWriter, req *http.Request) {
 		facets.Version, facets.Browser, facets.Page)
 	dsClient := queries.NewDsQueryClient(a.grafanaURL, a.resolveServiceToken(ctx)).WithAuthHeaders(req.Header)
 	a.writeCached(w, ck, "querying issues failed", func() (any, error) {
-		resp := a.queryIssues(ctx, dsClient, lokiUID, service, env, from, to, facets)
+		resp := a.queryIssues(ctx, dsClient, lokiUID, service, env, namespace, from, to, facets)
 		var prev map[string]bool
 		if span := to.Sub(from); span > 0 && len(resp.Issues) > 0 {
-			baseline := a.queryIssues(ctx, dsClient, lokiUID, service, env, from.Add(-span), from, browserFacets{})
+			baseline := a.queryIssues(ctx, dsClient, lokiUID, service, env, namespace, from.Add(-span), from, browserFacets{})
 			if len(baseline.Issues) > 0 {
 				prev = issueFingerprintSet(baseline.Issues)
 			}
@@ -221,7 +221,7 @@ func parseFacetParam(req *http.Request, name string) string {
 // aggregations concurrently and merges the results. One side erroring never
 // fails the endpoint — the other side's issues are still returned and the
 // sources flags say what happened.
-func (a *App) queryIssues(ctx context.Context, ds *queries.DsQueryClient, lokiUID, service, env string, from, to time.Time, facets browserFacets) IssuesResponse {
+func (a *App) queryIssues(ctx context.Context, ds *queries.DsQueryClient, lokiUID, service, env, namespace string, from, to time.Time, facets browserFacets) IssuesResponse {
 	var (
 		wg        sync.WaitGroup
 		browser   ExceptionGroupsResponse
@@ -232,20 +232,20 @@ func (a *App) queryIssues(ctx context.Context, ds *queries.DsQueryClient, lokiUI
 	faceted := facets.active()
 	// Facet-value discovery always runs (cheap topk queries) so the UI can
 	// populate the facet dropdowns even before any facet is picked.
-	wg.Go(func() { ; facetVals = a.queryIssueFacets(ctx, ds, lokiUID, service, env, from, to) })
+	wg.Go(func() { facetVals = a.queryIssueFacets(ctx, ds, lokiUID, service, env, namespace, from, to) })
 	// A browser facet scopes the list to Faro telemetry (facet fields are Faro
 	// logfmt fields), so the server side is skipped — its counts can't be
 	// narrowed by a browser facet and would misrepresent the filtered view.
 	wg.Go(func() {
 		if faceted {
-			browser = a.queryBrowserExceptionGroupsFaceted(ctx, ds, lokiUID, service, env, from, to, facets)
+			browser = a.queryBrowserExceptionGroupsFaceted(ctx, ds, lokiUID, service, env, namespace, from, to, facets)
 		} else {
-			browser = a.queryExceptionGroups(ctx, ds, lokiUID, service, env, from, to)
+			browser = a.queryExceptionGroups(ctx, ds, lokiUID, service, env, namespace, from, to)
 		}
 	})
 	if !faceted {
 		wg.Go(func() {
-			server, serverOK = a.queryServerExceptionGroups(ctx, ds, lokiUID, service, env, from, to)
+			server, serverOK = a.queryServerExceptionGroups(ctx, ds, lokiUID, service, env, namespace, from, to)
 		})
 	}
 	wg.Wait()
@@ -312,10 +312,10 @@ func (a *App) browserFacetFilter(f browserFacets) string {
 // sessions-fallback ladder) stays untouched; the faceted path uses a single
 // sessions window since facet filtering cuts the (hash × session) cardinality
 // that makes the ladder necessary.
-func (a *App) queryBrowserExceptionGroupsFaceted(ctx context.Context, ds *queries.DsQueryClient, lokiUID, service, env string, from, to time.Time, facets browserFacets) ExceptionGroupsResponse {
+func (a *App) queryBrowserExceptionGroupsFaceted(ctx context.Context, ds *queries.DsQueryClient, lokiUID, service, env, namespace string, from, to time.Time, facets browserFacets) ExceptionGroupsResponse {
 	logger := log.DefaultLogger.With("handler", "issues-facets")
 	fl := a.otelCfg.FaroLoki
-	stream := a.otelCfg.LokiStreamSelector(service, fl.KindException, env)
+	stream := a.otelCfg.LokiStreamSelectorNS(service, fl.KindException, namespace, env)
 	window := lokiWindow(from, to)
 	filter := a.browserFacetFilter(facets)
 
@@ -408,10 +408,10 @@ func (a *App) queryBrowserExceptionGroupsFaceted(ctx context.Context, ds *querie
 // via cheap topk(sum by (field)) queries — one per facet, capped at
 // issueFacetLimit. Returns nil only when every facet query fails; partial
 // failure yields the facets that succeeded (the rest empty).
-func (a *App) queryIssueFacets(ctx context.Context, ds *queries.DsQueryClient, lokiUID, service, env string, from, to time.Time) *IssueFacets {
+func (a *App) queryIssueFacets(ctx context.Context, ds *queries.DsQueryClient, lokiUID, service, env, namespace string, from, to time.Time) *IssueFacets {
 	logger := log.DefaultLogger.With("handler", "issue-facets")
 	fl := a.otelCfg.FaroLoki
-	stream := a.otelCfg.LokiStreamSelector(service, fl.KindException, env)
+	stream := a.otelCfg.LokiStreamSelectorNS(service, fl.KindException, namespace, env)
 	window := lokiWindow(from, to)
 
 	expr := func(field string) string {
@@ -470,8 +470,11 @@ func facetValues(res []queries.PromResult, label string) []IssueFacetValue {
 // logs, mirroring LogsTab.tsx: kind="" excludes Faro browser-telemetry
 // streams (which carry the kind label), and the cluster label scopes
 // centralized Loki to the selected environment.
-func (a *App) serverLogSelector(service, env string) string {
+func (a *App) serverLogSelector(service, env, namespace string) string {
 	sel := fmt.Sprintf(`{%s="%s", %s=""`, a.otelCfg.Labels.ServiceName, service, a.otelCfg.FaroLoki.Kind)
+	if namespace != "" {
+		sel += fmt.Sprintf(`, %s="%s"`, a.otelCfg.Labels.ServiceNamespace, namespace)
+	}
 	if env != "" {
 		// env may be comma-separated multi-select — equality would match nothing.
 		sel += ", " + envMatcher(a.otelCfg.Labels.DeploymentEnv, env)
@@ -522,9 +525,9 @@ func (a *App) serverLogSelector(service, env string) string {
 //
 // The returned bool is false only when all shape count queries failed —
 // callers then flag sources.serverLogs=false instead of failing the endpoint.
-func (a *App) queryServerExceptionGroups(ctx context.Context, ds *queries.DsQueryClient, lokiUID, service, env string, from, to time.Time) ([]Issue, bool) {
+func (a *App) queryServerExceptionGroups(ctx context.Context, ds *queries.DsQueryClient, lokiUID, service, env, namespace string, from, to time.Time) ([]Issue, bool) {
 	logger := log.DefaultLogger.With("handler", "issues")
-	sel := a.serverLogSelector(service, env)
+	sel := a.serverLogSelector(service, env, namespace)
 	window := lokiWindow(from, to)
 
 	semconvFilter := fmt.Sprintf(`%s != ""`, semconvTypeLabel)

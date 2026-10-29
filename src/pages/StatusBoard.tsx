@@ -13,6 +13,7 @@ import { getServiceHealth, healthSeverity } from '../utils/health';
 import { StatusCard, CardStatus, CardSize, CARD_DIMENSIONS } from '../components/StatusCard';
 import { PageHeader } from '../components/PageHeader';
 import { DataState } from '../components/DataState';
+import { CardGridSkeleton } from '../components/Skeleton';
 import { HeaderTimeControls } from '../components/HeaderTimeControls';
 import { useUrlNumber } from '../utils/useUrlState';
 import { typographyFontSize } from '../utils/themeTypography';
@@ -405,7 +406,7 @@ function StatusBoard() {
                 .
               </>
             }
-            loadingText="Loading status board..."
+            skeleton={<CardGridSkeleton cards={8} />}
           >
             <div
               className={styles.grid}

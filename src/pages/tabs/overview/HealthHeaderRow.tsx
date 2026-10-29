@@ -1,11 +1,12 @@
 import React from 'react';
-import { useStyles2, Icon, LoadingPlaceholder } from '@grafana/ui';
+import { useStyles2, Icon } from '@grafana/ui';
 import { GrafanaTheme2, IconName } from '@grafana/data';
 import { css } from '@emotion/css';
 import { HealthSummary as HealthData } from '../../../api/client';
 import { formatRate, formatErrorRate, formatDuration } from '../../../utils/format';
 import { computeDelta, DeltaResult, DeltaPolarity } from './healthDelta';
 import { typographyFontSize } from '../../../utils/themeTypography';
+import { SkeletonBar } from '../../../components/Skeleton';
 
 interface HealthHeaderRowProps {
   health: HealthData | null;
@@ -27,8 +28,10 @@ export function HealthHeaderRow({ health, loading }: HealthHeaderRowProps) {
   if (!health) {
     if (loading) {
       return (
-        <div className={styles.row}>
-          <LoadingPlaceholder text="Loading health…" />
+        <div className={styles.row} role="status" aria-busy="true" aria-label="Loading health">
+          <SkeletonBar width={120} height={36} />
+          <SkeletonBar width={120} height={36} />
+          <SkeletonBar width={120} height={36} />
         </div>
       );
     }

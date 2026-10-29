@@ -234,7 +234,7 @@ func (a *App) handleIssueOccurrences(w http.ResponseWriter, req *http.Request) {
 	ck := cacheKey("issue-occurrences", orgID, namespace, service, env, fp, title, exType, roundedUnix(from), roundedUnix(to))
 	dsClient := queries.NewDsQueryClient(a.grafanaURL, a.resolveServiceToken(ctx)).WithAuthHeaders(req.Header)
 	a.writeCached(w, ck, "querying issue occurrences failed", func() (any, error) {
-		return a.queryIssueOccurrences(ctx, dsClient, lokiUID, service, env, fp, title, exType, from, to), nil
+		return a.queryIssueOccurrences(ctx, dsClient, lokiUID, service, env, namespace, fp, title, exType, from, to), nil
 	})
 }
 
@@ -252,8 +252,8 @@ func (a *App) handleIssueOccurrences(w http.ResponseWriter, req *http.Request) {
 // authoritative; if an anchored scan matches nothing (whitespace collapse or
 // JSON escaping can defeat a literal anchor), it falls back to the unanchored
 // scan, so recall is never worse than before.
-func (a *App) queryIssueOccurrences(ctx context.Context, ds *queries.DsQueryClient, lokiUID, service, env, wantFP, title, exType string, from, to time.Time) IssueOccurrencesResponse {
-	sel := a.serverLogSelector(service, env)
+func (a *App) queryIssueOccurrences(ctx context.Context, ds *queries.DsQueryClient, lokiUID, service, env, namespace, wantFP, title, exType string, from, to time.Time) IssueOccurrencesResponse {
+	sel := a.serverLogSelector(service, env, namespace)
 	anchor := literalAnchor(messageTemplate(title, exType))
 	resp := a.scanOccurrences(ctx, ds, lokiUID, sel, wantFP, exType, anchor, from, to)
 	if len(resp.Occurrences) == 0 && (anchor != "" || exType != "") {

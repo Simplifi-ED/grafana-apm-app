@@ -96,7 +96,6 @@ export function ClickStackTracesPanel({
         loading={loading}
         error={error ? 'Failed to load ClickStack traces' : data?.mode === 'unavailable' ? data.note : null}
         empty={traces.length === 0}
-        loadingText="Loading traces…"
         emptyTitle="No traces found"
         emptyMessage="No ClickHouse traces match the selected filters and time range."
       >
@@ -152,7 +151,6 @@ export function ClickStackTracesPanel({
                   : null
             }
             empty={selectedSpans.length === 0}
-            loadingText="Loading spans…"
             emptyTitle="No spans found"
             emptyMessage="The trace details are outside the selected time range."
           >

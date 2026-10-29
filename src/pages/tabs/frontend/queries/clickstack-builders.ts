@@ -189,6 +189,62 @@ ORDER BY samples DESC
 LIMIT 20`.trim();
 }
 
+/**
+ * Browser UX events beyond webvitals / HTTP / exceptions (HyperDX otel-web).
+ * Live shapes observed: click, routeChange, navigation, longtask, visibility, …
+ */
+export function browserEventsWhere(service: string, environment = ''): string {
+  return `${clickStackFrontendWhere(service, environment)}
+  AND NOT startsWith(SpanName, 'HTTP ')
+  AND SpanName NOT IN ('webvitals', 'unhandledrejection', 'error', 'exception', 'console.error', 'faro.feedback')
+  AND NOT startsWith(SpanName, 'error.')
+  AND NOT startsWith(SpanName, 'eventListener.')`;
+}
+
+/** Top browser event SpanNames by count. */
+export function browserEventsTopSql(service: string, environment = ''): string {
+  const where = browserEventsWhere(service, environment);
+  return `
+SELECT
+  SpanName AS event,
+  count() AS samples
+FROM \`default\`.\`otel_traces\`
+WHERE ${where}
+  AND $__timeFilter(Timestamp)
+GROUP BY event
+ORDER BY samples DESC
+LIMIT 25`.trim();
+}
+
+/** Event volume over time (all non-vitals UX events). */
+export function browserEventsVolumeSql(service: string, environment = ''): string {
+  const where = browserEventsWhere(service, environment);
+  return `
+SELECT
+  $__timeInterval(Timestamp) AS time,
+  count() AS events
+FROM \`default\`.\`otel_traces\`
+WHERE ${where}
+  AND $__timeFilter(Timestamp)
+GROUP BY time
+ORDER BY time`.trim();
+}
+
+/** P75 longtask duration (ms) over time — performance measurement beyond CWV. */
+export function longtaskP75Sql(service: string, environment = ''): string {
+  const where = clickStackFrontendWhere(service, environment);
+  return `
+SELECT
+  $__timeInterval(Timestamp) AS time,
+  quantile(0.75)(Duration / 1e6) AS p75_ms
+FROM \`default\`.\`otel_traces\`
+WHERE ${where}
+  AND SpanName = 'longtask'
+  AND $__timeFilter(Timestamp)
+GROUP BY time
+ORDER BY time`.trim();
+}
+
 /** P75 vitals by URL path. */
 export function perPageSql(service: string, environment = ''): string {
   const where = clickStackFrontendWhere(service, environment);

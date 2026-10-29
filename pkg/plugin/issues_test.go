@@ -49,7 +49,7 @@ func TestQueryIssuesMergesBrowserAndServer(t *testing.T) {
 		"sum by (exception_type, exception_message, k8s_pod_name)": serverPods,
 	}, nil)
 
-	resp := app.queryIssues(context.Background(), ds, "loki-uid", "my-app", "prod-gcp", time.Unix(1000, 0), time.Unix(4600, 0), browserFacets{})
+	resp := app.queryIssues(context.Background(), ds, "loki-uid", "my-app", "prod-gcp", "", time.Unix(1000, 0), time.Unix(4600, 0), browserFacets{})
 
 	if resp.FingerprintVersion != fingerprint.Version {
 		t.Errorf("fingerprintVersion = %q", resp.FingerprintVersion)
@@ -116,7 +116,7 @@ func TestQueryServerExceptionGroupsJSONShape(t *testing.T) {
 		"sum by (message, msg, k8s_pod_name)": pods,
 	}, nil)
 
-	issues, ok := app.queryServerExceptionGroups(context.Background(), ds, "loki-uid", "my-app", "", time.Unix(0, 0), time.Unix(3600, 0))
+	issues, ok := app.queryServerExceptionGroups(context.Background(), ds, "loki-uid", "my-app", "", "", time.Unix(0, 0), time.Unix(3600, 0))
 
 	if !ok {
 		t.Fatal("expected server side to be available")
@@ -156,7 +156,7 @@ func TestQueryIssuesServerErrorDegradesGracefully(t *testing.T) {
 			`sum(count_over_time(`:       "maximum number of series (5000) reached for a single query",
 		})
 
-	resp := app.queryIssues(context.Background(), ds, "loki-uid", "my-app", "", time.Unix(0, 0), time.Unix(3600, 0), browserFacets{})
+	resp := app.queryIssues(context.Background(), ds, "loki-uid", "my-app", "", "", time.Unix(0, 0), time.Unix(3600, 0), browserFacets{})
 
 	if resp.Sources.ServerLogs {
 		t.Error("sources.serverLogs should be false when both shape queries fail")
@@ -182,7 +182,7 @@ func TestQueryIssuesBrowserErrorDegradesGracefully(t *testing.T) {
 		map[string][]queries.PromResult{"sum by (exception_type, exception_message) (": serverCounts},
 		map[string]string{"sum by (hash": "loki is down"})
 
-	resp := app.queryIssues(context.Background(), ds, "loki-uid", "my-app", "", time.Unix(0, 0), time.Unix(3600, 0), browserFacets{})
+	resp := app.queryIssues(context.Background(), ds, "loki-uid", "my-app", "", "", time.Unix(0, 0), time.Unix(3600, 0), browserFacets{})
 
 	if resp.Sources.Browser {
 		t.Error("sources.browser should be false when the Faro query fails")
@@ -214,7 +214,7 @@ func TestQueryServerExceptionGroupsMsgFieldShape(t *testing.T) {
 		"sum by (message, msg) (": counts,
 	}, nil)
 
-	issues, ok := app.queryServerExceptionGroups(context.Background(), ds, "loki-uid", "my-app", "", time.Unix(0, 0), time.Unix(3600, 0))
+	issues, ok := app.queryServerExceptionGroups(context.Background(), ds, "loki-uid", "my-app", "", "", time.Unix(0, 0), time.Unix(3600, 0))
 
 	if !ok {
 		t.Fatal("expected server side to be available")
@@ -269,7 +269,7 @@ func TestQueryServerExceptionGroupsDedupesOTLPAndStdoutCopies(t *testing.T) {
 		}, nil,
 		map[string][]string{"drop __error__": {stdoutStackLine, stdoutStackLine}})
 
-	issues, ok := app.queryServerExceptionGroups(context.Background(), ds, "loki-uid", "my-app", "", time.Unix(0, 0), time.Unix(3600, 0))
+	issues, ok := app.queryServerExceptionGroups(context.Background(), ds, "loki-uid", "my-app", "", "", time.Unix(0, 0), time.Unix(3600, 0))
 
 	if !ok {
 		t.Fatal("expected server side to be available")
@@ -315,7 +315,7 @@ func TestQueryServerExceptionGroupsDedupeUnionsPods(t *testing.T) {
 		"sum by (message, msg, k8s_pod_name)":                      jsonPods,
 	}, nil)
 
-	issues, ok := app.queryServerExceptionGroups(context.Background(), ds, "loki-uid", "my-app", "", time.Unix(0, 0), time.Unix(3600, 0))
+	issues, ok := app.queryServerExceptionGroups(context.Background(), ds, "loki-uid", "my-app", "", "", time.Unix(0, 0), time.Unix(3600, 0))
 
 	if !ok {
 		t.Fatal("expected server side to be available")
@@ -341,7 +341,7 @@ func TestQueryServerExceptionGroupsKeepsStdoutOnlyIssue(t *testing.T) {
 		"sum by (message, msg) (": jsonCounts,
 	}, nil)
 
-	issues, ok := app.queryServerExceptionGroups(context.Background(), ds, "loki-uid", "my-app", "", time.Unix(0, 0), time.Unix(3600, 0))
+	issues, ok := app.queryServerExceptionGroups(context.Background(), ds, "loki-uid", "my-app", "", "", time.Unix(0, 0), time.Unix(3600, 0))
 
 	if !ok {
 		t.Fatal("expected server side to be available")
@@ -377,7 +377,7 @@ func TestQueryServerExceptionGroupsDoesNotCollapseDistinctErrors(t *testing.T) {
 		"sum by (message, msg) (":                      jsonCounts,
 	}, nil)
 
-	issues, ok := app.queryServerExceptionGroups(context.Background(), ds, "loki-uid", "my-app", "", time.Unix(0, 0), time.Unix(3600, 0))
+	issues, ok := app.queryServerExceptionGroups(context.Background(), ds, "loki-uid", "my-app", "", "", time.Unix(0, 0), time.Unix(3600, 0))
 
 	if !ok {
 		t.Fatal("expected server side to be available")
@@ -427,7 +427,7 @@ func TestQueryServerExceptionGroupsPlainTextShape(t *testing.T) {
 		nil,
 		map[string][]string{"drop __error__": sample})
 
-	issues, ok := app.queryServerExceptionGroups(context.Background(), ds, "loki-uid", "navno-search-frontend", "", time.Unix(0, 0), time.Unix(3600, 0))
+	issues, ok := app.queryServerExceptionGroups(context.Background(), ds, "loki-uid", "navno-search-frontend", "", "", time.Unix(0, 0), time.Unix(3600, 0))
 
 	if !ok {
 		t.Fatal("expected server side to be available")
@@ -477,7 +477,7 @@ func TestQueryServerExceptionGroupsFiltersBootstrapNoise(t *testing.T) {
 		nil,
 		map[string][]string{"drop __error__": sample})
 
-	issues, ok := app.queryServerExceptionGroups(context.Background(), ds, "loki-uid", "navno-search-frontend", "", time.Unix(0, 0), time.Unix(3600, 0))
+	issues, ok := app.queryServerExceptionGroups(context.Background(), ds, "loki-uid", "navno-search-frontend", "", "", time.Unix(0, 0), time.Unix(3600, 0))
 
 	if !ok {
 		t.Fatal("expected server side to be available")
@@ -549,7 +549,7 @@ func TestQueryServerExceptionGroupsPlainTextAllEmptyFallback(t *testing.T) {
 		nil,
 		map[string][]string{"drop __error__": sample})
 
-	issues, ok := app.queryServerExceptionGroups(context.Background(), ds, "loki-uid", "navno-search-frontend", "", time.Unix(0, 0), time.Unix(3600, 0))
+	issues, ok := app.queryServerExceptionGroups(context.Background(), ds, "loki-uid", "navno-search-frontend", "", "", time.Unix(0, 0), time.Unix(3600, 0))
 
 	if !ok {
 		t.Fatal("expected server side to be available")
@@ -593,7 +593,7 @@ func TestQueryIssueFacets(t *testing.T) {
 		"sum by (page_url)":     pages,
 	}, nil)
 
-	facets := app.queryIssueFacets(context.Background(), ds, "loki-uid", "my-app", "", time.Unix(0, 0), time.Unix(3600, 0))
+	facets := app.queryIssueFacets(context.Background(), ds, "loki-uid", "my-app", "", "", time.Unix(0, 0), time.Unix(3600, 0))
 
 	if facets == nil {
 		t.Fatal("expected facets, got nil")
@@ -629,8 +629,7 @@ func TestQueryIssuesFacetScopesToBrowser(t *testing.T) {
 		"sum by (exception_type, exception_message) (": serverCounts,
 	}, nil)
 
-	resp := app.queryIssues(context.Background(), ds, "loki-uid", "my-app", "",
-		time.Unix(0, 0), time.Unix(3600, 0), browserFacets{Version: "1.2.0"})
+	resp := app.queryIssues(context.Background(), ds, "loki-uid", "my-app", "", "", time.Unix(0, 0), time.Unix(3600, 0), browserFacets{Version: "1.2.0"})
 
 	if resp.FacetedSource != issueSourceBrowser {
 		t.Errorf("facetedSource = %q, want browser", resp.FacetedSource)
@@ -673,8 +672,7 @@ func TestFacetedIssueQueryShapes(t *testing.T) {
 	app := &App{otelCfg: otelconfig.Default()}
 	ds := queries.NewDsQueryClient(srv.URL, "")
 
-	app.queryIssues(context.Background(), ds, "loki-uid", "my-app", "prod",
-		time.Unix(0, 0), time.Unix(3600, 0),
+	app.queryIssues(context.Background(), ds, "loki-uid", "my-app", "prod", "", time.Unix(0, 0), time.Unix(3600, 0),
 		browserFacets{Version: "1.2.0", Browser: "Chrome", Page: "https://tms-min-side.nav.no/"})
 
 	mu.Lock()
@@ -748,7 +746,7 @@ func TestServerExceptionQueryShapes(t *testing.T) {
 	app := &App{otelCfg: otelconfig.Default()}
 	ds := queries.NewDsQueryClient(srv.URL, "")
 
-	app.queryServerExceptionGroups(context.Background(), ds, "loki-uid", "my-app", "prod", time.Unix(0, 0), time.Unix(3600, 0))
+	app.queryServerExceptionGroups(context.Background(), ds, "loki-uid", "my-app", "prod", "", time.Unix(0, 0), time.Unix(3600, 0))
 
 	find := func(sub string) string {
 		for _, e := range exprs {

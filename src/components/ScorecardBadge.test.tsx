@@ -62,6 +62,7 @@ async function openDetails(response: ScorecardResponse = allFailing) {
 
 describe('ScorecardBadge', () => {
   beforeEach(() => {
+    localStorage.clear();
     jest.clearAllMocks();
     mockPush.mockReset();
     mockGetAlertTemplate.mockReset().mockResolvedValue({ url: '/alerting/new?defaults=%7B%7D', defaults: {} });
@@ -105,6 +106,20 @@ describe('ScorecardBadge', () => {
     await screen.findByTestId('scorecard-details');
     expect(screen.getAllByRole('img', { name: 'Enabled' })).toHaveLength(4);
     expect(screen.getAllByRole('img', { name: 'Not enabled' })).toHaveLength(2);
+  });
+
+  it('lets the operator mark a failing check N/A locally and update the badge score', async () => {
+    mockGetScorecard.mockResolvedValue(allFailing);
+    render(<ScorecardBadge namespace="team-a" service="my-app" environment="prod-gcp" />);
+    const badge = await screen.findByTestId('scorecard-badge');
+    expect(badge).toHaveTextContent('0/6 observability checks');
+    fireEvent.click(badge);
+    await screen.findByTestId('scorecard-details');
+    fireEvent.click(within(screen.getByTestId('check-na-browserTelemetry')).getByRole('button', { name: /Mark N\/A/ }));
+    await waitFor(() => {
+      expect(screen.getByTestId('scorecard-badge')).toHaveTextContent('0/5 observability checks');
+    });
+    expect(screen.getByText(/Local override/)).toBeInTheDocument();
   });
 
   it('renders a not-applicable check as N/A, excluded from the score', async () => {

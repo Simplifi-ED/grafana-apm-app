@@ -161,7 +161,6 @@ export function DatabaseTab({
       loading={loading}
       error={endpointsError ?? null}
       empty={!loading && !endpointsError && !hasDbData}
-      loadingText="Checking for database instrumentation..."
       emptyTitle="No database activity detected"
       emptyMessage={<EmptyStateBody />}
     >

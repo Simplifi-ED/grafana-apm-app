@@ -77,7 +77,6 @@ export function VersionsPanel({
               : null
         }
         empty={versions.length === 0}
-        loadingText="Loading releases…"
         emptyTitle={emptyTitle}
         emptyMessage={data?.hint ? data.hint : 'No app version data for this service in the selected time range.'}
       >

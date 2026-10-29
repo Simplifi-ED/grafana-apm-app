@@ -99,7 +99,7 @@ describe('DatabaseTab', () => {
     (getRuntimeMetrics as jest.Mock).mockReturnValue(new Promise(() => {}));
 
     renderTab();
-    expect(screen.getByText(/Checking for database instrumentation/)).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: /loading/i })).toBeInTheDocument();
   });
 
   it('shows the full requirements checklist when no database activity is detected', async () => {

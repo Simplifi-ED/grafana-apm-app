@@ -352,10 +352,11 @@ func TestWebVitalsSQL_TargetsHyperDXSpans(t *testing.T) {
 func TestBrowserExceptionGroupsSQL_HyperDXSelector(t *testing.T) {
 	from := time.Unix(1_700_000_000, 0)
 	to := from.Add(time.Hour)
-	sql := BrowserExceptionGroupsSQL("nova-frontend", from, to, "prod-k3s-omnivya", 50)
+	sql := BrowserExceptionGroupsSQL("nova-frontend", from, to, "prod-k3s-omnivya", "team-a", 50)
 	for _, want := range []string{
 		"nova-frontend", "unhandledrejection", "error.object", "error.message",
-		"rum.sessionId", "has(Events.Name", "prod-k3s-omnivya",
+		"rum.sessionId", "has(Events.Name", "prod-k3s-omnivya", "team-a",
+		ResK8sNamespace, ResServiceNamespace,
 	} {
 		if !strings.Contains(sql, want) {
 			t.Errorf("BrowserExceptionGroupsSQL missing %q\n%s", want, sql)
@@ -363,10 +364,21 @@ func TestBrowserExceptionGroupsSQL_HyperDXSelector(t *testing.T) {
 	}
 }
 
+func TestTracesEnvFilter_MultiEnv(t *testing.T) {
+	got := tracesEnvFilter("prod,staging")
+	if !strings.Contains(got, "IN (") || !strings.Contains(got, "prod") || !strings.Contains(got, "staging") {
+		t.Fatalf("expected multi-env IN clause, got %q", got)
+	}
+	single := tracesEnvFilter("prod")
+	if strings.Contains(single, "IN (") || !strings.Contains(single, "= 'prod'") {
+		t.Fatalf("expected single-env equality, got %q", single)
+	}
+}
+
 func TestServerExceptionGroupsSQL_ExcludesBrowserShapes(t *testing.T) {
 	from := time.Unix(1_700_000_000, 0)
 	to := from.Add(time.Hour)
-	sql := ServerExceptionGroupsSQL("nova-api", from, to, "", 50)
+	sql := ServerExceptionGroupsSQL("nova-api", from, to, "", "team-a", 50)
 	if !strings.Contains(sql, "has(Events.Name") || !strings.Contains(sql, "NOT (SpanName") {
 		t.Fatalf("expected Events.exception + browser exclusion: %s", sql)
 	}

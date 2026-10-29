@@ -286,12 +286,14 @@ describe('AlertsTab (#32/#33 home)', () => {
 
     renderTab();
 
-    await waitFor(() => expect(screen.getByText(/Preparing the PrometheusRule/)).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByRole('status', { name: /Preparing the PrometheusRule/i })).toBeInTheDocument()
+    );
     expect(screen.queryByText(/Could not render the PrometheusRule/)).not.toBeInTheDocument();
 
     resolveRule(PROMETHEUS_RULE);
     await waitFor(() => expect(screen.getByText(/kind: PrometheusRule/)).toBeInTheDocument());
-    expect(screen.queryByText(/Preparing the PrometheusRule/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('status', { name: /Preparing the PrometheusRule/i })).not.toBeInTheDocument();
   });
 
   it('shows a message instead of an empty code block when the manifest cannot be rendered', async () => {

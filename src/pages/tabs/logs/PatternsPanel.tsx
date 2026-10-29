@@ -95,7 +95,6 @@ export function PatternsPanel({
           error ? 'Failed to load patterns' : data?.mode === 'unavailable' ? data.note || 'Patterns unavailable' : null
         }
         empty={patterns.length === 0}
-        loadingText="Loading patterns…"
         emptyTitle="No error patterns"
         emptyMessage={data?.note || 'No error log patterns in the selected time range.'}
       >

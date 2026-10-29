@@ -221,7 +221,7 @@ function DependencyDetail() {
           <BackButton label="Dependencies" onClick={() => appNavigate('dependencies')} />
         </div>
 
-        <DataState loading={loading} error={error} loadingText="Loading dependency details...">
+        <DataState loading={loading} error={error}>
           {data && (
             <>
               {/* Summary card */}
