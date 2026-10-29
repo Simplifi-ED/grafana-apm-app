@@ -85,7 +85,7 @@ func (a *App) computeNamespaceScorecard(
 	}
 
 	type result struct {
-		svc         string
+		svc          string
 		score, total int
 	}
 	results := make([]result, 0, len(names))
