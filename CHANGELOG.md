@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.28.0](https://github.com/Simplifi-ED/grafana-apm-app/compare/clickhouse-apm-app-v0.27.0...clickhouse-apm-app-v0.28.0) (2026-10-29)
+
+
+### Features
+
+* namespace attention strip, scorecard N/A override, skeleton loading ([#13](https://github.com/Simplifi-ED/grafana-apm-app/issues/13)) ([7c79d7c](https://github.com/Simplifi-ED/grafana-apm-app/commit/7c79d7c23e92ab338035fc656ee64689af563ff2))
+
 ## [0.27.0](https://github.com/Simplifi-ED/grafana-apm-app/compare/clickhouse-apm-app-v0.26.1...clickhouse-apm-app-v0.27.0) (2026-10-28)
 
 
