@@ -1,12 +1,16 @@
 import React from 'react';
-import { Alert, LoadingPlaceholder } from '@grafana/ui';
+import { Alert } from '@grafana/ui';
+import { TableSkeleton } from './Skeleton';
 
 interface DataStateProps {
   loading?: boolean;
   error?: string | null;
   empty?: boolean;
+  /**
+   * @deprecated Prefer `skeleton`. Ignored when loading — DataState defaults to TableSkeleton.
+   */
   loadingText?: string;
-  /** When set, shown instead of LoadingPlaceholder while loading (optimistic skeleton). */
+  /** When set, shown instead of the default TableSkeleton while loading. */
   skeleton?: React.ReactNode;
   errorTitle?: string;
   emptyTitle?: string;
@@ -23,7 +27,6 @@ export function DataState({
   loading,
   error,
   empty,
-  loadingText = 'Loading…',
   skeleton,
   errorTitle = 'Error',
   emptyTitle = 'No data',
@@ -38,7 +41,7 @@ export function DataState({
     );
   }
   if (loading) {
-    return <>{skeleton ?? <LoadingPlaceholder text={loadingText} />}</>;
+    return <>{skeleton ?? <TableSkeleton />}</>;
   }
   if (empty) {
     return (

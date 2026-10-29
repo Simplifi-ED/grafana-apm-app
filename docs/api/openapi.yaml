@@ -995,6 +995,39 @@ paths:
                   unavailable: { type: boolean }
                   errorMessage: { type: string }
 
+  /namespaces/{namespace}/issues-attention:
+    get:
+      tags: [experimental]
+      summary: Roll up new / returned-after-resolve issue counts across services in a namespace (capped fan-out; no client N+1).
+      parameters:
+        - { $ref: "#/components/parameters/namespacePath" }
+        - { $ref: "#/components/parameters/from" }
+        - { $ref: "#/components/parameters/to" }
+        - { $ref: "#/components/parameters/environment" }
+      responses:
+        "200":
+          description: Aggregated attention counts plus per-service breakdown.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  attention:
+                    type: object
+                    properties:
+                      new: { type: integer }
+                      returnedAfterResolve: { type: integer }
+                  byService:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        service: { type: string }
+                        new: { type: integer }
+                        returnedAfterResolve: { type: integer }
+                  truncated: { type: boolean }
+                  scanned: { type: integer }
+
   /alert-templates/{kind}:
     get:
       tags: [experimental]

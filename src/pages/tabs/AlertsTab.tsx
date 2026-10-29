@@ -2,7 +2,7 @@ import React, { useCallback, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { getAppEvents, locationService } from '@grafana/runtime';
 import { AppEvents, GrafanaTheme2 } from '@grafana/data';
-import { Badge, Button, ClipboardButton, Icon, LoadingPlaceholder, TextLink, useStyles2 } from '@grafana/ui';
+import { Badge, Button, ClipboardButton, Icon, TextLink, useStyles2 } from '@grafana/ui';
 import { css } from '@emotion/css';
 import {
   AlertTemplateKind,
@@ -17,6 +17,7 @@ import { useFetch } from '../../utils/useFetch';
 import { useUrlParams } from '../../utils/useUrlState';
 import { FiringAlertDrawer } from './alerts/FiringAlertDrawer';
 import { typographyFontSize, typographyVariant } from '../../utils/themeTypography';
+import { SkeletonBar, TableSkeleton } from '../../components/Skeleton';
 
 interface AlertsTabProps {
   service: string;
@@ -195,7 +196,7 @@ export function AlertsTab({ service, namespace, environment }: AlertsTabProps) {
         </div>
 
         {loading && !data ? (
-          <LoadingPlaceholder text="Loading alert rules…" />
+          <TableSkeleton rows={5} />
         ) : error ? (
           <div className={styles.message}>Could not load alert rules for this service.</div>
         ) : data?.unavailable ? (
@@ -267,7 +268,9 @@ export function AlertsTab({ service, namespace, environment }: AlertsTabProps) {
           </div>
 
           {prometheusRuleLoading ? (
-            <LoadingPlaceholder text="Preparing the PrometheusRule…" />
+            <div role="status" aria-label="Preparing the PrometheusRule">
+              <SkeletonBar width="60%" height={14} />
+            </div>
           ) : prometheusRuleError || !prometheusRule ? (
             <div className={styles.message}>Could not render the PrometheusRule for this service.</div>
           ) : (

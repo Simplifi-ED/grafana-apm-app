@@ -299,7 +299,6 @@ export function IssuesTable({ namespace, service, environment, compact = false }
           error ? 'Failed to load issues' : data?.unavailable && !data?.hint ? 'Issue telemetry is not available' : null
         }
         empty={groups.length === 0}
-        loadingText="Loading issues…"
         emptyTitle={
           data?.hint?.includes('serviceAliases')
             ? 'Configure service alias'

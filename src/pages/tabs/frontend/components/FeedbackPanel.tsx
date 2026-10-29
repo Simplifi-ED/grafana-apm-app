@@ -59,7 +59,6 @@ export function FeedbackPanel({ namespace, service, environment, clickStack = fa
               : null
         }
         empty={entries.length === 0}
-        loadingText="Loading feedback…"
         emptyTitle={emptyTitle}
         emptyMessage={data?.hint ? data.hint : 'No feedback for this service in the selected time range.'}
       >

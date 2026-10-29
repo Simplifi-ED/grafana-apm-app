@@ -120,7 +120,6 @@ export function TraceBreakdowns({
               : null
         }
         empty={rows.length === 0}
-        loadingText="Loading breakdown…"
         emptyTitle="No data"
         emptyMessage="No spans for this dimension in the selected time range."
       >

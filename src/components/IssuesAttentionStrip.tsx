@@ -2,7 +2,7 @@ import React from 'react';
 import { Button, Icon, useStyles2 } from '@grafana/ui';
 import { GrafanaTheme2 } from '@grafana/data';
 import { css } from '@emotion/css';
-import { IssuesAttention } from '../api/client';
+import { IssuesAttention, NamespaceServiceAttention } from '../api/client';
 import { typographyFontSize } from '../utils/themeTypography';
 
 interface IssuesAttentionStripProps {
@@ -10,13 +10,28 @@ interface IssuesAttentionStripProps {
   loading?: boolean;
   onViewIssues: () => void;
   onViewAlerts?: () => void;
+  /** Optional per-service breakdown (namespace rollup). */
+  byService?: NamespaceServiceAttention[];
+  /** When true, mention that the namespace probe was capped. */
+  truncated?: boolean;
+  scanned?: number;
+  viewLabel?: string;
 }
 
 /**
- * Overview attention strip for new / returned-after-resolve issue counts
- * (post-parity letter D). Hidden when both counts are zero.
+ * Overview / namespace attention strip for new / returned-after-resolve issue
+ * counts (post-parity letter D). Hidden when both counts are zero.
  */
-export function IssuesAttentionStrip({ attention, loading, onViewIssues, onViewAlerts }: IssuesAttentionStripProps) {
+export function IssuesAttentionStrip({
+  attention,
+  loading,
+  onViewIssues,
+  onViewAlerts,
+  byService,
+  truncated,
+  scanned,
+  viewLabel = 'View Issues',
+}: IssuesAttentionStripProps) {
   const styles = useStyles2(getStyles);
   if (loading || !attention) {
     return null;
@@ -34,16 +49,30 @@ export function IssuesAttentionStrip({ attention, loading, onViewIssues, onViewA
     parts.push(`${returnedAfterResolve} returned after resolve`);
   }
 
+  const topServices = (byService ?? []).slice(0, 3);
+  let scopeDetail = 'in the current time range.';
+  if (topServices.length > 0) {
+    const names = topServices.map((s) => s.service).join(', ');
+    const more =
+      (byService?.length ?? 0) > topServices.length ? ` +${(byService?.length ?? 0) - topServices.length} more` : '';
+    scopeDetail = `across ${byService?.length ?? 0} service${(byService?.length ?? 0) === 1 ? '' : 's'} (${names}${more}).`;
+    if (truncated && scanned != null) {
+      scopeDetail += ` Scanned top ${scanned} by traffic.`;
+    }
+  }
+
   return (
-    <div className={styles.strip} role="status">
+    <div className={styles.strip} role="status" data-testid="issues-attention-strip">
       <Icon name="exclamation-circle" className={styles.icon} />
       <div className={styles.body}>
         <div className={styles.title}>Issues needing attention</div>
-        <div className={styles.detail}>{parts.join(' · ')} in the current time range.</div>
+        <div className={styles.detail}>
+          {parts.join(' · ')} {scopeDetail}
+        </div>
       </div>
       <div className={styles.actions}>
         <Button size="sm" variant="secondary" onClick={onViewIssues}>
-          View Issues
+          {viewLabel}
         </Button>
         {onViewAlerts && (
           <Button size="sm" variant="secondary" fill="outline" onClick={onViewAlerts}>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { useStyles2, useTheme2, LoadingPlaceholder, Alert, Icon, Badge } from '@grafana/ui';
+import { useStyles2, useTheme2, Alert, Icon, Badge } from '@grafana/ui';
 import { GrafanaTheme2 } from '@grafana/data';
 import { css } from '@emotion/css';
 import {
@@ -15,6 +15,7 @@ import {
 } from '../../api/client';
 import { useFetch } from '../../utils/useFetch';
 import { typographyFontSize } from '../../utils/themeTypography';
+import { CardGridSkeleton } from '../../components/Skeleton';
 
 interface RuntimeTabProps {
   service: string;
@@ -32,7 +33,7 @@ export function RuntimeTab({ service, namespace, environment, fromMs, toMs }: Ru
   );
 
   if (loading) {
-    return <LoadingPlaceholder text="Detecting runtime metrics..." />;
+    return <CardGridSkeleton cards={6} minCardWidth={200} cardHeight={120} />;
   }
 
   if (error) {

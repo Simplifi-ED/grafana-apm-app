@@ -9,10 +9,12 @@ import {
   getServiceMap,
   getNamespaceDependencies,
   getNamespaceAlerts,
+  getNamespaceIssuesAttention,
   ServiceSummary,
   ServiceMapResponse,
   NamespaceDependenciesResponse,
   NamespaceAlertsResponse,
+  NamespaceIssuesAttentionResponse,
 } from '../api/client';
 import { useTimeRange } from '../utils/timeRange';
 import { useAppNavigate, sanitizeParam } from '../utils/navigation';
@@ -24,6 +26,8 @@ import { CopyMermaidButton } from '../components/CopyMermaidButton';
 import { PageHeader } from '../components/PageHeader';
 import { HeaderTimeControls } from '../components/HeaderTimeControls';
 import { DataState } from '../components/DataState';
+import { IssuesAttentionStrip } from '../components/IssuesAttentionStrip';
+import { TableSkeleton } from '../components/Skeleton';
 import { NamespaceStats } from './namespace/NamespaceStats';
 import { NeedsAttention } from './namespace/NeedsAttention';
 import { NamespaceServicesTable } from './namespace/NamespaceServicesTable';
@@ -96,6 +100,17 @@ function NamespaceOverview() {
     [decodedNs]
   );
 
+  // Issues attention rollup (server-side capped fan-out — no client N+1)
+  const attentionEnv = envFilters.length === 1 ? envFilters[0] : undefined;
+  const {
+    data: issuesAttention,
+    loading: issuesAttentionLoading,
+    refetch: refetchIssuesAttention,
+  } = useFetch<NamespaceIssuesAttentionResponse>(
+    () => getNamespaceIssuesAttention(decodedNs, fromMs, toMs, attentionEnv),
+    [decodedNs, fromMs, toMs, attentionEnv]
+  );
+
   // Auto-refresh. For relative ranges (now-1h), re-resolving the range updates
   // fromMs/toMs and every time-scoped useFetch above refetches via its deps.
   // Alerts have no time-range dependency, so they are refetched explicitly.
@@ -109,7 +124,17 @@ function NamespaceOverview() {
     refetchSparklines();
     refetchMap();
     refetchDeps();
-  }, [isRelativeRange, refreshTimeRange, refetchAlerts, refetchServices, refetchSparklines, refetchMap, refetchDeps]);
+    refetchIssuesAttention();
+  }, [
+    isRelativeRange,
+    refreshTimeRange,
+    refetchAlerts,
+    refetchServices,
+    refetchSparklines,
+    refetchMap,
+    refetchDeps,
+    refetchIssuesAttention,
+  ]);
 
   const allServices = useMemo(() => (fetchResult ?? []).filter((s) => !s.isSidecar), [fetchResult]);
 
@@ -211,6 +236,20 @@ function NamespaceOverview() {
     );
   }, [appNavigate, decodedNs, envFilters]);
 
+  const handleViewAttentionIssues = useCallback(() => {
+    const top = issuesAttention?.byService?.[0]?.service;
+    if (!top) {
+      handleStatusBoard();
+      return;
+    }
+    const svc = services.find((s) => s.name === top);
+    const env = svc?.environment || attentionEnv || (envFilters.length === 1 ? envFilters[0] : undefined);
+    appNavigate(`namespaces/${encodeURIComponent(decodedNs)}/services/${encodeURIComponent(top)}`, {
+      tab: 'issues',
+      ...(env ? { environment: env } : {}),
+    });
+  }, [issuesAttention, services, appNavigate, decodedNs, attentionEnv, envFilters, handleStatusBoard]);
+
   return (
     <PluginPage layout={PageLayoutType.Canvas}>
       <div className={styles.container}>
@@ -250,10 +289,20 @@ function NamespaceOverview() {
               .
             </>
           }
-          loadingText="Loading namespace data..."
+          skeleton={<TableSkeleton rows={10} />}
         >
           {/* Stats tiles */}
           <NamespaceStats services={services} previousMap={previousMap} sparklineMap={sparklineMap} />
+
+          <IssuesAttentionStrip
+            attention={issuesAttention?.attention}
+            loading={issuesAttentionLoading}
+            byService={issuesAttention?.byService}
+            truncated={issuesAttention?.truncated}
+            scanned={issuesAttention?.scanned}
+            viewLabel="Open top service"
+            onViewIssues={handleViewAttentionIssues}
+          />
 
           {/* Needs attention — unhealthy services */}
           <NeedsAttention

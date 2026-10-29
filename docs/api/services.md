@@ -263,6 +263,7 @@ as unstable and consult the Go source (`pkg/plugin/`) for field-level detail.
 | `GET /dependencies/{name}` | `{ dependency, upstreams, operations }` | One external dependency and its callers. Not cached. |
 | `GET /namespaces/{namespace}/dependencies` | `{ dependencies: [NamespaceDependency] }` | Dependencies for a namespace. |
 | `GET /namespaces/{namespace}/alerts` | `{ rules: [AlertRuleSummary], unavailable?, errorMessage? }` | Merged Mimir + Grafana alert rules for a namespace. Not cached. Does not enforce GET. |
+| `GET /namespaces/{namespace}/issues-attention` | `{ attention, byService, truncated?, scanned }` | Namespace rollup of new / returned-after-resolve issue counts. Caps fan-out (top ~25 by traffic, concurrency 4). |
 | `GET /ops-watchlist`, `POST /ops-watchlist` | JSON array of `{ namespace, service }` | Read/replace the ops watchlist stored in plugin settings. POST body is a JSON array (≤1 MB). Not cached. |
 
 ### Example (dependencies)

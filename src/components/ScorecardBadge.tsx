@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { css, cx } from '@emotion/css';
 import { AppEvents, GrafanaTheme2 } from '@grafana/data';
 import { getAppEvents, locationService } from '@grafana/runtime';
@@ -7,6 +7,7 @@ import { getScorecard, ScorecardCheck, ScorecardResponse } from '../api/scorecar
 import { buildAlertRuleUrl, getAlertTemplate } from '../api/client';
 import { useFetch } from '../utils/useFetch';
 import { typographyFontSize } from '../utils/themeTypography';
+import { applyScorecardOverrides, getScorecardNaOverrides, setScorecardNaOverride } from '../utils/scorecardOverrides';
 
 interface ScorecardBadgeProps {
   namespace: string;
@@ -25,16 +26,40 @@ export function ScorecardBadge({ namespace, service, environment }: ScorecardBad
     () => getScorecard(namespace, service, environment),
     [namespace, service, environment]
   );
+  const [overrideTick, setOverrideTick] = useState(0);
+  const overrides = useMemo(() => {
+    void overrideTick;
+    return getScorecardNaOverrides(namespace, service, environment);
+  }, [namespace, service, environment, overrideTick]);
 
-  if (!data || !data.readiness || data.readiness.total === 0) {
+  const display = useMemo(() => (data ? applyScorecardOverrides(data, overrides) : null), [data, overrides]);
+
+  const onToggleNa = useCallback(
+    (checkKey: string, notApplicable: boolean) => {
+      setScorecardNaOverride(namespace, service, checkKey, notApplicable, environment);
+      setOverrideTick((n) => n + 1);
+    },
+    [namespace, service, environment]
+  );
+
+  if (!display || !display.readiness || display.readiness.total === 0) {
     return null;
   }
-  const { score, total } = data.readiness;
+  const { score, total } = display.readiness;
   const tone = score === total ? styles.good : score * 2 >= total ? styles.partial : styles.low;
 
   return (
     <Toggletip
-      content={<ScorecardDetails data={data} namespace={namespace} service={service} environment={environment} />}
+      content={
+        <ScorecardDetails
+          data={display}
+          namespace={namespace}
+          service={service}
+          environment={environment}
+          overrides={overrides}
+          onToggleNa={onToggleNa}
+        />
+      }
       placement="bottom"
     >
       <button type="button" className={cx(styles.badge, tone)} data-testid="scorecard-badge">
@@ -50,35 +75,59 @@ function ScorecardDetails({
   namespace,
   service,
   environment,
-}: { data: ScorecardResponse } & ScorecardBadgeProps) {
+  overrides,
+  onToggleNa,
+}: {
+  data: ScorecardResponse;
+  overrides: Set<string>;
+  onToggleNa: (key: string, na: boolean) => void;
+} & ScorecardBadgeProps) {
   const styles = useStyles2(getStyles);
   return (
     <div className={styles.details} data-testid="scorecard-details">
       <div className={styles.sectionTitle}>Observability readiness</div>
       <ul className={styles.checkList}>
-        {data.readiness.checks.map((check) => (
-          <li key={check.key} className={cx(styles.check, check.notApplicable && styles.checkNotApplicable)}>
-            <span
-              className={
-                check.notApplicable ? styles.checkIconNA : check.ok ? styles.checkIconOk : styles.checkIconMissing
-              }
-              role="img"
-              aria-label={check.notApplicable ? 'Not applicable' : check.ok ? 'Enabled' : 'Not enabled'}
-            >
-              <Icon name={check.notApplicable ? 'minus-circle' : check.ok ? 'check-circle' : 'circle'} size="sm" />
-            </span>
-            <div>
-              {check.label}
-              {check.notApplicable && <span className={styles.naTag}>N/A</span>}
-              {!check.ok && (
-                <div className={styles.hint}>
-                  {check.hint}
-                  <CheckActions check={check} namespace={namespace} service={service} environment={environment} />
-                </div>
-              )}
-            </div>
-          </li>
-        ))}
+        {data.readiness.checks.map((check) => {
+          const manuallyNa = overrides.has(check.key);
+          return (
+            <li key={check.key} className={cx(styles.check, check.notApplicable && styles.checkNotApplicable)}>
+              <span
+                className={
+                  check.notApplicable ? styles.checkIconNA : check.ok ? styles.checkIconOk : styles.checkIconMissing
+                }
+                role="img"
+                aria-label={check.notApplicable ? 'Not applicable' : check.ok ? 'Enabled' : 'Not enabled'}
+              >
+                <Icon name={check.notApplicable ? 'minus-circle' : check.ok ? 'check-circle' : 'circle'} size="sm" />
+              </span>
+              <div>
+                {check.label}
+                {check.notApplicable && <span className={styles.naTag}>N/A</span>}
+                {check.hint && (check.notApplicable || !check.ok) && (
+                  <div className={styles.hint}>
+                    {check.hint}
+                    {!check.notApplicable && (
+                      <CheckActions check={check} namespace={namespace} service={service} environment={environment} />
+                    )}
+                  </div>
+                )}
+                {manuallyNa && <div className={styles.hint}>Local override — excluded from score on this browser.</div>}
+                {(!check.ok && !check.notApplicable) || manuallyNa ? (
+                  <div className={styles.actions} data-testid={`check-na-${check.key}`}>
+                    <Button
+                      variant="secondary"
+                      fill="text"
+                      size="sm"
+                      onClick={() => onToggleNa(check.key, !manuallyNa)}
+                    >
+                      {manuallyNa ? 'Clear N/A override' : 'Mark N/A'}
+                    </Button>
+                  </div>
+                ) : null}
+              </div>
+            </li>
+          );
+        })}
       </ul>
     </div>
   );

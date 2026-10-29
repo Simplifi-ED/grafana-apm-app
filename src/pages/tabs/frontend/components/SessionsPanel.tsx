@@ -84,7 +84,6 @@ export function SessionsPanel({ namespace, service, environment, clickStack = fa
               : null
         }
         empty={sessions.length === 0}
-        loadingText="Loading sessions…"
         emptyTitle={data?.hint?.includes('serviceAliases') ? 'Configure service alias' : 'No sessions'}
         emptyMessage={
           data?.hint

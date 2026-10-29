@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useCallback } from 'react';
-import { useStyles2, LoadingPlaceholder, Alert, Icon, Badge, Input, IconButton } from '@grafana/ui';
+import { useStyles2, Alert, Icon, Badge, Input, IconButton } from '@grafana/ui';
 import { GrafanaTheme2 } from '@grafana/data';
 import { css } from '@emotion/css';
 import {
@@ -14,6 +14,7 @@ import { formatDuration } from '../../utils/format';
 import { useFetch } from '../../utils/useFetch';
 import { useUrlString, useUrlNumber } from '../../utils/useUrlState';
 import { typographyFontSize } from '../../utils/themeTypography';
+import { TableSkeleton } from '../../components/Skeleton';
 
 interface ServerTabProps {
   service: string;
@@ -48,7 +49,7 @@ export function ServerTab({ service, namespace, fromMs, toMs, environment, onVie
   }, [service, namespace, fromMs, toMs, environment]);
 
   if (loading) {
-    return <LoadingPlaceholder text="Loading endpoints..." />;
+    return <TableSkeleton rows={10} />;
   }
 
   if (error) {

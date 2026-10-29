@@ -436,6 +436,40 @@ export async function getNamespaceAlerts(namespace: string): Promise<NamespaceAl
   return fetchResource<NamespaceAlertsResponse>(`/namespaces/${encodeURIComponent(namespace)}/alerts`);
 }
 
+// ---- Namespace issues attention (rollup; no client N+1) ----
+
+export interface NamespaceServiceAttention {
+  service: string;
+  new: number;
+  returnedAfterResolve: number;
+}
+
+export interface NamespaceIssuesAttentionResponse {
+  attention: IssuesAttention;
+  byService: NamespaceServiceAttention[];
+  /** True when more services existed than the server probe cap. */
+  truncated?: boolean;
+  scanned: number;
+}
+
+export async function getNamespaceIssuesAttention(
+  namespace: string,
+  from: number,
+  to: number,
+  environment?: string
+): Promise<NamespaceIssuesAttentionResponse> {
+  const params: Record<string, string> = {
+    ...timeParams(from, to),
+  };
+  if (environment) {
+    params.environment = environment;
+  }
+  return fetchResource<NamespaceIssuesAttentionResponse>(
+    `/namespaces/${encodeURIComponent(namespace)}/issues-attention`,
+    params
+  );
+}
+
 // ---- Alert rule templates (#65 Phase 1) ----
 
 export type AlertTemplateKind =

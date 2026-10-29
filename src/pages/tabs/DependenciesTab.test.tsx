@@ -89,7 +89,7 @@ describe('DependenciesTab', () => {
       <DependenciesTab service="my-service" callersLoading={true} depsLoading={true} onNavigateService={noop} />
     );
 
-    expect(screen.getByText(/Loading callers and dependencies/)).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: /loading/i })).toBeInTheDocument();
   });
 
   it('navigates on caller row click (service rows only)', () => {
