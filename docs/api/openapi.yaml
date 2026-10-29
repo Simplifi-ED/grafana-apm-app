@@ -840,6 +840,20 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ScorecardResponse" }
 
+  /services/{namespace}/{service}/ownership:
+    get:
+      tags: [experimental]
+      summary: Service ownership directory (team/contact/repo/runbook).
+      parameters:
+        - { $ref: "#/components/parameters/namespacePath" }
+        - { $ref: "#/components/parameters/servicePath" }
+      responses:
+        "200":
+          description: Ownership DTO (telemetry then annotation).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Ownership" }
+
   /services/{namespace}/{service}/alerts:
     get:
       tags: [experimental]
@@ -1032,7 +1046,7 @@ paths:
   /namespaces/{namespace}/scorecard:
     get:
       tags: [experimental]
-      summary: Namespace readiness rollup (sum of per-service score/total; capped fan-out). ClickStack-native team view without Console ownership.
+      summary: Namespace readiness rollup (sum of per-service score/total; capped fan-out).
       parameters:
         - { $ref: "#/components/parameters/namespacePath" }
         - { $ref: "#/components/parameters/from" }
@@ -1059,6 +1073,36 @@ paths:
                         total: { type: integer }
                   scanned: { type: integer }
                   truncated: { type: boolean }
+
+  /namespaces/{namespace}/ownership:
+    get:
+      tags: [experimental]
+      summary: Ownership map for services in a namespace (coverage + per-service DTO).
+      parameters:
+        - { $ref: "#/components/parameters/namespacePath" }
+        - { $ref: "#/components/parameters/from" }
+        - { $ref: "#/components/parameters/to" }
+        - { $ref: "#/components/parameters/environment" }
+      responses:
+        "200":
+          description: Namespace ownership rollup.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/NamespaceOwnershipResponse" }
+
+  /ownership/coverage:
+    get:
+      tags: [experimental]
+      summary: Fleet ownership coverage and unowned service list.
+      parameters:
+        - { $ref: "#/components/parameters/from" }
+        - { $ref: "#/components/parameters/to" }
+      responses:
+        "200":
+          description: Fleet hygiene.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FleetOwnershipResponse" }
 
   /alert-templates/{kind}:
     get:
@@ -1628,6 +1672,68 @@ components:
                   ok: { type: boolean }
                   hint: { type: string }
                   notApplicable: { type: boolean }
+
+    Ownership:
+      type: object
+      properties:
+        team: { type: string }
+        contact: { type: string }
+        repo: { type: string }
+        runbook: { type: string }
+        source: { type: string, enum: [telemetry, annotation, claimed] }
+        lastSeenMs: { type: integer, format: int64 }
+        stale: { type: boolean }
+        teamKnown: { type: boolean }
+        unavailable: { type: boolean, description: Lookup failed (not the same as unowned) }
+        conflict:
+          type: object
+          properties:
+            winner: { type: string }
+            losers:
+              type: array
+              items:
+                type: object
+                properties:
+                  source: { type: string }
+                  fields: { type: object }
+        emptyHint:
+          type: object
+          properties:
+            attrs: { type: array, items: { type: string } }
+            snippet: { type: string }
+            docPath: { type: string }
+
+    NamespaceOwnershipResponse:
+      type: object
+      properties:
+        services:
+          type: object
+          additionalProperties: { $ref: "#/components/schemas/Ownership" }
+        owned: { type: integer }
+        total: { type: integer }
+        coverage: { type: number }
+        truncated: { type: boolean }
+        scanned: { type: integer }
+
+    FleetOwnershipResponse:
+      type: object
+      properties:
+        owned: { type: integer }
+        total: { type: integer }
+        coverage: { type: number }
+        unowned:
+          type: array
+          items:
+            type: object
+            properties:
+              namespace: { type: string }
+              service: { type: string }
+        byTeam:
+          type: object
+          additionalProperties: { type: integer }
+        services:
+          type: object
+          additionalProperties: { $ref: "#/components/schemas/Ownership" }
     JobsResponse:
       type: object
       properties:

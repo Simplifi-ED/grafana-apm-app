@@ -1,8 +1,9 @@
 import React, { useMemo } from 'react';
-import { Icon, Input, Pagination, RadioButtonGroup, useStyles2, useTheme2 } from '@grafana/ui';
+import { Icon, Input, MultiCombobox, Pagination, RadioButtonGroup, useStyles2, useTheme2 } from '@grafana/ui';
 import { GrafanaTheme2 } from '@grafana/data';
 import { css } from '@emotion/css';
 import { ServiceSummary } from '../../api/client';
+import { Ownership } from '../../api/ownership';
 import { formatDuration } from '../../utils/format';
 import { useTableSort, SortHeader, getTableStyles } from '../../components/SortableTable';
 import { FrameworkBadge } from '../../components/FrameworkBadge';
@@ -14,7 +15,7 @@ import { typographyFontSize } from '../../utils/themeTypography';
 
 const PAGE_SIZE = 10;
 
-type SortField = 'name' | 'rate' | 'errorRate' | 'p95Duration';
+type SortField = 'name' | 'rate' | 'errorRate' | 'p95Duration' | 'team';
 
 const HEALTH_FILTER_OPTIONS = [
   { label: 'All', value: '' },
@@ -25,6 +26,11 @@ interface NamespaceServicesTableProps {
   services: ServiceSummary[];
   sparklineMap?: Map<string, ServiceSummary>;
   previousMap?: Map<string, ServiceSummary>;
+  ownershipByService?: Record<string, Ownership>;
+  teamFilters?: string[];
+  /** When true, team filter is disabled (ownership scan capped). */
+  ownershipTruncated?: boolean;
+  onTeamFiltersChange?: (teams: string[]) => void;
   showEnvironment?: boolean;
   search: string;
   healthFilter?: string;
@@ -39,6 +45,10 @@ export function NamespaceServicesTable({
   services,
   sparklineMap,
   previousMap,
+  ownershipByService,
+  teamFilters = [],
+  ownershipTruncated,
+  onTeamFiltersChange,
   showEnvironment,
   search,
   healthFilter,
@@ -54,6 +64,16 @@ export function NamespaceServicesTable({
   const sc = sparklineColors(theme);
   const { sortField, sortDir, toggleSort, comparator } = useTableSort<SortField>('rate');
 
+  const teamOptions = useMemo(() => {
+    const teams = new Set<string>();
+    for (const own of Object.values(ownershipByService ?? {})) {
+      if (own.team) {
+        teams.add(own.team);
+      }
+    }
+    return [...teams].sort().map((t) => ({ label: t, value: t }));
+  }, [ownershipByService]);
+
   const filtered = useMemo(() => {
     let result = services;
     if (search) {
@@ -63,8 +83,24 @@ export function NamespaceServicesTable({
     if (healthFilter === 'unhealthy') {
       result = result.filter((s) => getServiceHealth(s.errorRate, s.p95Duration, s.durationUnit) !== 'healthy');
     }
-    return [...result].sort(comparator);
-  }, [services, search, healthFilter, comparator]);
+    if (teamFilters.length > 0) {
+      result = result.filter((s) => {
+        const team = ownershipByService?.[s.name]?.team;
+        return team != null && teamFilters.includes(team);
+      });
+    }
+    const sorted = [...result];
+    if (sortField === 'team') {
+      sorted.sort((a, b) => {
+        const ta = ownershipByService?.[a.name]?.team ?? '';
+        const tb = ownershipByService?.[b.name]?.team ?? '';
+        const cmp = ta.localeCompare(tb);
+        return sortDir === 'asc' ? cmp : -cmp;
+      });
+      return sorted;
+    }
+    return sorted.sort(comparator);
+  }, [services, search, healthFilter, teamFilters, ownershipByService, comparator, sortField, sortDir]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -88,23 +124,35 @@ export function NamespaceServicesTable({
           onChange={onHealthFilterChange}
           size="sm"
         />
+        {ownershipTruncated && <span className={styles.count}>Team filter unavailable (ownership scan truncated)</span>}
+        {onTeamFiltersChange && !ownershipTruncated && (teamOptions.length > 0 || teamFilters.length > 0) && (
+          <MultiCombobox
+            options={teamOptions.length > 0 ? teamOptions : teamFilters.map((t) => ({ label: t, value: t }))}
+            value={teamFilters}
+            onChange={(selected) => onTeamFiltersChange(selected.map((o) => o.value).filter(Boolean) as string[])}
+            placeholder="All teams"
+            width={24}
+          />
+        )}
         <span className={styles.count}>
           {filtered.length} {filtered.length === 1 ? 'service' : 'services'}
         </span>
       </div>
       <table className={tableStyles.table}>
         <colgroup>
-          <col style={{ width: showEnvironment ? '35%' : '40%' }} />
+          <col style={{ width: showEnvironment ? '28%' : '32%' }} />
           {showEnvironment && <col style={{ width: '8%' }} />}
           <col style={{ width: '12%' }} />
-          <col style={{ width: '12%' }} />
           <col style={{ width: '10%' }} />
-          <col style={{ width: showEnvironment ? '23%' : '26%' }} />
+          <col style={{ width: '10%' }} />
+          <col style={{ width: '10%' }} />
+          <col style={{ width: showEnvironment ? '22%' : '26%' }} />
         </colgroup>
         <thead>
           <tr>
             <SortHeader field="name" label="Service" sortField={sortField} sortDir={sortDir} onSort={toggleSort} />
             {showEnvironment && <th>Environment</th>}
+            <SortHeader field="team" label="Team" sortField={sortField} sortDir={sortDir} onSort={toggleSort} />
             <SortHeader field="rate" label="Rate" sortField={sortField} sortDir={sortDir} onSort={toggleSort} />
             <SortHeader field="errorRate" label="Error %" sortField={sortField} sortDir={sortDir} onSort={toggleSort} />
             <SortHeader field="p95Duration" label="P95" sortField={sortField} sortDir={sortDir} onSort={toggleSort} />
@@ -119,6 +167,7 @@ export function NamespaceServicesTable({
             const health = getServiceHealth(svc.errorRate, svc.p95Duration, svc.durationUnit);
             const errArrow = deltaArrow(svc.errorRate, prev?.errorRate);
             const p95Arrow = deltaArrow(svc.p95Duration, prev?.p95Duration);
+            const team = ownershipByService?.[svc.name]?.team;
 
             return (
               <tr
@@ -134,6 +183,7 @@ export function NamespaceServicesTable({
                   </div>
                 </td>
                 {showEnvironment && <td>{svc.environment ?? '—'}</td>}
+                <td className={styles.teamCell}>{team || '—'}</td>
                 <td className={tableStyles.numCell}>{svc.rate.toFixed(2)} req/s</td>
                 <td className={svc.errorRate > 0 ? tableStyles.errorCell : tableStyles.numCell}>
                   {svc.errorRate.toFixed(2)}%{errArrow && <span className={styles.arrow}> {errArrow}</span>}
@@ -187,6 +237,10 @@ const getLocalStyles = (theme: GrafanaTheme2) => ({
     margin-bottom: ${theme.spacing(1.5)};
   `,
   count: css`
+    color: ${theme.colors.text.secondary};
+    font-size: ${typographyFontSize(theme, 'sm')};
+  `,
+  teamCell: css`
     color: ${theme.colors.text.secondary};
     font-size: ${typographyFontSize(theme, 'sm')};
   `,

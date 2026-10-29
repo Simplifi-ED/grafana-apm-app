@@ -95,14 +95,24 @@ An observability-readiness scorecard for a service. Score is
 Base checks: `spanMetrics`, `traces`, `logs`, `runtimeMetrics`,
 `browserTelemetry`, `alertRules`, plus `graphql` (N/A until enablement),
 `jobs`, `profiling`, `deployMarkers` (Grafana annotations tagged
-`clickhouse-apm:deploy`, 30d lookback). ClickStack v2 (letter F): `sourcemaps`
+`clickhouse-apm:deploy`, 30d lookback), `hasOwner` (see [ownership.md](../ownership.md)).
+ClickStack v2 (letter F): `sourcemaps`
 (browser-only), `database` (N/A without `db.system`), `messagingOrWorkflow`
 (N/A without messaging or Temporal signals), `structuredLogs` (N/A without
 logs; requires ADR-0002 `exception.type` + `exception.stacktrace`).
 
 Namespace rollup: `GET /namespaces/{namespace}/scorecard` sums per-service
-`score`/`total` (capped fan-out). Console ownership metadata stays out of scope
-(no Console source on Simplifi-ED).
+`score`/`total` (capped fan-out).
+
+## Ownership
+
+`GET /services/{namespace}/{service}/ownership` — directory entry
+(team/contact/repo/runbook). Precedence: telemetry → annotation. See
+[ownership.md](../ownership.md).
+
+`GET /namespaces/{namespace}/ownership` — map + coverage for a namespace.
+
+`GET /ownership/coverage` — fleet owned/total, unowned list, byTeam.
 
 ### Example
 

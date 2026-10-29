@@ -57,7 +57,7 @@ export interface NamespaceServiceScorecard {
   total: number;
 }
 
-/** Namespace readiness rollup (team view without Console ownership). */
+/** Namespace readiness rollup (namespace ≈ team). */
 export interface NamespaceScorecardResponse {
   score: number;
   total: number;

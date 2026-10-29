@@ -265,6 +265,9 @@ as unstable and consult the Go source (`pkg/plugin/`) for field-level detail.
 | `GET /namespaces/{namespace}/alerts` | `{ rules: [AlertRuleSummary], unavailable?, errorMessage? }` | Merged Mimir + Grafana alert rules for a namespace. Not cached. Does not enforce GET. |
 | `GET /namespaces/{namespace}/issues-attention` | `{ attention, byService, truncated?, scanned }` | Namespace rollup of new / returned-after-resolve issue counts. Caps fan-out (top ~25 by traffic, concurrency 4). |
 | `GET /namespaces/{namespace}/scorecard` | `{ score, total, services, truncated?, scanned }` | Namespace readiness rollup (sum of per-service scorecards). Weakest services first. |
+| `GET /services/{namespace}/{service}/ownership` | `Ownership` | Service ownership directory (telemetry then annotation). |
+| `GET /namespaces/{namespace}/ownership` | `{ services, owned, total, coverage, … }` | Namespace ownership map + coverage. |
+| `GET /ownership/coverage` | `{ owned, total, coverage, unowned, byTeam }` | Fleet ownership hygiene. |
 | `GET /ops-watchlist`, `POST /ops-watchlist` | JSON array of `{ namespace, service }` | Read/replace the ops watchlist stored in plugin settings. POST body is a JSON array (≤1 MB). Not cached. |
 
 ### Example (dependencies)

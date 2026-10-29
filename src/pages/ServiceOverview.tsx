@@ -10,6 +10,9 @@ import { useSceneTimeSync } from '../utils/useSceneTimeSync';
 import { buildTempoExploreUrl, buildLokiExploreUrl } from '../utils/explore';
 import { FrameworkBadge } from '../components/FrameworkBadge';
 import { ScorecardBadge } from '../components/ScorecardBadge';
+import { OwnershipCard } from '../components/OwnershipCard';
+import { getOwnership, Ownership } from '../api/ownership';
+import { useFetch } from '../utils/useFetch';
 import { PageHeader } from '../components/PageHeader';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { DataState } from '../components/DataState';
@@ -195,6 +198,10 @@ function ServiceOverviewInner({ namespace, service }: { namespace: string; servi
     health,
     healthLoading,
   } = useServiceData({ service, namespace, envFilter, fromMs, toMs });
+  const { data: ownership, loading: ownershipLoading } = useFetch<Ownership>(
+    () => getOwnership(namespace, service),
+    [namespace, service]
+  );
 
   const percentileLabel = PERCENTILE_OPTIONS.find((o) => o.value === percentile)?.label ?? 'P95';
 
@@ -311,6 +318,7 @@ function ServiceOverviewInner({ namespace, service }: { namespace: string; servi
           after={
             <>
               {framework ? <FrameworkBadge framework={framework} /> : null}
+              <OwnershipCard data={ownership ?? null} loading={ownershipLoading} compact />
               <ScorecardBadge namespace={namespace} service={service} environment={envFilter || undefined} />
             </>
           }

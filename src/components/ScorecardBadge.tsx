@@ -4,10 +4,12 @@ import { AppEvents, GrafanaTheme2 } from '@grafana/data';
 import { getAppEvents, locationService } from '@grafana/runtime';
 import { Button, Icon, Toggletip, useStyles2 } from '@grafana/ui';
 import { getScorecard, ScorecardCheck, ScorecardResponse } from '../api/scorecard';
+import { getOwnership, Ownership } from '../api/ownership';
 import { buildAlertRuleUrl, getAlertTemplate } from '../api/client';
 import { useFetch } from '../utils/useFetch';
 import { typographyFontSize } from '../utils/themeTypography';
 import { applyScorecardOverrides, getScorecardNaOverrides, setScorecardNaOverride } from '../utils/scorecardOverrides';
+import { OwnershipCard } from './OwnershipCard';
 
 interface ScorecardBadgeProps {
   namespace: string;
@@ -91,8 +93,15 @@ function ScorecardDetails({
   onToggleNa: (key: string, na: boolean) => void;
 } & ScorecardBadgeProps) {
   const styles = useStyles2(getStyles);
+  const { data: ownership, loading: ownershipLoading } = useFetch<Ownership>(
+    () => getOwnership(namespace, service),
+    [namespace, service]
+  );
   return (
     <div className={styles.details} data-testid="scorecard-details">
+      <div className={styles.ownershipWrap}>
+        <OwnershipCard data={ownership ?? null} loading={ownershipLoading} />
+      </div>
       <div className={styles.sectionTitle}>Observability readiness</div>
       <ul className={styles.checkList}>
         {data.readiness.checks.map((check) => {
@@ -208,6 +217,9 @@ const getStyles = (theme: GrafanaTheme2) => ({
   details: css`
     max-width: 360px;
     font-size: ${typographyFontSize(theme, 'sm')};
+  `,
+  ownershipWrap: css`
+    margin-bottom: ${theme.spacing(1)};
   `,
   sectionTitle: css`
     font-weight: ${theme.typography.fontWeightMedium};

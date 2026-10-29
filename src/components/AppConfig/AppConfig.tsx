@@ -3,7 +3,18 @@ import { lastValueFrom } from 'rxjs';
 import { css } from '@emotion/css';
 import { AppPluginMeta, GrafanaTheme2, PluginConfigPageProps, PluginMeta } from '@grafana/data';
 import { getBackendSrv } from '@grafana/runtime';
-import { Alert, Button, Field, FieldSet, IconButton, Input, SecretInput, Combobox, useStyles2 } from '@grafana/ui';
+import {
+  Alert,
+  Button,
+  Field,
+  FieldSet,
+  IconButton,
+  Input,
+  SecretInput,
+  Combobox,
+  TextArea,
+  useStyles2,
+} from '@grafana/ui';
 import { testIds } from '../testIds';
 import { Capabilities, getCapabilities, OpsWatchlistEntry } from '../../api/client';
 import { AppPluginSettings, DsRef, EnvAwareDs, LabelOverrides } from '../../types/plugin';
@@ -46,6 +57,8 @@ type State = {
   ingressAliases: IngressAlias[];
   serviceAliases: ServiceAlias[];
   opsWatchlist: OpsWatchlistEntry[];
+  /** Comma-separated known owner.team values (optional allow-list). */
+  knownTeams: string;
   serviceAccountToken: string;
   tokenConfigured: boolean;
   tokenReset: boolean;
@@ -94,6 +107,7 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
       scrape,
     })),
     opsWatchlist: Array.isArray(jsonData?.opsWatchlist) ? jsonData.opsWatchlist : [],
+    knownTeams: Array.isArray(jsonData?.knownTeams) ? jsonData.knownTeams.join('\n') : '',
     serviceAccountToken: '',
     tokenConfigured: secureJsonFields?.serviceAccountToken === true,
     tokenReset: false,
@@ -421,6 +435,14 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
         ingressAliases: Object.keys(ingressAliases).length > 0 ? ingressAliases : undefined,
         serviceAliases: Object.keys(serviceAliases).length > 0 ? serviceAliases : undefined,
         opsWatchlist: opsWatchlist.length > 0 ? opsWatchlist : undefined,
+        knownTeams: (() => {
+          // Newline-separated so team names may contain commas (e.g. "Payments, Billing").
+          const teams = state.knownTeams
+            .split('\n')
+            .map((t) => t.trim())
+            .filter(Boolean);
+          return teams.length > 0 ? teams : undefined;
+        })(),
       },
       secureJsonData: Object.keys(secureJsonData).length > 0 ? secureJsonData : undefined,
     } as any);
@@ -905,6 +927,21 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
         <Button variant="secondary" icon="plus" size="sm" onClick={addWatchlistEntry} type="button">
           Add service
         </Button>
+      </FieldSet>
+
+      <FieldSet label="Service ownership" className={s.marginTop}>
+        <p className={s.description}>
+          Optional allow-list for <code>owner.team</code> values (see docs/ownership.md). Leave empty for free text.
+          Unknown teams still show in the UI but are flagged.
+        </p>
+        <Field label="Known teams" description="One team per line (names may contain commas)">
+          <TextArea
+            rows={3}
+            value={state.knownTeams}
+            placeholder={'platform\nsre\nPayments, Billing'}
+            onChange={(e) => setState((prev) => ({ ...prev, knownTeams: e.currentTarget.value }))}
+          />
+        </Field>
       </FieldSet>
 
       <div className={s.marginTop}>

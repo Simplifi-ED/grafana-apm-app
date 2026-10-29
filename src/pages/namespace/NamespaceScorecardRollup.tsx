@@ -11,10 +11,7 @@ interface NamespaceScorecardRollupProps {
   onServiceClick: (service: string, environment?: string) => void;
 }
 
-/**
- * Namespace readiness rollup — ClickStack-native "team" view (namespace ≈ team)
- * without Console ownership metadata.
- */
+/** Namespace readiness rollup — ClickStack-native team view (namespace ≈ team). */
 export function NamespaceScorecardRollup({ data, loading, onServiceClick }: NamespaceScorecardRollupProps) {
   const styles = useStyles2(getStyles);
   if (loading || !data || data.total === 0) {

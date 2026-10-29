@@ -116,7 +116,7 @@ Tracker: `.scratch/post-parity-hardening/map.md` (ticket **09**/**10**). No new 
 | **E** | Custom signals: CH-native Overview auto-charts | ✅ [#9](https://github.com/Simplifi-ED/grafana-apm-app/pull/9) |
 | **F** | Scorecard v2 depth (sourcemaps, DB, messaging/Temporal, structured-log, probes) | ✅ [#10](https://github.com/Simplifi-ED/grafana-apm-app/pull/10) |
 
-**Closed / skipped:** CH OTel dual-emit “fix” — research (#01) found no ClickStack equivalent (Issues are traces-only); no product work. Console ownership metadata still out (no Console source).
+**Closed / skipped:** CH OTel dual-emit “fix” — research (#01) found no ClickStack equivalent (Issues are traces-only); no product work.
 
 **Shipped after spine:**
 - UI polish: namespace issues-attention; localStorage scorecard N/A; optimistic skeletons

@@ -25,8 +25,7 @@ type NamespaceServiceScorecard struct {
 }
 
 // NamespaceScorecardResponse is GET /namespaces/{namespace}/scorecard.
-// This is the ClickStack-native "team rollup" (namespace ≈ team) without
-// Nais Console ownership metadata.
+// ClickStack-native team rollup (namespace ≈ team).
 type NamespaceScorecardResponse struct {
 	Score     int                         `json:"score"`
 	Total     int                         `json:"total"`

@@ -87,7 +87,16 @@ func (a *App) handleScorecard(w http.ResponseWriter, req *http.Request) {
 	env := parseEnvironment(req)
 
 	orgID := req.Header.Get("X-Grafana-Org-Id")
-	ck := cacheKey("scorecard", orgID, namespace, service, env)
+	// Scope by caller when ownership (and other probes) may run with forwarded
+	// user credentials — otherwise a cache hit can leak another user's CH view.
+	caller := ""
+	if a.resolveServiceToken(ctx) == "" {
+		caller = req.Header.Get("X-Grafana-Id")
+		if caller == "" {
+			caller = req.Header.Get("X-Grafana-User")
+		}
+	}
+	ck := cacheKey("scorecard", orgID, caller, namespace, service, env)
 	headers := req.Header.Clone()
 
 	cache := a.scorecardResponseCache()
@@ -155,6 +164,9 @@ func scorecardBaseChecks() []ScorecardCheck {
 		// clickhouse-apm:deploy — no Nais Console required.
 		{Key: "deployMarkers", Label: "Deploy markers",
 			Hint: "Publish Grafana annotations tagged clickhouse-apm:deploy and service:<name> (CI or nais sync) so Versions and triage can correlate deploys."},
+		// Service ownership directory (docs/ownership.md) — never N/A.
+		{Key: "hasOwner", Label: "Service owner",
+			Hint: "Set owner.team on the workload (OTEL_RESOURCE_ATTRIBUTES) or a clickhouse-apm:owner annotation."},
 	}
 }
 
@@ -215,6 +227,7 @@ func (a *App) computeReadiness(ctx context.Context, headers http.Header, namespa
 
 	a.applyProfilingCheck(ctx, headers, token, checks)
 	a.applyDeployMarkersCheck(ctx, service, env, now, checks)
+	applyHasOwnerCheck(checks, a.resolveOwnership(ctx, headers, namespace, service, now))
 	markScorecardV2NotApplicable(checks, "LGTM path — scorecard v2 depth is ClickStack-only.")
 	return tallyScorecard(checks)
 }
@@ -295,6 +308,7 @@ func (a *App) computeReadinessClickHouse(ctx context.Context, headers http.Heade
 	a.applyProfilingCheck(ctx, headers, token, checks)
 	a.applyDeployMarkersCheck(ctx, service, env, now, checks)
 	a.applyScorecardV2ClickHouse(ctx, headers, token, service, env, from, now, checks)
+	applyHasOwnerCheck(checks, a.resolveOwnership(ctx, headers, namespace, service, now))
 	return tallyScorecard(checks)
 }
 
