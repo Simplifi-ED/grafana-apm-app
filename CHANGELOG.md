@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.29.0](https://github.com/Simplifi-ED/grafana-apm-app/compare/clickhouse-apm-app-v0.28.0...clickhouse-apm-app-v0.29.0) (2026-10-29)
+
+
+### Features
+
+* **ownership:** add OTel and Grafana service ownership ([#17](https://github.com/Simplifi-ED/grafana-apm-app/issues/17)) ([918499d](https://github.com/Simplifi-ED/grafana-apm-app/commit/918499da888b3df2f9ef53c75e85ecd90e612b81))
+
 ## [0.28.0](https://github.com/Simplifi-ED/grafana-apm-app/compare/clickhouse-apm-app-v0.27.0...clickhouse-apm-app-v0.28.0) (2026-10-29)
 
 
