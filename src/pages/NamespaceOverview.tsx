@@ -108,6 +108,7 @@ function NamespaceOverview() {
   const {
     data: issuesAttention,
     loading: issuesAttentionLoading,
+    error: issuesAttentionError,
     refetch: refetchIssuesAttention,
   } = useFetch<NamespaceIssuesAttentionResponse>(
     () => getNamespaceIssuesAttention(decodedNs, fromMs, toMs, rollupEnv),
@@ -313,6 +314,7 @@ function NamespaceOverview() {
           <IssuesAttentionStrip
             attention={issuesAttention?.attention}
             loading={issuesAttentionLoading}
+            error={issuesAttentionError}
             byService={issuesAttention?.byService}
             truncated={issuesAttention?.truncated}
             scanned={issuesAttention?.scanned}
@@ -323,9 +325,8 @@ function NamespaceOverview() {
           <NamespaceScorecardRollup
             data={nsScorecard ?? null}
             loading={nsScorecardLoading}
-            onServiceClick={(svc) => {
-              const match = services.find((s) => s.name === svc);
-              const env = match?.environment || (envFilters.length === 1 ? envFilters[0] : undefined);
+            onServiceClick={(svc, environment) => {
+              const env = environment || (envFilters.length === 1 ? envFilters[0] : undefined);
               handleServiceClick(decodedNs, svc, env);
             }}
           />

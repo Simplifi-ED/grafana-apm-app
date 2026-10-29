@@ -52,6 +52,7 @@ export async function getScorecard(
 
 export interface NamespaceServiceScorecard {
   service: string;
+  environment?: string;
   score: number;
   total: number;
 }

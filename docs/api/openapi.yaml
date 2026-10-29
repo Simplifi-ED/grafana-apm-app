@@ -1054,6 +1054,7 @@ paths:
                       type: object
                       properties:
                         service: { type: string }
+                        environment: { type: string }
                         score: { type: integer }
                         total: { type: integer }
                   scanned: { type: integer }

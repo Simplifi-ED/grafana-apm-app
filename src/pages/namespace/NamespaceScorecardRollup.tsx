@@ -8,7 +8,7 @@ import { typographyFontSize } from '../../utils/themeTypography';
 interface NamespaceScorecardRollupProps {
   data: NamespaceScorecardResponse | null;
   loading?: boolean;
-  onServiceClick: (service: string) => void;
+  onServiceClick: (service: string, environment?: string) => void;
 }
 
 /**
@@ -39,9 +39,10 @@ export function NamespaceScorecardRollup({ data, loading, onServiceClick }: Name
       {weak.length > 0 && (
         <ul className={styles.list}>
           {weak.map((s) => (
-            <li key={s.service}>
-              <button type="button" className={styles.link} onClick={() => onServiceClick(s.service)}>
+            <li key={`${s.service}/${s.environment ?? ''}`}>
+              <button type="button" className={styles.link} onClick={() => onServiceClick(s.service, s.environment)}>
                 {s.service}
+                {s.environment ? ` (${s.environment})` : ''}
               </button>
               <span className={styles.score}>
                 {s.score}/{s.total}

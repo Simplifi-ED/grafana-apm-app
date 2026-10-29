@@ -1,5 +1,5 @@
 import React from 'react';
-import { Button, Icon, useStyles2 } from '@grafana/ui';
+import { Alert, Button, Icon, useStyles2 } from '@grafana/ui';
 import { GrafanaTheme2 } from '@grafana/data';
 import { css } from '@emotion/css';
 import { IssuesAttention, NamespaceServiceAttention } from '../api/client';
@@ -8,6 +8,8 @@ import { typographyFontSize } from '../utils/themeTypography';
 interface IssuesAttentionStripProps {
   attention?: IssuesAttention | null;
   loading?: boolean;
+  /** Fetch failure — shown instead of silently hiding the strip. */
+  error?: string | null;
   onViewIssues: () => void;
   onViewAlerts?: () => void;
   /** Optional per-service breakdown (namespace rollup). */
@@ -25,6 +27,7 @@ interface IssuesAttentionStripProps {
 export function IssuesAttentionStrip({
   attention,
   loading,
+  error,
   onViewIssues,
   onViewAlerts,
   byService,
@@ -33,7 +36,17 @@ export function IssuesAttentionStrip({
   viewLabel = 'View Issues',
 }: IssuesAttentionStripProps) {
   const styles = useStyles2(getStyles);
-  if (loading || !attention) {
+  if (loading) {
+    return null;
+  }
+  if (error && !attention) {
+    return (
+      <Alert severity="warning" title="Could not load issues attention">
+        {error}
+      </Alert>
+    );
+  }
+  if (!attention) {
     return null;
   }
   const { new: newCount, returnedAfterResolve } = attention;

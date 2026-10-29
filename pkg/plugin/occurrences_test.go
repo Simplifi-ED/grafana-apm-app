@@ -134,7 +134,7 @@ func TestQueryIssueOccurrencesSemconvShape(t *testing.T) {
 		},
 	})
 
-	resp := app.queryIssueOccurrences(context.Background(), ds, "loki", "my-app", "", wantFP, "", "", time.Unix(0, 0), time.Unix(3600, 0))
+	resp := app.queryIssueOccurrences(context.Background(), ds, "loki", "my-app", "", "", wantFP, "", "", time.Unix(0, 0), time.Unix(3600, 0))
 
 	if resp.Shape != "otlp" {
 		t.Errorf("shape = %q, want otlp", resp.Shape)
@@ -198,7 +198,7 @@ func TestQueryIssueOccurrencesJSONShape(t *testing.T) {
 		},
 	})
 
-	resp := app.queryIssueOccurrences(context.Background(), ds, "loki", "my-app", "", wantFP, "", "", time.Unix(0, 0), time.Unix(3600, 0))
+	resp := app.queryIssueOccurrences(context.Background(), ds, "loki", "my-app", "", "", wantFP, "", "", time.Unix(0, 0), time.Unix(3600, 0))
 
 	if resp.Shape != "json" {
 		t.Errorf("shape = %q, want json", resp.Shape)
@@ -238,7 +238,7 @@ func TestQueryIssueOccurrencesJSONTraceAndAttributes(t *testing.T) {
 		},
 	})
 
-	resp := app.queryIssueOccurrences(context.Background(), ds, "loki", "my-app", "", wantFP, "", "", time.Unix(0, 0), time.Unix(3600, 0))
+	resp := app.queryIssueOccurrences(context.Background(), ds, "loki", "my-app", "", "", wantFP, "", "", time.Unix(0, 0), time.Unix(3600, 0))
 
 	if len(resp.Occurrences) != 1 {
 		t.Fatalf("got %d occurrences, want 1: %+v", len(resp.Occurrences), resp.Occurrences)
@@ -274,7 +274,7 @@ func TestQueryIssueOccurrencesPlainShapeFiltersNoise(t *testing.T) {
 		},
 	})
 
-	resp := app.queryIssueOccurrences(context.Background(), ds, "loki", "my-app", "", wantFP, "", "", time.Unix(0, 0), time.Unix(3600, 0))
+	resp := app.queryIssueOccurrences(context.Background(), ds, "loki", "my-app", "", "", wantFP, "", "", time.Unix(0, 0), time.Unix(3600, 0))
 
 	if resp.Shape != "plaintext" {
 		t.Errorf("shape = %q, want plaintext", resp.Shape)
@@ -300,7 +300,7 @@ func TestQueryIssueOccurrencesNoMatchIsEmpty(t *testing.T) {
 			{TimeMs: 1000, Labels: map[string]string{"exception_type": "Foo", "exception_message": "bar"}},
 		},
 	})
-	resp := app.queryIssueOccurrences(context.Background(), ds, "loki", "my-app", "", "v1:doesnotexist", "", "", time.Unix(0, 0), time.Unix(3600, 0))
+	resp := app.queryIssueOccurrences(context.Background(), ds, "loki", "my-app", "", "", "v1:doesnotexist", "", "", time.Unix(0, 0), time.Unix(3600, 0))
 	if len(resp.Occurrences) != 0 {
 		t.Errorf("want no occurrences, got %+v", resp.Occurrences)
 	}
@@ -371,7 +371,7 @@ func TestQueryIssueOccurrencesTypeOnlyGroup(t *testing.T) {
 		},
 	}, &exprs)
 
-	resp := app.queryIssueOccurrences(context.Background(), ds, "loki", "my-app", "", wantFP,
+	resp := app.queryIssueOccurrences(context.Background(), ds, "loki", "my-app", "", "", wantFP,
 		"OutOfMemoryError", "OutOfMemoryError", time.Unix(0, 0), time.Unix(3600, 0))
 
 	if len(resp.Occurrences) != 1 {
@@ -405,7 +405,7 @@ func TestQueryIssueOccurrencesAnchoredQueries(t *testing.T) {
 		},
 	}, &exprs)
 
-	resp := app.queryIssueOccurrences(context.Background(), ds, "loki", "my-app", "", wantFP,
+	resp := app.queryIssueOccurrences(context.Background(), ds, "loki", "my-app", "", "", wantFP,
 		"AuthError: Auth error", "AuthError", time.Unix(0, 0), time.Unix(3600, 0))
 
 	if len(resp.Occurrences) != 1 {
@@ -446,7 +446,7 @@ func TestQueryIssueOccurrencesAnchorFallback(t *testing.T) {
 		return !strings.Contains(expr, `|= "`) && !strings.Contains(expr, "exception_message=~")
 	})
 
-	resp := app.queryIssueOccurrences(context.Background(), ds, "loki", "my-app", "", wantFP,
+	resp := app.queryIssueOccurrences(context.Background(), ds, "loki", "my-app", "", "", wantFP,
 		"db connection failed", "", time.Unix(0, 0), time.Unix(3600, 0))
 
 	if len(resp.Occurrences) != 1 {

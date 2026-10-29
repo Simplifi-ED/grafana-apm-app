@@ -89,7 +89,7 @@ func (a *App) handleExceptionGroups(w http.ResponseWriter, req *http.Request) {
 	dsClient := queries.NewDsQueryClient(a.grafanaURL, a.resolveServiceToken(ctx)).WithAuthHeaders(req.Header)
 
 	a.writeCached(w, ck, "querying exception groups failed", func() (any, error) {
-		return a.queryExceptionGroups(ctx, dsClient, lokiUID, service, env, from, to), nil
+		return a.queryExceptionGroups(ctx, dsClient, lokiUID, service, env, namespace, from, to), nil
 	})
 }
 
@@ -101,10 +101,10 @@ func (a *App) handleExceptionGroups(w http.ResponseWriter, req *http.Request) {
 // exceeded the limit within 10 minutes at peak).
 var sessionsFallbackWindows = []time.Duration{time.Hour, 15 * time.Minute, 5 * time.Minute, time.Minute}
 
-func (a *App) queryExceptionGroups(ctx context.Context, ds *queries.DsQueryClient, lokiUID, service, env string, from, to time.Time) ExceptionGroupsResponse {
+func (a *App) queryExceptionGroups(ctx context.Context, ds *queries.DsQueryClient, lokiUID, service, env, namespace string, from, to time.Time) ExceptionGroupsResponse {
 	logger := log.DefaultLogger.With("handler", "exception-groups")
 	fl := a.otelCfg.FaroLoki
-	stream := a.otelCfg.LokiStreamSelector(service, fl.KindException, env)
+	stream := a.otelCfg.LokiStreamSelectorNS(service, fl.KindException, namespace, env)
 	window := lokiWindow(from, to)
 
 	// Counts per upstream (hash, type, value): type joins the group-by versus

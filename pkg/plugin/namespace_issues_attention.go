@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"sort"
 	"strings"
@@ -70,7 +71,7 @@ func (a *App) handleNamespaceIssuesAttention(w http.ResponseWriter, req *http.Re
 	}
 	ck := cacheKey("ns-issues-attention", orgID, caller, namespace, env, roundedUnix(from), roundedUnix(to))
 	a.writeCached(w, ck, "computing namespace issues attention failed", func() (any, error) {
-		return a.computeNamespaceIssuesAttention(ctx, req, namespace, env, from, to), nil
+		return a.computeNamespaceIssuesAttention(ctx, req, namespace, env, from, to)
 	})
 }
 
@@ -79,10 +80,10 @@ func (a *App) computeNamespaceIssuesAttention(
 	req *http.Request,
 	namespace, env string,
 	from, to time.Time,
-) NamespaceIssuesAttentionResponse {
+) (NamespaceIssuesAttentionResponse, error) {
 	refs, truncated := a.namespaceServiceRefs(ctx, req, namespace, env, from, to, maxNamespaceAttentionServices)
 	if len(refs) == 0 {
-		return NamespaceIssuesAttentionResponse{ByService: []NamespaceServiceAttention{}}
+		return NamespaceIssuesAttentionResponse{ByService: []NamespaceServiceAttention{}}, nil
 	}
 
 	type result struct {
@@ -93,6 +94,8 @@ func (a *App) computeNamespaceIssuesAttention(
 	var mu sync.Mutex
 	sem := make(chan struct{}, namespaceAttentionConcurrency)
 	var wg sync.WaitGroup
+	var firstErr error
+	okCount := 0
 
 	for _, r := range refs {
 		wg.Add(1)
@@ -102,16 +105,29 @@ func (a *App) computeNamespaceIssuesAttention(
 			defer func() { <-sem }()
 
 			probeEnv := probeEnvironment(env, ref.Env)
-			att := a.probeServiceIssuesAttention(ctx, req, namespace, ref.Name, probeEnv, from, to)
+			att, err := a.probeServiceIssuesAttention(ctx, req, namespace, ref.Name, probeEnv, from, to)
+			mu.Lock()
+			defer mu.Unlock()
+			if err != nil {
+				if firstErr == nil {
+					firstErr = err
+				}
+				return
+			}
+			okCount++
 			if att.New == 0 && att.ReturnedAfterResolve == 0 {
 				return
 			}
-			mu.Lock()
 			results = append(results, result{ref: ref, att: att})
-			mu.Unlock()
 		}(r)
 	}
 	wg.Wait()
+
+	// Do not cache an all-zero rollup when every probe failed — that would
+	// hide outages for the cache TTL.
+	if okCount == 0 && firstErr != nil {
+		return NamespaceIssuesAttentionResponse{}, firstErr
+	}
 
 	sort.Slice(results, func(i, j int) bool {
 		si := results[i].att.New + results[i].att.ReturnedAfterResolve
@@ -140,7 +156,7 @@ func (a *App) computeNamespaceIssuesAttention(
 			ReturnedAfterResolve: r.att.ReturnedAfterResolve,
 		})
 	}
-	return out
+	return out, nil
 }
 
 // probeEnvironment prefers a single request filter; otherwise uses the inventory row's env
@@ -232,7 +248,7 @@ func (a *App) probeServiceIssuesAttention(
 	req *http.Request,
 	namespace, service, env string,
 	from, to time.Time,
-) IssuesAttention {
+) (IssuesAttention, error) {
 	var resp IssuesResponse
 	if a.clickStackMode() {
 		ch := a.chForRequest(req)
@@ -240,13 +256,16 @@ func (a *App) probeServiceIssuesAttention(
 	} else {
 		lokiUID := a.settings.LogsDataSource.Resolve(env).UID
 		if lokiUID == "" {
-			return IssuesAttention{}
+			return IssuesAttention{}, fmt.Errorf("no Loki datasource for environment %q", env)
 		}
 		dsClient := queries.NewDsQueryClient(a.grafanaURL, a.resolveServiceToken(ctx)).WithAuthHeaders(req.Header)
-		resp = a.queryIssues(ctx, dsClient, lokiUID, service, env, from, to, browserFacets{})
+		resp = a.queryIssues(ctx, dsClient, lokiUID, service, env, namespace, from, to, browserFacets{})
+	}
+	if resp.Unavailable {
+		return IssuesAttention{}, fmt.Errorf("issues unavailable for service %q", service)
 	}
 	if len(resp.Issues) == 0 {
-		return IssuesAttention{}
+		return IssuesAttention{}, nil
 	}
 	var prev map[string]bool
 	if span := to.Sub(from); span > 0 {
@@ -256,7 +275,7 @@ func (a *App) probeServiceIssuesAttention(
 		} else {
 			lokiUID := a.settings.LogsDataSource.Resolve(env).UID
 			dsClient := queries.NewDsQueryClient(a.grafanaURL, a.resolveServiceToken(ctx)).WithAuthHeaders(req.Header)
-			baseline = a.queryIssues(ctx, dsClient, lokiUID, service, env, from.Add(-span), from, browserFacets{})
+			baseline = a.queryIssues(ctx, dsClient, lokiUID, service, env, namespace, from.Add(-span), from, browserFacets{})
 		}
 		if len(baseline.Issues) > 0 {
 			prev = issueFingerprintSet(baseline.Issues)
@@ -264,7 +283,7 @@ func (a *App) probeServiceIssuesAttention(
 	}
 	a.attachIssuesNotifyFlags(ctx, namespace, service, env, from, to, &resp, prev)
 	if resp.Attention == nil {
-		return IssuesAttention{}
+		return IssuesAttention{}, nil
 	}
-	return *resp.Attention
+	return *resp.Attention, nil
 }

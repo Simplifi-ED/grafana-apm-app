@@ -18,9 +18,10 @@ const (
 
 // NamespaceServiceScorecard is one service's readiness inside a namespace rollup.
 type NamespaceServiceScorecard struct {
-	Service string `json:"service"`
-	Score   int    `json:"score"`
-	Total   int    `json:"total"`
+	Service     string `json:"service"`
+	Environment string `json:"environment,omitempty"`
+	Score       int    `json:"score"`
+	Total       int    `json:"total"`
 }
 
 // NamespaceScorecardResponse is GET /namespaces/{namespace}/scorecard.
@@ -81,37 +82,38 @@ func (a *App) computeNamespaceScorecard(
 	namespace, env string,
 	from, to time.Time,
 ) NamespaceScorecardResponse {
-	names, truncated := a.namespaceServiceNamesForScorecard(ctx, req, namespace, env, from, to)
+	refs, truncated := a.namespaceServiceRefs(ctx, req, namespace, env, from, to, maxNamespaceScorecardServices)
 	out := NamespaceScorecardResponse{
-		Services:  make([]NamespaceServiceScorecard, 0, len(names)),
+		Services:  make([]NamespaceServiceScorecard, 0, len(refs)),
 		Truncated: truncated,
-		Scanned:   len(names),
+		Scanned:   len(refs),
 	}
-	if len(names) == 0 {
+	if len(refs) == 0 {
 		return out
 	}
 
 	type result struct {
-		svc          string
+		ref          namespaceServiceRef
 		score, total int
 	}
-	results := make([]result, 0, len(names))
+	results := make([]result, 0, len(refs))
 	var mu sync.Mutex
 	sem := make(chan struct{}, namespaceScorecardConcurrency)
 	var wg sync.WaitGroup
 	headers := req.Header.Clone()
 
-	for _, svc := range names {
+	for _, r := range refs {
 		wg.Add(1)
-		go func(service string) {
+		go func(ref namespaceServiceRef) {
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
-			readiness := a.computeScorecard(ctx, headers, namespace, service, env).Readiness
+			probeEnv := probeEnvironment(env, ref.Env)
+			readiness := a.computeScorecard(ctx, headers, namespace, ref.Name, probeEnv).Readiness
 			mu.Lock()
-			results = append(results, result{svc: service, score: readiness.Score, total: readiness.Total})
+			results = append(results, result{ref: ref, score: readiness.Score, total: readiness.Total})
 			mu.Unlock()
-		}(svc)
+		}(r)
 	}
 	wg.Wait()
 
@@ -126,37 +128,21 @@ func (a *App) computeNamespaceScorecard(
 		if fi != fj {
 			return fi < fj // weakest first — attention order
 		}
-		return results[i].svc < results[j].svc
+		if results[i].ref.Name != results[j].ref.Name {
+			return results[i].ref.Name < results[j].ref.Name
+		}
+		return results[i].ref.Env < results[j].ref.Env
 	})
 
 	for _, r := range results {
 		out.Score += r.score
 		out.Total += r.total
 		out.Services = append(out.Services, NamespaceServiceScorecard{
-			Service: r.svc,
-			Score:   r.score,
-			Total:   r.total,
+			Service:     r.ref.Name,
+			Environment: r.ref.Env,
+			Score:       r.score,
+			Total:       r.total,
 		})
 	}
 	return out
-}
-
-func (a *App) namespaceServiceNamesForScorecard(
-	ctx context.Context,
-	req *http.Request,
-	namespace, env string,
-	from, to time.Time,
-) (names []string, truncated bool) {
-	step := 60 * time.Second
-	var summaries []queries.ServiceSummary
-	if a.clickStackMode() {
-		summaries = a.fetchServiceSummariesClickHouse(ctx, a.chForRequest(req), from, to, step, false, namespace, env, "")
-	} else {
-		caps := a.cachedOrDetectCapabilities(ctx)
-		if !caps.SpanMetrics.Detected {
-			return nil, false
-		}
-		summaries = a.fetchServiceSummaries(ctx, caps, from, to, step, false, namespace, env, "", req.Header)
-	}
-	return capNamespaceServiceNames(summaries, maxNamespaceScorecardServices)
 }
