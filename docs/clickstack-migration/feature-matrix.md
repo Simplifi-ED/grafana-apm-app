@@ -116,6 +116,8 @@ Tracker: `.scratch/post-parity-hardening/map.md` (ticket **09**/**10**). No new 
 | **E** | Custom signals: CH-native Overview auto-charts | ✅ [#9](https://github.com/Simplifi-ED/grafana-apm-app/pull/9) |
 | **F** | Scorecard v2 depth (sourcemaps, DB, messaging/Temporal, structured-log, probes) | ✅ [#10](https://github.com/Simplifi-ED/grafana-apm-app/pull/10) |
 
-**Still deferred:** deploy-markers check; team rollup / Console ownership; CH OTel dual-emit “fix”; frontend measurements/events beyond Overview auto-charts.
+**Closed / skipped:** CH OTel dual-emit “fix” — research (#01) found no ClickStack equivalent (Issues are traces-only); no product work. Console ownership metadata still out (no Console source).
 
-**Shipped after spine (UI polish):** namespace issues-attention rollup (`GET /namespaces/{ns}/issues-attention`, capped fan-out — no client N+1); localStorage manual scorecard N/A override; optimistic skeletons (DataState default + remaining tabs).
+**Shipped after spine:**
+- UI polish: namespace issues-attention; localStorage scorecard N/A; optimistic skeletons
+- Deferred follow-on: `deployMarkers` scorecard check (Grafana annotations); namespace scorecard rollup (`GET /namespaces/{ns}/scorecard`); Frontend tab browser events / longtask panels (HyperDX UX spans beyond CWV)

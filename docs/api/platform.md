@@ -94,11 +94,15 @@ An observability-readiness scorecard for a service. Score is
 
 Base checks: `spanMetrics`, `traces`, `logs`, `runtimeMetrics`,
 `browserTelemetry`, `alertRules`, plus `graphql` (N/A until enablement),
-`jobs`, `profiling`. ClickStack v2 (letter F): `sourcemaps` (browser-only),
-`database` (N/A without `db.system`), `messagingOrWorkflow` (N/A without
-messaging or Temporal signals), `structuredLogs` (N/A without logs; requires
-ADR-0002 `exception.type` + `exception.stacktrace`). Deploy markers and team
-rollup / Console ownership are out of scope.
+`jobs`, `profiling`, `deployMarkers` (Grafana annotations tagged
+`clickhouse-apm:deploy`, 30d lookback). ClickStack v2 (letter F): `sourcemaps`
+(browser-only), `database` (N/A without `db.system`), `messagingOrWorkflow`
+(N/A without messaging or Temporal signals), `structuredLogs` (N/A without
+logs; requires ADR-0002 `exception.type` + `exception.stacktrace`).
+
+Namespace rollup: `GET /namespaces/{namespace}/scorecard` sums per-service
+`score`/`total` (capped fan-out). Console ownership metadata stays out of scope
+(no Console source on Simplifi-ED).
 
 ### Example
 

@@ -15,14 +15,15 @@ import (
 // scorecardFixture controls which observability signals the fake backends
 // report for the probed service.
 type scorecardFixture struct {
-	spanMetrics bool
-	traces      bool
-	logs        bool
-	runtime     bool
-	browser     bool
-	alertRule   bool
-	pyroscope   bool   // grafana-pyroscope-datasource present at /api/datasources
-	sdkLanguage string // telemetry_sdk_language answered by the language probe ("" → no series)
+	spanMetrics   bool
+	traces        bool
+	logs          bool
+	runtime       bool
+	browser       bool
+	alertRule     bool
+	pyroscope     bool   // grafana-pyroscope-datasource present at /api/datasources
+	deployMarkers bool   // /api/annotations returns a deploy marker
+	sdkLanguage   string // telemetry_sdk_language answered by the language probe ("" → no series)
 }
 
 // newScorecardApp wires fake Prometheus and Grafana-proxy (Tempo/Loki/rules)
@@ -95,6 +96,12 @@ func newScorecardApp(t *testing.T, fx scorecardFixture) *App {
 				]}]`
 			}
 			_, _ = w.Write([]byte(`{"status":"success","data":{"groups":` + groups + `}}`))
+		case r.URL.Path == "/api/annotations":
+			if fx.deployMarkers {
+				_, _ = w.Write([]byte(`[{"id":1,"time":1700000000000,"text":"deploy","tags":["clickhouse-apm:deploy","service:my-app","version:1.0.0"]}]`))
+			} else {
+				_, _ = w.Write([]byte(`[]`))
+			}
 		default:
 			http.NotFound(w, r)
 		}
@@ -147,36 +154,36 @@ func TestScorecardReadinessScore(t *testing.T) {
 			name:      "nothing instrumented",
 			fx:        scorecardFixture{},
 			wantScore: 0,
-			wantTotal: 8, // Nais 6 + jobs + profiling; graphql N/A
-			wantOK:    map[string]bool{"profiling": false, "jobs": false},
-			wantNA:    map[string]bool{"profiling": false, "jobs": false},
+			wantTotal: 9, // Nais 6 + jobs + profiling + deployMarkers; graphql N/A
+			wantOK:    map[string]bool{"profiling": false, "jobs": false, "deployMarkers": false},
+			wantNA:    map[string]bool{"profiling": false, "jobs": false, "deployMarkers": false},
 		},
 		{
-			name: "fully instrumented including Pyroscope",
+			name: "fully instrumented including Pyroscope and deploy markers",
 			fx: scorecardFixture{
 				spanMetrics: true, traces: true, logs: true, runtime: true,
-				browser: true, alertRule: true, pyroscope: true,
+				browser: true, alertRule: true, pyroscope: true, deployMarkers: true,
 			},
 			// Jobs stays false in LGTM fixtures (needs ClickStack kube_*).
-			wantScore: 7,
-			wantTotal: 8,
-			wantOK:    map[string]bool{"profiling": true, "jobs": false},
+			wantScore: 8,
+			wantTotal: 9,
+			wantOK:    map[string]bool{"profiling": true, "jobs": false, "deployMarkers": true},
 		},
 		{
 			name:      "backend service, unknown language: Faro stays actionable",
 			fx:        scorecardFixture{spanMetrics: true, traces: true, logs: true, runtime: true},
 			wantScore: 4,
-			wantTotal: 8,
+			wantTotal: 9,
 			wantOK: map[string]bool{
 				"spanMetrics": true, "traces": true, "logs": true,
-				"runtimeMetrics": true, "browserTelemetry": false, "alertRules": false, "profiling": false, "jobs": false,
+				"runtimeMetrics": true, "browserTelemetry": false, "alertRules": false, "profiling": false, "jobs": false, "deployMarkers": false,
 			},
 		},
 		{
 			name:      "pure JVM backend: Faro not applicable, excluded from score",
 			fx:        scorecardFixture{spanMetrics: true, traces: true, logs: true, runtime: true, sdkLanguage: "java"},
 			wantScore: 4,
-			wantTotal: 7,
+			wantTotal: 8,
 			wantOK: map[string]bool{
 				"spanMetrics": true, "traces": true, "logs": true,
 				"runtimeMetrics": true, "browserTelemetry": false, "alertRules": false,
@@ -187,7 +194,7 @@ func TestScorecardReadinessScore(t *testing.T) {
 			name:      "node service: Faro stays applicable (SSR/BFF ambiguity)",
 			fx:        scorecardFixture{spanMetrics: true, sdkLanguage: "nodejs"},
 			wantScore: 1,
-			wantTotal: 8,
+			wantTotal: 9,
 			wantOK:    map[string]bool{"browserTelemetry": false},
 			wantNA:    map[string]bool{"browserTelemetry": false, "profiling": false, "jobs": false},
 		},
@@ -195,7 +202,7 @@ func TestScorecardReadinessScore(t *testing.T) {
 			name:      "JVM service WITH faro data: check passes and stays applicable",
 			fx:        scorecardFixture{browser: true, sdkLanguage: "java"},
 			wantScore: 1,
-			wantTotal: 8,
+			wantTotal: 9,
 			wantOK:    map[string]bool{"browserTelemetry": true},
 			wantNA:    map[string]bool{"browserTelemetry": false},
 		},
@@ -203,8 +210,15 @@ func TestScorecardReadinessScore(t *testing.T) {
 			name:      "alert rule via grafana-managed rules",
 			fx:        scorecardFixture{alertRule: true},
 			wantScore: 1,
-			wantTotal: 8,
+			wantTotal: 9,
 			wantOK:    map[string]bool{"alertRules": true, "profiling": false, "jobs": false},
+		},
+		{
+			name:      "deploy markers present",
+			fx:        scorecardFixture{deployMarkers: true},
+			wantScore: 1,
+			wantTotal: 9,
+			wantOK:    map[string]bool{"deployMarkers": true},
 		},
 	}
 

@@ -1028,6 +1028,36 @@ paths:
                   truncated: { type: boolean }
                   scanned: { type: integer }
 
+  /namespaces/{namespace}/scorecard:
+    get:
+      tags: [experimental]
+      summary: Namespace readiness rollup (sum of per-service score/total; capped fan-out). ClickStack-native team view without Console ownership.
+      parameters:
+        - { $ref: "#/components/parameters/namespacePath" }
+        - { $ref: "#/components/parameters/from" }
+        - { $ref: "#/components/parameters/to" }
+        - { $ref: "#/components/parameters/environment" }
+      responses:
+        "200":
+          description: Aggregated scorecard plus per-service breakdown (weakest first).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  score: { type: integer }
+                  total: { type: integer }
+                  services:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        service: { type: string }
+                        score: { type: integer }
+                        total: { type: integer }
+                  scanned: { type: integer }
+                  truncated: { type: boolean }
+
   /alert-templates/{kind}:
     get:
       tags: [experimental]
