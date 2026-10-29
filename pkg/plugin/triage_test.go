@@ -324,7 +324,7 @@ func TestTriageFetchKeepsTiedTimestampsAcrossPages(t *testing.T) {
 		Tags: noise,
 	})
 	id := int64(3)
-	for i := 0; i < maxTriageEvents-1; i++ {
+	for i := range maxTriageEvents - 1 {
 		mock.anns = append(mock.anns, grafanaAnnotation{
 			ID: id, Time: int64(1001 + i),
 			Text: `{"schema":1,"action":"assign","actor":"b","assignee":"x"}`,
@@ -332,7 +332,7 @@ func TestTriageFetchKeepsTiedTimestampsAcrossPages(t *testing.T) {
 		})
 		id++
 	}
-	for i := 0; i < maxTriageEvents-1; i++ {
+	for i := range maxTriageEvents - 1 {
 		mock.anns = append(mock.anns, grafanaAnnotation{
 			ID: id, Time: int64(999 - i),
 			Text: `{"schema":1,"action":"assign","actor":"b","assignee":"x"}`,
