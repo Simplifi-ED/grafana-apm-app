@@ -8,7 +8,7 @@ import (
 
 func TestCapNamespaceServiceNames(t *testing.T) {
 	summaries := make([]queries.ServiceSummary, 0, 30)
-	for i := 0; i < 30; i++ {
+	for i := range 30 {
 		summaries = append(summaries, queries.ServiceSummary{
 			Name: "svc-" + string(rune('a'+i%26)) + string(rune('0'+i/26)),
 			Rate: float64(30 - i),

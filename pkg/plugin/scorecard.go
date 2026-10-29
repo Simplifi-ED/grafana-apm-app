@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -302,13 +303,10 @@ var scorecardV2Keys = []string{"sourcemaps", "database", "messagingOrWorkflow", 
 
 func markScorecardV2NotApplicable(checks []ScorecardCheck, hint string) {
 	for i := range checks {
-		for _, key := range scorecardV2Keys {
-			if checks[i].Key == key {
-				checks[i].NotApplicable = true
-				checks[i].OK = false
-				checks[i].Hint = hint
-				break
-			}
+		if slices.Contains(scorecardV2Keys, checks[i].Key) {
+			checks[i].NotApplicable = true
+			checks[i].OK = false
+			checks[i].Hint = hint
 		}
 	}
 }
