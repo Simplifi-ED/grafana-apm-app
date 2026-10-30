@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Minimal GraphQL OTel span emitter for ticket 16.
+Minimal GraphQL OTel span emitter.
 
-Posts OTLP/HTTP JSON traces with graphql.operation.* span attributes to the
-same collector path Sanad uses (in-cluster otel-collector-logs → ClickStack CH,
-or ClickStack :4318 with an ingestion key).
+Posts OTLP/HTTP JSON traces with graphql.operation.* span attributes to an
+OTLP collector (in-cluster collector → ClickHouse, or ClickStack :4318 with an
+ingestion key).
 
 Env:
   OTLP_ENDPOINT   default http://localhost:4318/v1/traces
@@ -18,10 +18,10 @@ Env:
 Example (local collector):
   python3 scripts/graphql-demo/emit_graphql_spans.py
 
-Example (ClickStack OTLP, Tailscale):
-  OTLP_ENDPOINT=http://monitoring-clickstack:4318/v1/traces \\
+Example (remote ClickStack OTLP):
+  OTLP_ENDPOINT=http://clickhouse-host:4318/v1/traces \\
   OTLP_AUTH="$CLICKSTACK_INGESTION_KEY" \\
-  ENVIRONMENT=prod-k3s-omnivya \\
+  ENVIRONMENT=prod \\
   python3 scripts/graphql-demo/emit_graphql_spans.py
 """
 

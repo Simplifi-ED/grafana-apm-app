@@ -13,7 +13,7 @@ It uses the **stable** `/issues` endpoint (see
    service (the "baseline").
 2. Deploy.
 3. Wait for the observation window to fill, then snapshot again.
-4. Any fingerprint present *after* but not *before* is a **new** issue — fail the
+4. Any fingerprint present _after_ but not _before_ is a **new** issue — fail the
    job and print it.
 
 This mirrors the `new-exceptions` semantics of the
@@ -24,9 +24,9 @@ long-dormant issue re-appearing will register as "new".)
 
 ## Secrets / configuration
 
-| Variable | Meaning |
-| --- | --- |
-| `GRAFANA_URL` | Base Grafana URL, e.g. `https://grafana.example.nais.io`. |
+| Variable           | Meaning                                                   |
+| ------------------ | --------------------------------------------------------- |
+| `GRAFANA_URL`      | Base Grafana URL, e.g. `https://grafana.example.com`.     |
 | `GRAFANA_SA_TOKEN` | Grafana **service account token** with Viewer on the org. |
 
 Create the service account in Grafana (Administration → Service accounts → Add
@@ -43,11 +43,11 @@ on:
     branches: [main]
 
 env:
-  NAMESPACE: fager
-  SERVICE: min-side-arbeidsgiver
+  NAMESPACE: team-a
+  SERVICE: storefront
   ENVIRONMENT: prod
   # How long to observe for new issues after deploy.
-  OBSERVE_MINUTES: "15"
+  OBSERVE_MINUTES: '15'
 
 jobs:
   deploy-and-gate:
@@ -131,6 +131,6 @@ jobs:
   loop, look for the plugin's `X-Cache: HIT` header (note Grafana also injects
   its own `X-Cache: DISABLED`; see the [README](../README.md#the-x-cache-header)).
 
-- **Auth 401/403.** Confirm the token is a *Grafana service account* token (not a
+- **Auth 401/403.** Confirm the token is a _Grafana service account_ token (not a
   nais or cloud token) and the account has at least Viewer on the org the plugin
   is installed in.

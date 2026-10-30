@@ -9,6 +9,7 @@ All paths are under the resources proxy base
 `Authorization: Bearer $GRAFANA_SA_TOKEN` instead.
 
 Contents:
+
 - [`GET /issues`](#get-issues)
 - [`GET /exceptions/groups`](#get-exceptionsgroups)
 - [`GET /triage`](#get-triage)
@@ -27,57 +28,57 @@ gates and bots read.
 
 ### Parameters
 
-| In | Name | Sanitization / default | Meaning |
-| --- | --- | --- | --- |
-| path | `namespace` | `ParseNamespace` (`_` → empty) | Team namespace. |
-| path | `service` | `MustSanitizeLabel`; empty → `400` | Service (app) name. |
+| In    | Name          | Sanitization / default                             | Meaning                                                             |
+| ----- | ------------- | -------------------------------------------------- | ------------------------------------------------------------------- |
+| path  | `namespace`   | `ParseNamespace` (`_` → empty)                     | Team namespace.                                                     |
+| path  | `service`     | `MustSanitizeLabel`; empty → `400`                 | Service (app) name.                                                 |
 | query | `environment` | `parseEnvironment` (CSV, each `MustSanitizeLabel`) | Filter to one or more environments, e.g. `prod` or `prod,prod-fss`. |
-| query | `from` | epoch seconds, default `now-1h` | Range start. |
-| query | `to` | epoch seconds, default `now` | Range end. |
-| query | `version` | `MustSanitizeLabel` of trimmed value | Facet: restrict to a browser app version. |
-| query | `browser` | `MustSanitizeLabel` | Facet: restrict to a browser. |
-| query | `page` | `MustSanitizeLabel` | Facet: restrict to a page URL. |
+| query | `from`        | epoch seconds, default `now-1h`                    | Range start.                                                        |
+| query | `to`          | epoch seconds, default `now`                       | Range end.                                                          |
+| query | `version`     | `MustSanitizeLabel` of trimmed value               | Facet: restrict to a browser app version.                           |
+| query | `browser`     | `MustSanitizeLabel`                                | Facet: restrict to a browser.                                       |
+| query | `page`        | `MustSanitizeLabel`                                | Facet: restrict to a page URL.                                      |
 
 When any of `version`/`browser`/`page` is set, the list is scoped to **browser**
 telemetry only (server side is skipped) and `facetedSource` is `"browser"`.
 
 ### Response — `IssuesResponse`
 
-| Field | Type | Description |
-| --- | --- | --- |
-| `fingerprintVersion` | string | Fingerprint algorithm version (`"v1"`). |
-| `sources` | object | Which sides answered: `{ "browser": bool, "serverLogs": bool }`. |
-| `issues` | array&lt;Issue&gt; | Merged issues, sorted by `count` desc, capped at 100. |
-| `facets` | object? | Discoverable browser facet values (omitted when Faro unavailable). |
-| `facetedSource` | string? | `"browser"` when a facet is active. |
-| `sessionsWindowSeconds` | int? | Narrower window used for session counts (fallback). |
-| `sessionsUnavailable` | bool? | Session counts could not be computed. |
-| `unavailable` | bool? | Loki not configured, or both sides failed. |
+| Field                   | Type               | Description                                                        |
+| ----------------------- | ------------------ | ------------------------------------------------------------------ |
+| `fingerprintVersion`    | string             | Fingerprint algorithm version (`"v1"`).                            |
+| `sources`               | object             | Which sides answered: `{ "browser": bool, "serverLogs": bool }`.   |
+| `issues`                | array&lt;Issue&gt; | Merged issues, sorted by `count` desc, capped at 100.              |
+| `facets`                | object?            | Discoverable browser facet values (omitted when Faro unavailable). |
+| `facetedSource`         | string?            | `"browser"` when a facet is active.                                |
+| `sessionsWindowSeconds` | int?               | Narrower window used for session counts (fallback).                |
+| `sessionsUnavailable`   | bool?              | Session counts could not be computed.                              |
+| `unavailable`           | bool?              | Loki not configured, or both sides failed.                         |
 
 **Issue** (a browser or server issue):
 
-| Field | Type | Description |
-| --- | --- | --- |
-| `fingerprint` | string | Versioned fingerprint id, e.g. `v1:bb2cfdb1eb952653`. |
-| `tier` | int | Fingerprint precision tier (higher = more specific). |
-| `title` | string | Normalized human title. |
-| `types` | array&lt;string&gt; | Exception types in the group (omitted if empty). |
-| `count` | number | Occurrences in range. |
-| `sessions` | number | Affected sessions. |
-| `memberHashes` | array&lt;string&gt; | Upstream Alloy hashes (browser only, cap 50). |
-| `truncated` | bool? | Member-hash cap hit. |
-| `source` | string | `"browser"` or `"server"`. |
-| `isNew` | bool | Absent from preceding equal-length window (only when that baseline held issues). |
-| `returnedAfterResolve` | bool | Triage resolved before newest deploy; still occurring. UI: "Returned after resolve". |
-| `impact` | object? | Server issues only: `{ "pods": int, "versions": [] }`. |
+| Field                  | Type                | Description                                                                          |
+| ---------------------- | ------------------- | ------------------------------------------------------------------------------------ |
+| `fingerprint`          | string              | Versioned fingerprint id, e.g. `v1:bb2cfdb1eb952653`.                                |
+| `tier`                 | int                 | Fingerprint precision tier (higher = more specific).                                 |
+| `title`                | string              | Normalized human title.                                                              |
+| `types`                | array&lt;string&gt; | Exception types in the group (omitted if empty).                                     |
+| `count`                | number              | Occurrences in range.                                                                |
+| `sessions`             | number              | Affected sessions.                                                                   |
+| `memberHashes`         | array&lt;string&gt; | Upstream Alloy hashes (browser only, cap 50).                                        |
+| `truncated`            | bool?               | Member-hash cap hit.                                                                 |
+| `source`               | string              | `"browser"` or `"server"`.                                                           |
+| `isNew`                | bool                | Absent from preceding equal-length window (only when that baseline held issues).     |
+| `returnedAfterResolve` | bool                | Triage resolved before newest deploy; still occurring. UI: "Returned after resolve". |
+| `impact`               | object?             | Server issues only: `{ "pods": int, "versions": [] }`.                               |
 
 **facets** (`IssueFacets`) — each list is capped at 15 values:
 
-| Field | Type | Description |
-| --- | --- | --- |
+| Field      | Type                       | Description       |
+| ---------- | -------------------------- | ----------------- |
 | `versions` | array&lt;{value,count}&gt; | Top app versions. |
-| `browsers` | array&lt;{value,count}&gt; | Top browsers. |
-| `topPages` | array&lt;{value,count}&gt; | Top page URLs. |
+| `browsers` | array&lt;{value,count}&gt; | Top browsers.     |
+| `topPages` | array&lt;{value,count}&gt; | Top page URLs.    |
 
 ### Caching
 
@@ -87,7 +88,7 @@ rounded `from`/`to`, and the three facet values. `X-Cache: HIT` on hit.
 ### Example
 
 ```bash
-curl -s "http://admin:admin@localhost:3000/api/plugins/clickhouse-apm-app/resources/services/fager/min-side-arbeidsgiver/issues?from=1783090000&to=1783185000"
+curl -s "http://admin:admin@localhost:3000/api/plugins/clickhouse-apm-app/resources/services/team-a/storefront/issues?from=1783090000&to=1783185000"
 ```
 
 ```json
@@ -137,13 +138,13 @@ semantics to `/issues`. No facet parameters.
 
 ### Response — `ExceptionGroupsResponse`
 
-| Field | Type | Description |
-| --- | --- | --- |
-| `fingerprintVersion` | string | `"v1"`. |
-| `groups` | array&lt;ExceptionGroup&gt; | Sorted by `count` desc, capped at 100. |
-| `unavailable` | bool? | Loki not configured/reachable, or count query failed. |
-| `sessionsWindowSeconds` | int? | Narrower window used for session counts. |
-| `sessionsUnavailable` | bool? | Session counts unavailable even after fallback. |
+| Field                   | Type                        | Description                                           |
+| ----------------------- | --------------------------- | ----------------------------------------------------- |
+| `fingerprintVersion`    | string                      | `"v1"`.                                               |
+| `groups`                | array&lt;ExceptionGroup&gt; | Sorted by `count` desc, capped at 100.                |
+| `unavailable`           | bool?                       | Loki not configured/reachable, or count query failed. |
+| `sessionsWindowSeconds` | int?                        | Narrower window used for session counts.              |
+| `sessionsUnavailable`   | bool?                       | Session counts unavailable even after fallback.       |
 
 **ExceptionGroup** — same fields as the shared subset of `Issue`:
 `fingerprint`, `tier`, `title`, `types`, `count`, `sessions`, `memberHashes`,
@@ -156,7 +157,7 @@ Cached (30 s), key `exceptiongroups | org | namespace | service | env | from | t
 ### Example
 
 ```bash
-curl -s ".../services/fager/min-side-arbeidsgiver/exceptions/groups?from=1783090000&to=1783185000"
+curl -s ".../services/team-a/storefront/exceptions/groups?from=1783090000&to=1783185000"
 ```
 
 ```json
@@ -192,24 +193,24 @@ Grafana-annotation event log. **Never cached.**
 
 ### Response — `triageStatesResponse`
 
-| Field | Type | Description |
-| --- | --- | --- |
+| Field    | Type   | Description                           |
+| -------- | ------ | ------------------------------------- |
 | `states` | object | Map of `fingerprint` → `TriageState`. |
 
 **TriageState**:
 
-| Field | Type | Description |
-| --- | --- | --- |
-| `status` | string | `active` \| `resolved` \| `ignored`. |
-| `assignee` | string? | Current assignee login. |
-| `resolvedInVersion` | string? | Version the issue was resolved in. |
-| `updatedAt` | int64 | Last state-change time (epoch ms). |
-| `updatedBy` | string | Actor login of the last change. |
+| Field               | Type    | Description                          |
+| ------------------- | ------- | ------------------------------------ |
+| `status`            | string  | `active` \| `resolved` \| `ignored`. |
+| `assignee`          | string? | Current assignee login.              |
+| `resolvedInVersion` | string? | Version the issue was resolved in.   |
+| `updatedAt`         | int64   | Last state-change time (epoch ms).   |
+| `updatedBy`         | string  | Actor login of the last change.      |
 
 ### Example
 
 ```bash
-curl -s ".../services/fager/min-side-arbeidsgiver/triage"
+curl -s ".../services/team-a/storefront/triage"
 ```
 
 ```json
@@ -239,19 +240,19 @@ a credential with annotation-write (Editor). **Never cached.**
 
 ### Parameters
 
-| In | Name | Sanitization | Meaning |
-| --- | --- | --- | --- |
-| path | `namespace`, `service` | as above | Service reference. |
-| path | `fingerprint` | must match `^[a-z0-9:]{1,64}$`; else `400 {"error":"invalid fingerprint"}` | Issue fingerprint, e.g. `v1:bb2cfdb1eb952653`. |
+| In   | Name                   | Sanitization                                                               | Meaning                                        |
+| ---- | ---------------------- | -------------------------------------------------------------------------- | ---------------------------------------------- |
+| path | `namespace`, `service` | as above                                                                   | Service reference.                             |
+| path | `fingerprint`          | must match `^[a-z0-9:]{1,64}$`; else `400 {"error":"invalid fingerprint"}` | Issue fingerprint, e.g. `v1:bb2cfdb1eb952653`. |
 
 ### Request body — `triageActionRequest` (max 16 KiB)
 
-| Field | Type | Required | Description |
-| --- | --- | --- | --- |
-| `action` | string | yes | `resolve` \| `ignore` \| `unresolve` \| `assign`. |
-| `assignee` | string | no | Login to assign to (with `assign`). |
-| `resolvedInVersion` | string | no | Version fixed in (with `resolve`). |
-| `note` | string | no | Free-text note stored in the event log. |
+| Field               | Type   | Required | Description                                       |
+| ------------------- | ------ | -------- | ------------------------------------------------- |
+| `action`            | string | yes      | `resolve` \| `ignore` \| `unresolve` \| `assign`. |
+| `assignee`          | string | no       | Login to assign to (with `assign`).               |
+| `resolvedInVersion` | string | no       | Version fixed in (with `resolve`).                |
+| `note`              | string | no       | Free-text note stored in the event log.           |
 
 An unknown/absent `action` or an undecodable body returns
 `400 {"error":"invalid action"}`.
@@ -265,7 +266,7 @@ The single folded `TriageState` for this fingerprint (same shape as under
 
 ```bash
 curl -s -X POST \
-  ".../services/fager/min-side-arbeidsgiver/triage/v1:bb2cfdb1eb952653" \
+  ".../services/team-a/storefront/triage/v1:bb2cfdb1eb952653" \
   -H 'Content-Type: application/json' \
   -d '{"action":"resolve","resolvedInVersion":"fc89e5cf","note":"fixed in latest deploy"}'
 ```
@@ -301,20 +302,20 @@ A JSON object `{ "events": [ TriageEvent ] }`.
 
 **TriageEvent**:
 
-| Field | Type | Description |
-| --- | --- | --- |
-| `schema` | int | Event schema version (`1`). |
-| `action` | string | `resolve` \| `ignore` \| `unresolve` \| `assign`. |
-| `actor` | string | Who performed it. |
-| `assignee` | string? | Assignee (assign action). |
-| `resolvedInVersion` | string? | Version (resolve action). |
-| `note` | string? | Note. |
-| `timeMs` | int64 | Event time (epoch ms). |
+| Field               | Type    | Description                                       |
+| ------------------- | ------- | ------------------------------------------------- |
+| `schema`            | int     | Event schema version (`1`).                       |
+| `action`            | string  | `resolve` \| `ignore` \| `unresolve` \| `assign`. |
+| `actor`             | string  | Who performed it.                                 |
+| `assignee`          | string? | Assignee (assign action).                         |
+| `resolvedInVersion` | string? | Version (resolve action).                         |
+| `note`              | string? | Note.                                             |
+| `timeMs`            | int64   | Event time (epoch ms).                            |
 
 ### Example
 
 ```bash
-curl -s ".../services/fager/min-side-arbeidsgiver/triage/v1:bb2cfdb1eb952653/history"
+curl -s ".../services/team-a/storefront/triage/v1:bb2cfdb1eb952653/history"
 ```
 
 ```json

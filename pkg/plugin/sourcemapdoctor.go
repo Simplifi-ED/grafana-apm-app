@@ -21,13 +21,13 @@ import (
 // platform team.
 //
 // SSRF guard: this is the one handler that makes an outbound request to a
-// URL supplied by the caller, so the target host is allowlisted to cdn.nav.no
+// URL supplied by the caller, so the target host is allowlisted to cdn.example.com
 // (the public frontend-asset CDN). The initial URL, the resolved `.map` URL,
 // and every redirect hop are all validated against the allowlist before a
 // request is issued.
 
 // sourcemapCDNHost is the only host the doctor will fetch from.
-const sourcemapCDNHost = "cdn.nav.no"
+const sourcemapCDNHost = "cdn.example.com"
 
 // maxSourcemapBytes caps how much of a bundle/map we read. Bundles are large,
 // but the sourceMappingURL comment lives near the end; we read up to this cap
@@ -91,7 +91,7 @@ func (a *App) handleSourcemapDoctor(w http.ResponseWriter, req *http.Request) {
 	// SSRF guard (primary): don't fetch the caller's parsed URL — rebuild a
 	// fresh URL whose authority is the hardcoded CDN constant, carrying over
 	// only the caller's path/query. After the sourcemapHostAllowed() check
-	// above the host can only be cdn.nav.no, so this changes no behaviour; it
+	// above the host can only be cdn.example.com, so this changes no behaviour; it
 	// makes the fetched host *guaranteed constant* rather than merely checked,
 	// which also breaks the taint flow static analysis follows from the query
 	// parameter into the HTTP client.

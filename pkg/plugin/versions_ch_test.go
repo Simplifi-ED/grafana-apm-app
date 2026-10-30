@@ -27,9 +27,9 @@ func TestHandleFrontendVersions_ClickStackAliasMissHint(t *testing.T) {
 		},
 		chClient: &queries.ClickHouseClient{},
 	}
-	req := httptest.NewRequest(http.MethodGet, "/services/sanad/nova-frontend/frontend/versions?from=1&to=2", nil)
-	req.SetPathValue("namespace", "sanad")
-	req.SetPathValue("service", "nova-frontend")
+	req := httptest.NewRequest(http.MethodGet, "/services/acme/storefront/frontend/versions?from=1&to=2", nil)
+	req.SetPathValue("namespace", "acme")
+	req.SetPathValue("service", "storefront")
 	w := httptest.NewRecorder()
 	app.handleFrontendVersions(w, req)
 	if w.Code != http.StatusOK {
@@ -65,12 +65,12 @@ func TestFetchFrontendVersionsClickHouse_EnablementHintWhenProbeEmpty(t *testing
 	app := &App{
 		settings: queries.PluginSettings{
 			ClickHouseDataSource: queries.DataSourceRef{UID: "clickhouse"},
-			ServiceAliases:       map[string]string{"nova-frontend": "nova-frontend"},
+			ServiceAliases:       map[string]string{"storefront": "storefront"},
 		},
 		chClient: ch,
 	}
 	from, to := time.Unix(1, 0), time.Unix(2, 0)
-	resp := app.fetchFrontendVersionsClickHouse(t.Context(), ch, "nova-frontend", "prod", from, to)
+	resp := app.fetchFrontendVersionsClickHouse(t.Context(), ch, "storefront", "prod", from, to)
 	if !strings.Contains(resp.Hint, "ticket 21") || !strings.Contains(resp.Hint, "service.version") {
 		t.Fatalf("hint=%q", resp.Hint)
 	}
@@ -107,12 +107,12 @@ func TestFetchFrontendVersionsClickHouse_ParsesAdoption(t *testing.T) {
 	})
 	app := &App{
 		settings: queries.PluginSettings{
-			ServiceAliases: map[string]string{"nova-frontend": "nova-frontend"},
+			ServiceAliases: map[string]string{"storefront": "storefront"},
 		},
 		chClient: ch,
 	}
 	from, to := time.Unix(1, 0), time.Unix(3600, 0)
-	resp := app.fetchFrontendVersionsClickHouse(t.Context(), ch, "nova-frontend", "", from, to)
+	resp := app.fetchFrontendVersionsClickHouse(t.Context(), ch, "storefront", "", from, to)
 	if resp.Hint != "" || resp.Unavailable {
 		t.Fatalf("resp=%+v", resp)
 	}

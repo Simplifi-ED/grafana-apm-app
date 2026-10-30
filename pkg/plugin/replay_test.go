@@ -79,7 +79,7 @@ func TestHandleSessionReplayProbe_UnavailableWithoutCH(t *testing.T) {
 	app := &App{}
 	mux := http.NewServeMux()
 	app.registerRoutes(mux)
-	req := httptest.NewRequest(http.MethodGet, "/services/_/nova-frontend/frontend/sessions/abc123/replay/probe?from=1&to=2", nil)
+	req := httptest.NewRequest(http.MethodGet, "/services/_/storefront/frontend/sessions/abc123/replay/probe?from=1&to=2", nil)
 	rr := httptest.NewRecorder()
 	mux.ServeHTTP(rr, req)
 	if rr.Code != http.StatusOK {
@@ -96,7 +96,7 @@ func TestHandleSessionReplayProbe_UnavailableWithoutCH(t *testing.T) {
 
 func TestHandleSessionReplayProbe_HasChunks(t *testing.T) {
 	srv := mockReplayCHServer(t, func(rawSQL string) ([]string, [][]any, string) {
-		if !strings.Contains(rawSQL, "nova-frontend") || !strings.Contains(rawSQL, "sess-1") {
+		if !strings.Contains(rawSQL, "storefront") || !strings.Contains(rawSQL, "sess-1") {
 			t.Fatalf("unexpected SQL: %s", rawSQL)
 		}
 		return []string{"row_count", "event_count"}, [][]any{{float64(12), float64(10)}}, ""
@@ -104,7 +104,7 @@ func TestHandleSessionReplayProbe_HasChunks(t *testing.T) {
 	defer srv.Close()
 	app := newReplayHTTPApp(t, srv)
 
-	req := httptest.NewRequest(http.MethodGet, "/services/_/nova-frontend/frontend/sessions/sess-1/replay/probe?from=1000&to=2000", nil)
+	req := httptest.NewRequest(http.MethodGet, "/services/_/storefront/frontend/sessions/sess-1/replay/probe?from=1000&to=2000", nil)
 	rr := httptest.NewRecorder()
 	app.mux.ServeHTTP(rr, req)
 	if rr.Code != http.StatusOK {
@@ -135,7 +135,7 @@ func TestHandleSessionReplay_ReassemblesChunks(t *testing.T) {
 	defer srv.Close()
 	app := newReplayHTTPApp(t, srv)
 
-	req := httptest.NewRequest(http.MethodGet, "/services/_/nova-frontend/frontend/sessions/sess-1/replay?from=1000&to=3000", nil)
+	req := httptest.NewRequest(http.MethodGet, "/services/_/storefront/frontend/sessions/sess-1/replay?from=1000&to=3000", nil)
 	rr := httptest.NewRecorder()
 	app.mux.ServeHTTP(rr, req)
 	if rr.Code != http.StatusOK {
@@ -179,7 +179,7 @@ func TestHandleSessionRecordings_ListsSessions(t *testing.T) {
 	})
 	defer srv.Close()
 	app := newReplayHTTPApp(t, srv)
-	req := httptest.NewRequest(http.MethodGet, "/services/_/nova-frontend/frontend/sessions/recordings?from=1&to=2", nil)
+	req := httptest.NewRequest(http.MethodGet, "/services/_/storefront/frontend/sessions/recordings?from=1&to=2", nil)
 	rr := httptest.NewRecorder()
 	app.mux.ServeHTTP(rr, req)
 	if rr.Code != http.StatusOK {

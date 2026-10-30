@@ -20,16 +20,16 @@ bash scripts/data-review.sh
 
 Env overrides (all optional):
 
-| var          | default                 | meaning                              |
-|--------------|-------------------------|--------------------------------------|
-| `HOST`       | `http://localhost:3000` | Grafana base URL                     |
-| `AUTH`       | `admin:admin`           | basic-auth `user:pass`               |
-| `LOKI_UID`   | `nav-logs`              | logs datasource uid (patterns param) |
-| `TEMPO_UID`  | `dev-gcp-tempo`         | traces datasource uid (breakdown)    |
-| `RANGE_SECS` | `21600` (6h)            | lookback window                      |
-| `MAXTIME`    | `60`                    | per-request curl timeout (seconds)   |
-| `MATRIX_FILE`| built-in                | TSV file overriding the service matrix |
-| `VERBOSE`    | `0`                     | set `1` to print body snippets on FAIL |
+| var           | default                 | meaning                                |
+| ------------- | ----------------------- | -------------------------------------- |
+| `HOST`        | `http://localhost:3000` | Grafana base URL                       |
+| `AUTH`        | `admin:admin`           | basic-auth `user:pass`                 |
+| `LOKI_UID`    | `nav-logs`              | logs datasource uid (patterns param)   |
+| `TEMPO_UID`   | `dev-gcp-tempo`         | traces datasource uid (breakdown)      |
+| `RANGE_SECS`  | `21600` (6h)            | lookback window                        |
+| `MAXTIME`     | `60`                    | per-request curl timeout (seconds)     |
+| `MATRIX_FILE` | built-in                | TSV file overriding the service matrix |
+| `VERBOSE`     | `0`                     | set `1` to print body snippets on FAIL |
 
 Example against a remote / different auth:
 
@@ -58,11 +58,11 @@ Assertions are two-tier: every endpoint gets a **schema check** (HTTP 200 +
 required keys), and endpoints flagged in the matrix additionally get a
 **non-empty / coherence check**:
 
-- `issues`      — issues array must be non-empty
-- `frontend`    — `frontend` metrics `available` must be `true`
-- `logs`        — `logs/patterns` `mode` must not be `unavailable`
-- `traces`      — `traces/breakdown` must return `rows`
-- `runtime_db`  — `runtime.dbPool` present **and** every pool has `idle <= max`
+- `issues` — issues array must be non-empty
+- `frontend` — `frontend` metrics `available` must be `true`
+- `logs` — `logs/patterns` `mode` must not be `unavailable`
+- `traces` — `traces/breakdown` must return `rows`
+- `runtime_db` — `runtime.dbPool` present **and** every pool has `idle <= max`
 
 ## The service matrix
 
@@ -123,13 +123,13 @@ Spot-checks worth repeating:
 
 1. **Scorecard verdicts** — for a service, pull `/scorecard` and independently
    reproduce each of the six checks:
-   - `spanMetrics`  → `count(traces_spanmetrics_calls_total{service_name="SVC"})`
+   - `spanMetrics` → `count(traces_spanmetrics_calls_total{service_name="SVC"})`
    - `runtimeMetrics` → `count({app="SVC", __name__=~"jvm_.*|nodejs_.*|hikaricp_.*"})`
    - `browserTelemetry` → `count({app_name="SVC", job="alloy-faro"})`
    - `logs` → Loki `/loki/api/v1/index/stats?query={service_name="SVC"}`
    - `traces` → Tempo `/api/search?q={resource.service.name="SVC"}`
    - `alertRules` → ruler/grafana rules mentioning the service
-   The endpoint's `ok` must match whether the query returns data.
+     The endpoint's `ok` must match whether the query returns data.
 
 2. **Jobs streak** — pick a `status:failing` cronjob from `/jobs`, then query
    KSM `kube_job_status_failed{namespace="NS", job_name=~"NAME.*"}` /
@@ -146,7 +146,7 @@ Spot-checks worth repeating:
 
 4. **DB pool aggregation** — for a multi-pod service sharing one pool name,
    compare `/runtime` `dbPool` against per-pod `hikaricp_connections_{active,
-   idle,max}`. `active`/`idle` are summed across pods but `max` is not, so
+idle,max}`. `active`/`idle` are summed across pods but `max` is not, so
    `idle` can exceed `max` (see finding R-1).
 
 5. **Trace breakdown mode** — `/traces/breakdown` should return `mode:"traceql"`
@@ -155,6 +155,6 @@ Spot-checks worth repeating:
    `mode:"spanmetrics"` the detection path is failing (see finding T-1).
 
 6. **Facet reconciliation** — faceted issue counts are browser-only and use a
-   different grouping than the unfaceted total, so they are *not* expected to
+   different grouping than the unfaceted total, so they are _not_ expected to
    match exactly. The facet-value sums should be roughly the same order as the
    browser-issue count sum (observed ~1% apart), not wildly off.

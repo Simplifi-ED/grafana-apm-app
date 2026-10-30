@@ -2,7 +2,7 @@
 
 > **TARGET LOCATION:** this is a proposal to file as a nais platform issue
 > (whichever repo owns HTML delivery / ingress for nais Applications — e.g.
-> `nais/nais.io` docs plus an implementation issue against the platform
+> platform docs plus an implementation issue against the platform
 > component that serves/rewrites app HTML). Until platform buy-in is
 > secured, `@nais/apm` reads build-time env as a stopgap (see "Fallback"
 > below) — this doc describes the target state to migrate to, not something
@@ -29,10 +29,10 @@ Nais-injected (or app-emitted, see Fallback) `<meta>` tags in the served
 HTML `<head>`:
 
 ```html
-<meta name="nais-app" content="soknad-dagpenger">
+<meta name="nais-app" content="demo-frontend">
 <meta name="nais-cluster" content="prod-gcp">
 <meta name="nais-version" content="2026.07.03-abc1234">
-<meta name="nais-telemetry-url" content="https://telemetry.nav.no/collect">
+<meta name="nais-telemetry-url" content="https://telemetry.example.com/collect">
 ```
 
 | Tag | Maps to Faro | Notes |
@@ -40,7 +40,7 @@ HTML `<head>`:
 | `nais-app` | `app.name` | Must match the value used for grouping in Nais APM (Top Exceptions, ExceptionDrawer). |
 | `nais-cluster` | `app.environment` | nais cluster/environment name (e.g. `prod-gcp`, `dev-gcp`). |
 | `nais-version` | `app.version` **and** `app.release` | Doubles as the Faro release tag. **Must default to the build commit SHA** — this is the only version identity the nais deployment API (`Deployment.commitSha`, see nais/grafana-apm-app#64) actually carries, and it is the same value used in the source-map CDN path (`infra/docs/source-maps-on-nais.md`). Teams may additionally pass a semver tag, but SHA is the join key across deploy annotations, CDN paths, and this contract. |
-| `nais-telemetry-url` | Faro collector URL | Resolves prod (`https://telemetry.nav.no/collect`) vs. dev (`https://telemetry.ekstern.dev.nav.no/collect`) collectors without the app hardcoding either. |
+| `nais-telemetry-url` | Faro collector URL | Resolves prod (`https://telemetry.example.com/collect`) vs. dev (`https://telemetry.dev.example.com/collect`) collectors without the app hardcoding either. |
 
 ## `@nais/apm` resolution order
 

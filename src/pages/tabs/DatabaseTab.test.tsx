@@ -144,8 +144,8 @@ describe('DatabaseTab', () => {
   });
 
   it('shows the pool-specific requirements note when spans exist but pool metrics are absent', async () => {
-    // Matches production pdl/pdl-api (mongodb: driver pools not instrumented)
-    // and pensjon-person/pensjon-representasjon (oracle UCP: not surfaced).
+    // Matches production team-a/checkout-api (mongodb: driver pools not instrumented)
+    // and billing/billing-db-client (oracle UCP: not surfaced).
     (getEndpoints as jest.Mock).mockResolvedValue({ ...emptyEndpoints, database: [dbOperation] });
     (getRuntimeMetrics as jest.Mock).mockResolvedValue(emptyRuntime);
 

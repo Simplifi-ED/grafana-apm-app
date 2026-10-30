@@ -65,7 +65,7 @@ var graphqlProbes = []graphqlProbe{
 		latencyUnit: "ms",
 	},
 	{
-		framework:   frameworkCustomTimer + " (aareg)",
+		framework:   frameworkCustomTimer + " (custom)",
 		countMetric: "graphql_query_timed_seconds_count",
 		sumMetric:   "graphql_query_timed_seconds_sum",
 		opLabel:     "query",
@@ -73,7 +73,7 @@ var graphqlProbes = []graphqlProbe{
 		latencyUnit: "s",
 	},
 	{
-		framework:   frameworkCustomTimer + " (oppgave)",
+		framework:   frameworkCustomTimer + " (custom)",
 		countMetric: "requests_graphql_duration_seconds_count",
 		sumMetric:   "requests_graphql_duration_seconds_sum",
 		opLabel:     "operation",
@@ -81,7 +81,7 @@ var graphqlProbes = []graphqlProbe{
 	},
 }
 
-// Known metric prefixes to exclude from pdl-style per-query-name discovery.
+// Known metric prefixes to exclude from per-query-name per-query-name discovery.
 var knownGraphQLPrefixes = []string{
 	"graphql_request_", "graphql_datafetcher_", "graphql_dataloader_",
 	"graphql_timer_", "graphql_responstider", "graphql_query_timed_",
@@ -207,7 +207,7 @@ func (a *App) queryGraphQLFromCHMetrics(
 		return resp
 	}
 
-	// pdl-style per-query-name metrics: graphql_{QueryName}_seconds_count
+	// per-query-name per-query-name metrics: graphql_{QueryName}_seconds_count
 	pdlOps := a.queryPDLOperationsClickHouse(ctx, ch, logger, scrapeService, namespace, metricNames, from, to, opts)
 	if len(pdlOps) > 0 {
 		return GraphQLMetricsResponse{
@@ -259,7 +259,7 @@ func (a *App) queryPDLOperationsClickHouse(
 			scrapeService, namespace, name, countMetric, sumMetric, from, to,
 		), opts)
 		if err != nil {
-			logger.Debug("pdl CH op failed", "metric", countMetric, "error", err)
+			logger.Debug("per-query CH op failed", "metric", countMetric, "error", err)
 			continue
 		}
 		ops = append(ops, mapCHGraphQLOps(chquery.ParseGraphQLOpRows(res.Maps(), "s"))...)
@@ -377,7 +377,7 @@ func (a *App) queryGraphQLMetrics(ctx context.Context, namespace, service, envir
 		return resp
 	}
 
-	// Check for pdl-style per-query-name metrics: graphql_{QueryName}_seconds_count
+	// Check for per-query-name per-query-name metrics: graphql_{QueryName}_seconds_count
 	pdlOps := queryPDLOperations(ctx, client, svcFilter, metricNames, to, logger)
 	if len(pdlOps) > 0 {
 		return GraphQLMetricsResponse{
@@ -564,7 +564,7 @@ func queryDGSFetchers(
 	return fetchers
 }
 
-// queryPDLOperations detects pdl-style metrics where the query name is in the metric name:
+// queryPDLOperations detects per-query-name metrics where the query name is in the metric name:
 // graphql_{queryName}_seconds_{count,sum}
 func queryPDLOperations(
 	ctx context.Context, client *queries.PrometheusClient,
@@ -616,7 +616,7 @@ func queryPDLOperations(
 
 		rateResults, err := client.InstantQuery(ctx, rateQuery, at)
 		if err != nil {
-			logger.Debug("pdl rate query failed", "metric", countMetric, "error", err)
+			logger.Debug("per-query rate query failed", "metric", countMetric, "error", err)
 			continue
 		}
 

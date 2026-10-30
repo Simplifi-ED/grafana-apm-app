@@ -102,7 +102,7 @@ func TestAddressMatchRegex(t *testing.T) {
 		input    string
 		expected string
 	}{
-		{"bare domain", "idporten.no", `idporten\\.no(:(443|80))?`},
+		{"bare domain", "auth.example.com", `auth\\.example\\.com(:(443|80))?`},
 		{"domain with dot", "some.host.example.com", `some\\.host\\.example\\.com(:(443|80))?`},
 		{"non-standard port preserved", "postgres-ha:5432", `postgres-ha:5432`},
 		{"ip address", "10.0.0.1", `10\\.0\\.0\\.1(:(443|80))?`},

@@ -55,7 +55,7 @@ describe('FeedbackPanel', () => {
   it('surfaces ClickStack alias-miss hint', async () => {
     getFeedback.mockResolvedValue({
       feedback: [],
-      hint: 'No serviceAliases entry for "nova-frontend". Add jsonData.serviceAliases…',
+      hint: 'No serviceAliases entry for "storefront". Add jsonData.serviceAliases…',
     });
     renderPanel(true);
 

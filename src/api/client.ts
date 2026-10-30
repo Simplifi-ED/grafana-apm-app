@@ -1514,8 +1514,8 @@ export interface SourcemapDoctorResult {
 
 /**
  * Diagnose why a minified frame's source map wasn't resolved. The backend
- * fetches the bundle from cdn.nav.no (host-allowlisted, server-side) and
- * reports a pass/fail checklist. `frameUrl` must be an absolute cdn.nav.no
+ * fetches the bundle from cdn.example.com (host-allowlisted, server-side) and
+ * reports a pass/fail checklist. `frameUrl` must be an absolute cdn.example.com
  * script URL (see frames.firstScriptUrl).
  */
 export async function getSourcemapDoctor(

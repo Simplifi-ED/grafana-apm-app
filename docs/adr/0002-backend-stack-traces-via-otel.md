@@ -53,9 +53,9 @@ proved it **merges nothing**:
 
 - On the tail input, `multiline.parser` and the `parser` / `key_content`
   settings are **inert** — line reassembly by a custom regex is a multiline
-  *filter* feature, and the FluentbitAgent CRD (v6.7.0) does not expose that
+  _filter_ feature, and the FluentbitAgent CRD (v6.7.0) does not expose that
   filter. Tail multiline is first-match only and cannot chain `cri` with a
-  custom parser, so it can't strip the CRI envelope *and* merge.
+  custom parser, so it can't strip the CRI envelope _and_ merge.
 - Worse, forcing it on **regresses CRI envelope stripping fleet-wide**: the
   operator drops `Parser cri` when a tail multiline parser is set, so every
   service's log lines keep their raw CRI envelope.
@@ -69,7 +69,7 @@ did nothing and broke envelope stripping (see helm-charts#425, helm-charts#426).
 Technically viable: `fluent-plugin-concat` or `detect_exceptions` can stitch
 multi-line traces back together. But it is a **fleet-wide log-pipeline change**
 whose blast radius is all log collection for every service, and it merges only
-*plaintext* traces. With OTLP already providing a coherent, structured path
+_plaintext_ traces. With OTLP already providing a coherent, structured path
 (shape A), that blast radius is not justified.
 
 ## Consequences

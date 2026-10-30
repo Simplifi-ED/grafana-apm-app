@@ -20,11 +20,11 @@ Reassembly matches HyperDX's `rrwebChunkAssembler` (sort chunks by index, concat
 
 ## API
 
-| Method | Path | Role |
-|--------|------|------|
-| GET | `/services/{ns}/{svc}/frontend/sessions/recordings` | List sessions with recordings |
-| GET | `/services/{ns}/{svc}/frontend/sessions/{sessionId}/replay/probe` | Existence / mode probe |
-| GET | `/services/{ns}/{svc}/frontend/sessions/{sessionId}/replay` | Fetch + reassemble events |
+| Method | Path                                                              | Role                          |
+| ------ | ----------------------------------------------------------------- | ----------------------------- |
+| GET    | `/services/{ns}/{svc}/frontend/sessions/recordings`               | List sessions with recordings |
+| GET    | `/services/{ns}/{svc}/frontend/sessions/{sessionId}/replay/probe` | Existence / mode probe        |
+| GET    | `/services/{ns}/{svc}/frontend/sessions/{sessionId}/replay`       | Fetch + reassemble events     |
 
 Requires `jsonData.clickHouseDataSource.uid`. Auth = Grafana datasource auth (same as Step 1 client). Limits: 24h range, 5000 rows/fetch, 50 MiB assembled.
 
@@ -43,13 +43,13 @@ Requires `jsonData.clickHouseDataSource.uid`. Auth = Grafana datasource auth (sa
 
 ## Tests
 
-| Layer | What | How |
-|-------|------|-----|
-| Unit | Chunk reassembly, duplicates, malformed, size limit | `go test ./pkg/plugin/ -run Assemble` |
-| Unit | HTTP handlers + SQL wiring (mocked `/api/ds/query`) | `go test ./pkg/plugin/ -run HandleSession` |
-| Unit | Frontend backend path + Loki fallback | `fetchReplay.test.ts`, `ExceptionDrawer.replay.test.tsx` |
-| Integration | Live ClickHouse format inspection | ClickStack MCP read-only queries (Phase A) — **not** through Grafana datasource |
-| Integration | Live multi-chunk reassembly | CH SQL concat of event `206` chunks → valid JSON `type=2` + `timestamp` (no Body logged) |
+| Layer       | What                                                | How                                                                                      |
+| ----------- | --------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Unit        | Chunk reassembly, duplicates, malformed, size limit | `go test ./pkg/plugin/ -run Assemble`                                                    |
+| Unit        | HTTP handlers + SQL wiring (mocked `/api/ds/query`) | `go test ./pkg/plugin/ -run HandleSession`                                               |
+| Unit        | Frontend backend path + Loki fallback               | `fetchReplay.test.ts`, `ExceptionDrawer.replay.test.tsx`                                 |
+| Integration | Live ClickHouse format inspection                   | ClickStack MCP read-only queries (Phase A) — **not** through Grafana datasource          |
+| Integration | Live multi-chunk reassembly                         | CH SQL concat of event `206` chunks → valid JSON `type=2` + `timestamp` (no Body logged) |
 
 Fixtures are **synthetic** (example.test URLs, empty DOM nodes). Do not commit live Bodies.
 
@@ -64,7 +64,7 @@ Fixtures are **synthetic** (example.test URLs, empty DOM nodes). Do not commit l
 
 ```bash
 curl -sS -H "Authorization: Bearer $TOKEN" \
-  "$GRAFANA/api/plugins/clickhouse-apm-app/resources/services/_/nova-frontend/frontend/sessions/SESSION_ID/replay/probe?from=FROM&to=TO"
+  "$GRAFANA/api/plugins/clickhouse-apm-app/resources/services/_/storefront/frontend/sessions/SESSION_ID/replay/probe?from=FROM&to=TO"
 ```
 
 7. Click **Play replay** — player should mount with ≥2 events (Meta + FullSnapshot).

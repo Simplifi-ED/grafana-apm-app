@@ -33,11 +33,11 @@ func TestClassifyDependency(t *testing.T) {
 		{"kafka consumer as service", "veilarbportefolje", "messaging_system", nil, nil, "service"},
 		{"kafka consumer service", "vergemaal", "messaging_system", nil, nil, "service"},
 		// messaging system — broker hostnames with specific messaging_system label
-		{"kafka broker with label", "kafka-brokers.nav.no", "messaging_system", nil, map[string]string{"kafka-brokers.nav.no": "kafka"}, "kafka"},
-		{"jms broker with label", "jms-broker.nav.no", "messaging_system", nil, map[string]string{"jms-broker.nav.no": "jms"}, "messaging"},
+		{"kafka broker with label", "kafka-brokers.example.com", "messaging_system", nil, map[string]string{"kafka-brokers.example.com": "kafka"}, "kafka"},
+		{"jms broker with label", "jms-broker.example.com", "messaging_system", nil, map[string]string{"jms-broker.example.com": "jms"}, "messaging"},
 		{"rabbitmq broker with label", "rmq.example.com", "messaging_system", nil, map[string]string{"rmq.example.com": "rabbitmq"}, "rabbitmq"},
 		// messaging system — broker hostnames without label (fallback)
-		{"kafka broker hostname", "kafka-brokers.nav.no", "messaging_system", nil, nil, "kafka"},
+		{"kafka broker hostname", "kafka-brokers.example.com", "messaging_system", nil, nil, "kafka"},
 		{"kafka broker name", "kafka", "messaging_system", nil, nil, "kafka"},
 		{"rabbitmq broker name", "rabbitmq", "messaging_system", nil, nil, "kafka"},
 
@@ -136,8 +136,8 @@ func TestFormatDepDisplayName(t *testing.T) {
 		{"database dep", "100.71.2.33", "postgresql", "", "postgresql (100.71.2.33)"},
 		{"oracle dep", "dmv04-scan.oera.no", "oracle", "", "oracle (dmv04-scan.oera.no)"},
 		{"postgres alias", "mydb.host", "postgres", "", "postgresql (mydb.host)"},
-		{"kafka dep", "kafka-brokers.nav.no", "", "kafka", "kafka (kafka-brokers.nav.no)"},
-		{"jms dep", "jms-broker.nav.no", "", "jms", "jms (jms-broker.nav.no)"},
+		{"kafka dep", "kafka-brokers.example.com", "", "kafka", "kafka (kafka-brokers.example.com)"},
+		{"jms dep", "jms-broker.example.com", "", "jms", "jms (jms-broker.example.com)"},
 		{"no enrichment", "api.example.com", "", "", ""},
 		{"db takes precedence", "host", "redis", "kafka", "redis (host)"},
 	}
@@ -167,16 +167,16 @@ func TestInferFromName(t *testing.T) {
 		{"aiven redis", "my-app-redis-01.aivencloud.com", "redis"},
 		{"aiven non-redis", "other-thing.aivencloud.com", "redis"},
 		{"regular service", "some-service", "service"},
-		{"k8s service.namespace", "sokos-kontoregister-person.okonomi", "service"},
-		{"k8s service.namespace 2", "digdir-krr-proxy.team-rocket", "service"},
-		{"k8s service.namespace 3", "sf-henvendelse-api-proxy.teamnks", "service"},
+		{"k8s service.namespace", "ledger-person.finance", "service"},
+		{"k8s service.namespace 2", "id-proxy.team-rocket", "service"},
+		{"k8s service.namespace 3", "support-api-proxy.team-support", "service"},
 		{"k8s service.namespace 4", "repr-api.repr", "service"},
-		{"k8s service.namespace 5", "spokelse.tbd", "service"},
-		{"external 2-part TLD", "idporten.no", "external"},
+		{"k8s service.namespace 5", "batch-worker.jobs", "service"},
+		{"external 2-part TLD", "auth.example.com", "external"},
 		{"external 2-part com", "example.com", "external"},
 		{"external 3-part", "graph.microsoft.com", "external"},
-		{"external nais ingress", "pdl-api.prod-fss-pub.nais.io", "external"},
-		{"external nav cloud", "personoversikt-unleash-api.nav.cloud.nais.io", "external"},
+		{"external nais ingress", "checkout-api.prod.example.com", "external"},
+		{"external grafana cloud", "feature-flags-api.grafana.example.com", "external"},
 		{"case insensitive redis", "REDIS", "redis"},
 		{"case insensitive kafka", "Kafka", "kafka"},
 	}
@@ -202,10 +202,10 @@ func TestNormalizeAddress(t *testing.T) {
 		{"strip port 443", "login.microsoftonline.com:443", "login.microsoftonline.com"},
 		{"strip port 80", "example.com:80", "example.com"},
 		{"keep other port", "my-service:8080", "my-service:8080"},
-		{"trailing dot", "idporten.no.", "idporten.no"},
+		{"trailing dot", "auth.example.com.", "auth.example.com"},
 		{"trailing dot with port", "api.example.com.:443", "api.example.com"},
 		{"uppercase", "Graph.Microsoft.COM", "graph.microsoft.com"},
-		{"uppercase with port", "IDPORTEN.NO:443", "idporten.no"},
+		{"uppercase with port", "AUTH.EXAMPLE.COM:443", "auth.example.com"},
 	}
 
 	for _, tc := range tests {
@@ -236,9 +236,9 @@ func TestRegexQuoteMetaForHostnames(t *testing.T) {
 		},
 		{
 			name:     "hostname with port suffix pattern",
-			hostname: "idporten.no",
-			match:    "idporten.no:443",
-			noMatch:  "idportenXno:443",
+			hostname: "auth.example.com",
+			match:    "auth.example.com:443",
+			noMatch:  "authXexampleXcom:443",
 		},
 		{
 			name:     "simple hostname",
@@ -300,9 +300,9 @@ func TestAddressMatchRegexRoundTrip(t *testing.T) {
 	}{
 		{
 			"443 port stripped",
-			"idporten.no:443",
-			[]string{"idporten.no", "idporten.no:443", "idporten.no:80"},
-			[]string{"idportenXno", "idporten.no:8080"},
+			"auth.example.com:443",
+			[]string{"auth.example.com", "auth.example.com:443", "auth.example.com:80"},
+			[]string{"authXexampleXcom", "auth.example.com:8080"},
 		},
 		{
 			"80 port stripped",
@@ -352,21 +352,21 @@ func TestIsExternalHostname(t *testing.T) {
 		external bool
 	}{
 		// Internal K8s names
-		{"bare service", "norg2", false},
-		{"service.namespace", "sokos-kontoregister-person.okonomi", false},
-		{"service.namespace 2", "digdir-krr-proxy.team-rocket", false},
+		{"bare service", "mysvc", false},
+		{"service.namespace", "ledger-person.finance", false},
+		{"service.namespace 2", "id-proxy.team-rocket", false},
 		{"service with svc suffix", "my-app.ns.svc", false},
 		{"service with svc.cluster", "my-app.ns.svc.cluster.local", false},
 		{"port on bare name", "redis:6379", false},
 		{"port on k8s name", "my-app.ns:8080", false},
 		// External hostnames
-		{"2-part with .no TLD", "idporten.no", true},
+		{"2-part with .no TLD", "auth.example.com", true},
 		{"2-part with .com TLD", "example.com", true},
 		{"2-part with .io TLD", "grafana.io", true},
-		{"2-part with .org TLD", "norg2.org", true},
+		{"2-part with .org TLD", "mysvc.org", true},
 		{"3-part hostname", "graph.microsoft.com", true},
-		{"4-part hostname", "pdl-api.prod-fss-pub.nais.io", true},
-		{"nav cloud", "personoversikt-unleash-api.nav.cloud.nais.io", true},
+		{"4-part hostname", "checkout-api.prod.example.com", true},
+		{"grafana cloud host", "feature-flags-api.grafana.example.com", true},
 		{"with port 443", "login.microsoftonline.com:443", true},
 		{"with port 80", "api.example.com:80", true},
 	}
@@ -392,7 +392,7 @@ func TestStripHexSuffix(t *testing.T) {
 		{"12 hex chars stripped", "my-service-deadbeef0123", "my-service"},
 		{"long commit hash", "nav-dekoratoren-28e8c72f0abdc4109d600c", "nav-dekoratoren"},
 		{"full SHA", "nav-dekoratoren-1c8de8dedcca53c151b678caa0123456789abcde", "nav-dekoratoren"},
-		{"multiple dashes in base", "tms-min-side-abc123def456", "tms-min-side"},
+		{"multiple dashes in base", "storefront-abc123def456", "storefront"},
 		{"no hex in suffix", "my-service-name", "my-service-name"},
 		{"mixed case hex no match", "my-service-DEADBEEF0123", "my-service-DEADBEEF0123"},
 		{"empty", "", ""},
@@ -416,9 +416,9 @@ func TestNormalizeServiceName(t *testing.T) {
 		expected string
 	}{
 		{"plain service", "nav-dekoratoren", "nav-dekoratoren"},
-		{"FQDN full", "pdl-tilgangsstyring.pdl.svc.cluster.local", "pdl-tilgangsstyring"},
-		{"FQDN svc only", "pdl-tilgangsstyring.pdl.svc", "pdl-tilgangsstyring"},
-		{"namespace qualified", "pdl-tilgangsstyring.pdl", "pdl-tilgangsstyring"},
+		{"FQDN full", "access-api.checkout.svc.cluster.local", "access-api"},
+		{"FQDN svc only", "access-api.checkout.svc", "access-api"},
+		{"namespace qualified", "access-api.checkout", "access-api"},
 		{"external unchanged", "vault.adeo.no", "vault.adeo.no"},
 		{"with port unchanged", "my-service:8080", "my-service:8080"},
 		{"empty", "", ""},

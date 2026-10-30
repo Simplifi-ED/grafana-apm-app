@@ -14,8 +14,8 @@ Source material: `gh issue view 60/64/59/58` in `nais/grafana-apm-app`
 
 | Artifact | Source issue | Milestone | Target location |
 |---|---|---|---|
-| ~~`alloy/faro-receiver-sourcemaps.alloy`~~ | #60 Phase 0 | M0 (v0.14) | **APPLIED** to `helm-charts/features/alloy-faro/templates/config.yaml` (download_timeout 4s + location escape hatch; cdn.nav.no allowlist was already live) |
-| `docs/source-maps-on-nais.md` | #60 Phase 0 | M0 (v0.14) | nais docs (docs.nais.io), linked from the plugin's Frontend tab once Phase 2 ships |
+| ~~`alloy/faro-receiver-sourcemaps.alloy`~~ | #60 Phase 0 | M0 (v0.14) | **APPLIED** to `helm-charts/features/alloy-faro/templates/config.yaml` (download_timeout 4s + location escape hatch; cdn.example.com allowlist was already live) |
+| `docs/source-maps-on-nais.md` | #60 Phase 0 | M0 (v0.14) | nais docs (docs.example.com), linked from the plugin's Frontend tab once Phase 2 ships |
 | `docs/meta-tag-contract.md` | #59 (proposal), referenced by #60 Phase 1 | M1 (v0.15) | New nais platform issue (HTML-serving/ingress component); nais docs once implemented |
 | `actions/apm-deploy-annotation/action.yml` + `actions/README.md` | #64 Phase 0 | M2 (v0.16) | New GitHub Action repo, `nais/apm-deploy-annotation`, published as `@v1` |
 | ~~`alloy/faro-replay-stream.alloy`~~ | #58 Phase 1 (pipeline) | M5 (v0.19) — **FUTURE, do not apply yet** | Moved to `helm-charts/features/alloy-faro/docs/faro-replay-stream.alloy.future`, next to the live config it will one day join |
@@ -119,7 +119,7 @@ above, but the platform team owns them.
   platform buy-in secured?"). I did not pick one — the doc presents both
   with the SSR caveat, matching the issue's own stated uncertainty rather
   than inventing a resolution.
-- **cdn.nav.no `<team>/<app>/` path segments** in the source-maps doc and
+- **cdn.example.com `<team>/<app>/` path segments** in the source-maps doc and
   Alloy config use `<team>`/`<app>`/`<release>` placeholders consistently
   with #60's own examples (which mix `team-x`/`app-y` in the Alloy sketch
   and `<team>`/`<app>` in the non-public opt-out). No contradiction, just

@@ -24,7 +24,7 @@ func TestDetectNPlusOne(t *testing.T) {
 	)
 
 	traces := []nplusTrace{
-		{traceID: "t1", endpoint: "GET /oppgaveliste.jsf", spans: offenders},
+		{traceID: "t1", endpoint: "GET /tasklist.jsf", spans: offenders},
 		// A clean trace: 3 different queries, none repeated → no finding.
 		{traceID: "t2", endpoint: "GET /healthz", spans: []dbSpan{
 			{system: "postgresql", statement: "select 1"},
@@ -44,7 +44,7 @@ func TestDetectNPlusOne(t *testing.T) {
 	if f.Statement != "select * from person where id in (?)" {
 		t.Errorf("statement not normalized/collapsed: %q", f.Statement)
 	}
-	if f.Endpoint != "GET /oppgaveliste.jsf" {
+	if f.Endpoint != "GET /tasklist.jsf" {
 		t.Errorf("endpoint wrong: %q", f.Endpoint)
 	}
 	if f.TraceID != "t1" {
@@ -148,7 +148,7 @@ func TestParseNPlusOneResponse(t *testing.T) {
         {
           "traceID": "abc",
           "rootServiceName": "gosys",
-          "rootTraceName": "GET /oppgaveliste.jsf",
+          "rootTraceName": "GET /tasklist.jsf",
           "spanSet":  {"spans": [{"spanID": "s1", "durationNanos": "1000000", "attributes": [
             {"key": "db.system", "value": {"stringValue": "postgresql"}},
             {"key": "db.statement", "value": {"stringValue": "select * from t where id = 1"}}
@@ -172,7 +172,7 @@ func TestParseNPlusOneResponse(t *testing.T) {
 		t.Fatalf("expected 1 trace, got %d", len(traces))
 	}
 	tr := traces[0]
-	if tr.endpoint != "GET /oppgaveliste.jsf" {
+	if tr.endpoint != "GET /tasklist.jsf" {
 		t.Errorf("endpoint wrong: %q", tr.endpoint)
 	}
 	// s1 echoed under both spanSet and spanSets → deduped to 1; plus s2 = 2.

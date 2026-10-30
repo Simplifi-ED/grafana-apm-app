@@ -21,7 +21,7 @@ const (
 	MetricKubeJobStartTime        = "kube_job_status_start_time"
 	MetricKubeJobCompletionTime   = "kube_job_status_completion_time"
 
-	// JobsKubeMetricNameMatch probes for any KSM job/cronjob family (not nova_job_*).
+	// JobsKubeMetricNameMatch probes for any KSM job/cronjob family (not app_job_*).
 	JobsKubeMetricNameMatch = "^(kube_cronjob_|kube_job_)"
 )
 
@@ -38,7 +38,7 @@ var JobsKubeMetricNames = []string{
 }
 
 // JobsKubeProbeSQL is true when any kube_cronjob_* / kube_job_* gauge exists
-// in the lookback window. Does not match nova_job_* (research 09).
+// in the lookback window. Does not match app_job_* (research 09).
 func JobsKubeProbeSQL(from, to time.Time) string {
 	return fmt.Sprintf(`
 SELECT count() AS c FROM (

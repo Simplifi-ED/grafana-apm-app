@@ -204,7 +204,7 @@ func TestQueryIssuesBrowserErrorDegradesGracefully(t *testing.T) {
 func TestQueryServerExceptionGroupsMsgFieldShape(t *testing.T) {
 	// Shape (b) with slog/pino-default field naming: the body message arrives
 	// in `msg` and `message` is empty (surveyed live: dbt-docs, the
-	// nav-enonicxp-frontend revalidator proxies). The msg value must be used
+	// cms-frontend revalidator proxies). The msg value must be used
 	// for fingerprinting instead of dropping the row.
 	counts := []queries.PromResult{
 		{Metric: map[string]string{"message": "", "msg": "revalidation request failed for path /some/path: status 502"}, Value: queries.NewPromValue(0, "8")},
@@ -246,7 +246,7 @@ const (
 	// (b) does not group on.
 	stdoutStackLine = `2026-08-24 10:12:03.221 ERROR 1 --- [http-nio-8080-exec-3] n.n.o.OrderService : Uventet feil ved behandling av ordre
 ` + otlpExceptionType + `: ` + otlpExceptionMessage + `
-	at no.nav.ordre.OrderService.handle(OrderService.java:42)`
+	at com.example.order.OrderService.handle(OrderService.java:42)`
 	// A JSON layout that inlines the printed exception in the body — shape (b),
 	// which does fold because the identity string reaches the message field.
 	stdoutJSONBody = `Uventet feil ved behandling av ordre: ` + otlpExceptionType + `: ` + otlpExceptionMessage
@@ -401,17 +401,17 @@ func TestQueryServerExceptionGroupsDoesNotCollapseDistinctErrors(t *testing.T) {
 	}
 }
 
-// Real error line shapes sampled from NAV production Loki (2026-07-04),
-// scrubbed of ids. navno-search-frontend logs unstructured plain text —
+// Real error line shapes sampled from production Loki (2026-07-04),
+// scrubbed of ids. search-frontend logs unstructured plain text —
 // neither shape (a) nor (b) can title it; only the shape (c) sample can.
 const (
-	plainLineSearch = `Error: Failed to fetch search results from "https://navno-search-api.nav.no/content/search?ord=&page=0" - Error: Internal Server Error`
+	plainLineSearch = `Error: Failed to fetch search results from "https://search.example.com/content/search?ord=&page=0" - Error: Internal Server Error`
 	plainLineProxy  = `2026/07/04 07:30:33 proxy server error: accept tcp 127.0.0.1:5432: use of closed network connection`
 	// Real logback status-printer lines (2026-07, scrubbed): the config prints
 	// these on startup and detected_level flags them as errors because they
 	// mention "ERROR". They are boot noise, not application errors.
 	bootstrapLineRoot   = `13:37:22,458 |-INFO in ch.qos.logback.classic.joran.action.RootLoggerAction - Setting level of ROOT logger to ERROR`
-	bootstrapLineLogger = `13:37:22,459 |-WARN in ch.qos.logback.classic.model.processor.LoggerModelHandler - Setting level of logger [no.nav.scrubbed] to ERROR`
+	bootstrapLineLogger = `13:37:22,459 |-WARN in ch.qos.logback.classic.model.processor.LoggerModelHandler - Setting level of logger [com.example.scrubbed] to ERROR`
 )
 
 func TestQueryServerExceptionGroupsPlainTextShape(t *testing.T) {
@@ -427,7 +427,7 @@ func TestQueryServerExceptionGroupsPlainTextShape(t *testing.T) {
 		nil,
 		map[string][]string{"drop __error__": sample})
 
-	issues, ok := app.queryServerExceptionGroups(context.Background(), ds, "loki-uid", "navno-search-frontend", "", "", time.Unix(0, 0), time.Unix(3600, 0))
+	issues, ok := app.queryServerExceptionGroups(context.Background(), ds, "loki-uid", "search-frontend", "", "", time.Unix(0, 0), time.Unix(3600, 0))
 
 	if !ok {
 		t.Fatal("expected server side to be available")
@@ -477,7 +477,7 @@ func TestQueryServerExceptionGroupsFiltersBootstrapNoise(t *testing.T) {
 		nil,
 		map[string][]string{"drop __error__": sample})
 
-	issues, ok := app.queryServerExceptionGroups(context.Background(), ds, "loki-uid", "navno-search-frontend", "", "", time.Unix(0, 0), time.Unix(3600, 0))
+	issues, ok := app.queryServerExceptionGroups(context.Background(), ds, "loki-uid", "search-frontend", "", "", time.Unix(0, 0), time.Unix(3600, 0))
 
 	if !ok {
 		t.Fatal("expected server side to be available")
@@ -549,7 +549,7 @@ func TestQueryServerExceptionGroupsPlainTextAllEmptyFallback(t *testing.T) {
 		nil,
 		map[string][]string{"drop __error__": sample})
 
-	issues, ok := app.queryServerExceptionGroups(context.Background(), ds, "loki-uid", "navno-search-frontend", "", "", time.Unix(0, 0), time.Unix(3600, 0))
+	issues, ok := app.queryServerExceptionGroups(context.Background(), ds, "loki-uid", "search-frontend", "", "", time.Unix(0, 0), time.Unix(3600, 0))
 
 	if !ok {
 		t.Fatal("expected server side to be available")
@@ -585,7 +585,7 @@ func TestQueryIssueFacets(t *testing.T) {
 		{Metric: map[string]string{"browser_name": "Safari"}, Value: queries.NewPromValue(0, "40")},
 	}
 	pages := []queries.PromResult{
-		{Metric: map[string]string{"page_url": "https://tms-min-side.nav.no/"}, Value: queries.NewPromValue(0, "77")},
+		{Metric: map[string]string{"page_url": "https://app.example.com/"}, Value: queries.NewPromValue(0, "77")},
 	}
 	app, ds := exceptionsTestApp(t, map[string][]queries.PromResult{
 		"sum by (app_version)":  versions,
@@ -604,7 +604,7 @@ func TestQueryIssueFacets(t *testing.T) {
 	if len(facets.Browsers) != 2 || facets.Browsers[0].Value != "Chrome" || facets.Browsers[0].Count != 200 {
 		t.Errorf("browsers = %+v, want Chrome first", facets.Browsers)
 	}
-	if len(facets.TopPages) != 1 || facets.TopPages[0].Value != "https://tms-min-side.nav.no/" {
+	if len(facets.TopPages) != 1 || facets.TopPages[0].Value != "https://app.example.com/" {
 		t.Errorf("topPages = %+v", facets.TopPages)
 	}
 }
@@ -673,7 +673,7 @@ func TestFacetedIssueQueryShapes(t *testing.T) {
 	ds := queries.NewDsQueryClient(srv.URL, "")
 
 	app.queryIssues(context.Background(), ds, "loki-uid", "my-app", "prod", "", time.Unix(0, 0), time.Unix(3600, 0),
-		browserFacets{Version: "1.2.0", Browser: "Chrome", Page: "https://tms-min-side.nav.no/"})
+		browserFacets{Version: "1.2.0", Browser: "Chrome", Page: "https://app.example.com/"})
 
 	mu.Lock()
 	defer mu.Unlock()
@@ -702,7 +702,7 @@ func TestFacetedIssueQueryShapes(t *testing.T) {
 	for _, want := range []string{
 		`app_version="1.2.0"`,
 		`browser_name="Chrome"`,
-		`page_url="https://tms-min-side.nav.no/"`,
+		`page_url="https://app.example.com/"`,
 		`k8s_cluster_name="prod"`,
 	} {
 		if !strings.Contains(countExpr, want) {

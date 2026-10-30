@@ -7,7 +7,7 @@ import (
 
 // addressMatchRegex returns a PromQL regex pattern that matches both the
 // normalized address form (as shown in the UI) and the raw metric label value.
-// e.g., "idporten.no" → `idporten\\.no(:(443|80))?` (matches idporten.no, idporten.no:443, idporten.no:80)
+// e.g., "auth.example.com" → `auth\\.example\\.com(:(443|80))?` (matches host, host:443, host:80)
 // e.g., "db:5432" → `db:5432` (non-standard port, exact match)
 //
 // The result is double-escaped: regexp.QuoteMeta produces \. but PromQL

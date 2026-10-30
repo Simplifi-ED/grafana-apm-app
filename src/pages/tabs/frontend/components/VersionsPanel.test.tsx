@@ -105,7 +105,7 @@ describe('VersionsPanel', () => {
   it('surfaces ClickStack alias-miss hint and does not hide', async () => {
     getFrontendVersions.mockResolvedValue({
       versions: [],
-      hint: 'No serviceAliases entry for "nova-frontend". Add jsonData.serviceAliases…',
+      hint: 'No serviceAliases entry for "storefront". Add jsonData.serviceAliases…',
     });
     render(
       <MemoryRouter>

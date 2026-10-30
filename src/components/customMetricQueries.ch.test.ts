@@ -7,9 +7,9 @@ function metric(over: Partial<CustomMetric>): CustomMetric {
 
 describe('customMetricScrapeFilter', () => {
   it('scopes by scrape ServiceName and optional namespace', () => {
-    expect(customMetricScrapeFilter('nova-app', 'prod-nova')).toContain("ServiceName = 'nova-app'");
-    expect(customMetricScrapeFilter('nova-app', 'prod-nova')).toContain("Attributes['namespace'] = 'prod-nova'");
-    expect(customMetricScrapeFilter('nova-app', '')).not.toContain('namespace');
+    expect(customMetricScrapeFilter('checkout', 'demo')).toContain("ServiceName = 'checkout'");
+    expect(customMetricScrapeFilter('checkout', 'demo')).toContain("Attributes['namespace'] = 'demo'");
+    expect(customMetricScrapeFilter('checkout', '')).not.toContain('namespace');
   });
 });
 
@@ -17,7 +17,7 @@ describe('customMetricPanelsCH', () => {
   it('charts a counter as sum(Value)/interval on otel_metrics_sum', () => {
     const panels = customMetricPanelsCH(
       metric({ name: 'orders_total', type: 'counter', chart: 'rate' }),
-      'nova-app',
+      'checkout',
       'ns'
     );
     expect(panels).toHaveLength(1);
@@ -29,7 +29,7 @@ describe('customMetricPanelsCH', () => {
   it('charts a histogram as quantilePrometheusHistogram p95', () => {
     const panels = customMetricPanelsCH(
       metric({ name: 'batch_duration_seconds', type: 'histogram', unit: 'seconds', chart: 'p95' }),
-      'nova-app',
+      'checkout',
       ''
     );
     expect(panels).toHaveLength(1);
@@ -41,7 +41,7 @@ describe('customMetricPanelsCH', () => {
   it('charts a summary as throughput + avg on otel_metrics_summary', () => {
     const panels = customMetricPanelsCH(
       metric({ name: 'http_server_requests_seconds', type: 'summary', unit: 'seconds', chart: 'summary' }),
-      'nova-app',
+      'checkout',
       'ns'
     );
     expect(panels).toHaveLength(2);
@@ -51,7 +51,7 @@ describe('customMetricPanelsCH', () => {
   });
 
   it('charts a gauge as avg(Value) on otel_metrics_gauge', () => {
-    const panels = customMetricPanelsCH(metric({ name: 'queue_depth', chart: 'gauge' }), 'nova-app', '');
+    const panels = customMetricPanelsCH(metric({ name: 'queue_depth', chart: 'gauge' }), 'checkout', '');
     expect(panels).toHaveLength(1);
     expect(panels[0].rawSql).toContain('otel_metrics_gauge');
     expect(panels[0].rawSql).toContain('avg(Value)');

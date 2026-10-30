@@ -20,7 +20,7 @@ const baseResponse: NPlusOneResponse = {
       dbSystem: 'postgresql',
       table: 'person',
       repeatCount: 40,
-      endpoint: 'GET /oppgaveliste.jsf',
+      endpoint: 'GET /tasklist.jsf',
       totalDbSpans: 90,
       traceId: 'abc123',
       remediation: 'Replace the per-row queries with a JOIN, a batch fetch, or a single IN (…) clause.',
@@ -64,7 +64,7 @@ describe('NPlusOneSection', () => {
     expect(mockScanNPlusOne).toHaveBeenCalledTimes(1);
 
     // Endpoint + repeat-count framing.
-    expect(screen.getByText('GET /oppgaveliste.jsf')).toBeInTheDocument();
+    expect(screen.getByText('GET /tasklist.jsf')).toBeInTheDocument();
     expect(screen.getByText('POST /submit')).toBeInTheDocument();
     expect(screen.getByText('40× in one request')).toBeInTheDocument();
 

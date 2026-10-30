@@ -19,9 +19,9 @@ func TestHandleFeedback_ClickStackAliasMissHint(t *testing.T) {
 		},
 		chClient: &queries.ClickHouseClient{},
 	}
-	req := httptest.NewRequest(http.MethodGet, "/services/sanad/nova-frontend/feedback?from=1&to=2", nil)
-	req.SetPathValue("namespace", "sanad")
-	req.SetPathValue("service", "nova-frontend")
+	req := httptest.NewRequest(http.MethodGet, "/services/acme/storefront/feedback?from=1&to=2", nil)
+	req.SetPathValue("namespace", "acme")
+	req.SetPathValue("service", "storefront")
 	w := httptest.NewRecorder()
 	app.handleFeedback(w, req)
 	if w.Code != http.StatusOK {
@@ -56,12 +56,12 @@ func TestFetchFeedbackClickHouse_EnablementHintWhenProbeEmpty(t *testing.T) {
 	})
 	app := &App{
 		settings: queries.PluginSettings{
-			ServiceAliases: map[string]string{"nova-frontend": "nova-frontend"},
+			ServiceAliases: map[string]string{"storefront": "storefront"},
 		},
 		chClient: ch,
 	}
 	from, to := time.Unix(1, 0), time.Unix(2, 0)
-	resp := app.fetchFeedbackClickHouse(t.Context(), ch, "nova-frontend", "", from, to, "", "")
+	resp := app.fetchFeedbackClickHouse(t.Context(), ch, "storefront", "", from, to, "", "")
 	if !strings.Contains(resp.Hint, "ticket 21") || !strings.Contains(resp.Hint, "faro.feedback") {
 		t.Fatalf("hint=%q", resp.Hint)
 	}
@@ -106,12 +106,12 @@ func TestFetchFeedbackClickHouse_ParsesRows(t *testing.T) {
 	})
 	app := &App{
 		settings: queries.PluginSettings{
-			ServiceAliases: map[string]string{"nova-frontend": "nova-frontend"},
+			ServiceAliases: map[string]string{"storefront": "storefront"},
 		},
 		chClient: ch,
 	}
 	from, to := time.Unix(1, 0), time.Unix(3600, 0)
-	resp := app.fetchFeedbackClickHouse(t.Context(), ch, "nova-frontend", "prod", from, to, "", "")
+	resp := app.fetchFeedbackClickHouse(t.Context(), ch, "storefront", "prod", from, to, "", "")
 	if resp.Hint != "" || resp.Unavailable || len(resp.Feedback) != 1 {
 		t.Fatalf("resp=%+v", resp)
 	}

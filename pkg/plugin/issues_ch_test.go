@@ -19,9 +19,9 @@ func TestFetchIssuesClickHouse_AliasMissHint(t *testing.T) {
 		},
 		chClient: &queries.ClickHouseClient{},
 	}
-	req := httptest.NewRequest(http.MethodGet, "/services/sanad/nova-frontend/issues?from=1&to=2", nil)
-	req.SetPathValue("namespace", "sanad")
-	req.SetPathValue("service", "nova-frontend")
+	req := httptest.NewRequest(http.MethodGet, "/services/acme/storefront/issues?from=1&to=2", nil)
+	req.SetPathValue("namespace", "acme")
+	req.SetPathValue("service", "storefront")
 	w := httptest.NewRecorder()
 	app.handleIssues(w, req)
 	if w.Code != http.StatusOK {

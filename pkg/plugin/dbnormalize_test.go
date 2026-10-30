@@ -98,7 +98,7 @@ func TestNormalizeStatement_KeyValue(t *testing.T) {
 		in   string
 		want string
 	}{
-		{"GET pdl::medFamilie:12345678901", "GET ?"},                                      // raw key dropped (PII)
+		{"GET cache::userProfile:12345678901", "GET ?"},                                      // raw key dropped (PII)
 		{"GET 415be5aa5916dd44f97110bfe7425eaa8ba180e32bf0d0c162e7dd2589ae07dc", "GET ?"}, // hashed key dropped
 		{"PING", "PING"},
 		{"set mykey myvalue", "SET ?"},

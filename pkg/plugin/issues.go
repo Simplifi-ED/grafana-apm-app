@@ -39,7 +39,7 @@ const (
 	semconvMessageLabel = "exception_message"
 )
 
-// Shape (b) — JSON-body logs. Field names surveyed from real NAV apps
+// Shape (b) — JSON-body logs. Field names surveyed from real production apps
 // (2026-07): logback/logstash uses message+level ("ERROR"), pino/Node SSR
 // uses message+level ("error", no stack_trace), Go slog and pino defaults use
 // msg. Errors are matched on the parsed level field OR Loki's detected_level

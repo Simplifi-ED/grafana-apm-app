@@ -80,7 +80,7 @@ func feedbackTestApp(t *testing.T, logLines []queries.LogEntry, logErr string) (
 func TestFeedbackQueryParsesSortsNewestFirst(t *testing.T) {
 	logLines := []queries.LogEntry{
 		{TimeMs: 1000, Line: `kind=event event_name=faro.feedback event_data_message="old feedback" event_data_category=bug session_id=s1 app_version=v1`},
-		{TimeMs: 3000, Line: `kind=event event_name=faro.feedback event_data_message="newest feedback" event_data_category=idea event_data_email=ola@nav.no session_id=s2 event_data_fingerprint=v1:abc page_url=https://x/a app_version=v2`},
+		{TimeMs: 3000, Line: `kind=event event_name=faro.feedback event_data_message="newest feedback" event_data_category=idea event_data_email=ola@example.com session_id=s2 event_data_fingerprint=v1:abc page_url=https://x/a app_version=v2`},
 		{TimeMs: 2000, Line: `kind=event event_name=faro.feedback event_data_message="middle feedback" event_data_category=other session_id=s1`},
 	}
 	app, ds, _ := feedbackTestApp(t, logLines, "")
@@ -98,7 +98,7 @@ func TestFeedbackQueryParsesSortsNewestFirst(t *testing.T) {
 	}
 
 	f0 := resp.Feedback[0]
-	if f0.Message != "newest feedback" || f0.Category != "idea" || f0.Email != "ola@nav.no" ||
+	if f0.Message != "newest feedback" || f0.Category != "idea" || f0.Email != "ola@example.com" ||
 		f0.SessionID != "s2" || f0.Fingerprint != "v1:abc" || f0.PageURL != "https://x/a" || f0.AppVersion != "v2" {
 		t.Errorf("unexpected fields on newest entry: %+v", f0)
 	}

@@ -29,7 +29,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # ... build, upload source maps to cdn.nav.no, nais deploy, etc ...
+      # ... build, upload source maps to cdn.example.com, nais deploy, etc ...
 
       - name: Record deploy in Nais APM
         uses: nais/apm-deploy-annotation@v1

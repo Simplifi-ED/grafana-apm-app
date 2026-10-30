@@ -10,9 +10,9 @@ import (
 
 func TestResolveServiceAlias_HitMiss(t *testing.T) {
 	aliases := map[string]string{
-		"nova-api":      "nova-app",
-		"admin-api":     "admin-app",
-		"nova-frontend": "nova-frontend",
+		"checkout-api":      "checkout",
+		"billing-api":     "billing",
+		"storefront": "storefront",
 		"blank":         "  ",
 	}
 
@@ -23,13 +23,13 @@ func TestResolveServiceAlias_HitMiss(t *testing.T) {
 		wantOK  bool
 		aliases map[string]string
 	}{
-		{name: "hit scrape", in: "nova-api", want: "nova-app", wantOK: true, aliases: aliases},
-		{name: "hit identity", in: "nova-frontend", want: "nova-frontend", wantOK: true, aliases: aliases},
+		{name: "hit scrape", in: "checkout-api", want: "checkout", wantOK: true, aliases: aliases},
+		{name: "hit identity", in: "storefront", want: "storefront", wantOK: true, aliases: aliases},
 		{name: "miss", in: "unknown-api", want: "", wantOK: false, aliases: aliases},
 		{name: "blank value treated as miss", in: "blank", want: "", wantOK: false, aliases: aliases},
 		{name: "empty inventory", in: "  ", want: "", wantOK: false, aliases: aliases},
-		{name: "nil map", in: "nova-api", want: "", wantOK: false, aliases: nil},
-		{name: "trims inventory key lookup only exact", in: " nova-api ", want: "nova-app", wantOK: true, aliases: aliases},
+		{name: "nil map", in: "checkout-api", want: "", wantOK: false, aliases: nil},
+		{name: "trims inventory key lookup only exact", in: " checkout-api ", want: "checkout", wantOK: true, aliases: aliases},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -43,24 +43,24 @@ func TestResolveServiceAlias_HitMiss(t *testing.T) {
 
 func TestAppResolveServiceAlias(t *testing.T) {
 	app := &App{settings: queries.PluginSettings{
-		ServiceAliases: map[string]string{"nova-api": "nova-app"},
+		ServiceAliases: map[string]string{"checkout-api": "checkout"},
 	}}
-	got, ok := app.ResolveServiceAlias("nova-api")
-	if !ok || got != "nova-app" {
+	got, ok := app.ResolveServiceAlias("checkout-api")
+	if !ok || got != "checkout" {
 		t.Fatalf("got (%q, %v)", got, ok)
 	}
 	if _, ok := app.ResolveServiceAlias("missing"); ok {
 		t.Fatal("expected miss")
 	}
 	var nilApp *App
-	if _, ok := nilApp.ResolveServiceAlias("nova-api"); ok {
+	if _, ok := nilApp.ResolveServiceAlias("checkout-api"); ok {
 		t.Fatal("nil app should miss")
 	}
 }
 
 func TestAliasMissingHint(t *testing.T) {
-	hint := AliasMissingHint("nova-api")
-	for _, want := range []string{"nova-api", "serviceAliases"} {
+	hint := AliasMissingHint("checkout-api")
+	for _, want := range []string{"checkout-api", "serviceAliases"} {
 		if !strings.Contains(hint, want) {
 			t.Fatalf("hint missing %q: %s", want, hint)
 		}
@@ -71,9 +71,9 @@ func TestPluginSettingsServiceAliasesRoundTrip(t *testing.T) {
 	raw := []byte(`{
 		"clickHouseDataSource": {"uid": "clickhouse", "type": "grafana-clickhouse-datasource"},
 		"serviceAliases": {
-			"nova-api": "nova-app",
-			"admin-api": "admin-app",
-			"nova-frontend": "nova-frontend"
+			"checkout-api": "checkout",
+			"billing-api": "billing",
+			"storefront": "storefront"
 		}
 	}`)
 	var settings queries.PluginSettings
@@ -83,8 +83,8 @@ func TestPluginSettingsServiceAliasesRoundTrip(t *testing.T) {
 	if settings.ClickHouseDataSource.UID != "clickhouse" {
 		t.Fatalf("uid=%q", settings.ClickHouseDataSource.UID)
 	}
-	got, ok := ResolveServiceAlias(settings.ServiceAliases, "admin-api")
-	if !ok || got != "admin-app" {
+	got, ok := ResolveServiceAlias(settings.ServiceAliases, "billing-api")
+	if !ok || got != "billing" {
 		t.Fatalf("got (%q, %v)", got, ok)
 	}
 	if _, ok := ResolveServiceAlias(settings.ServiceAliases, "ghost"); ok {

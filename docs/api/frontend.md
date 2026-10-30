@@ -7,6 +7,7 @@ metrics in Mimir). All are `GET`, all under the resources proxy base
 `{GRAFANA_URL}/api/plugins/clickhouse-apm-app/resources`.
 
 Contents:
+
 - [`GET /frontend`](#get-frontend)
 - [`GET /frontend/versions`](#get-frontendversions)
 - [`GET /frontend/sessions`](#get-frontendsessions)
@@ -36,18 +37,18 @@ data exists. Internally uses a fixed 6-hour window (no `from`/`to`).
 
 ### Response — `FrontendMetricsResponse`
 
-| Field | Type | Description |
-| --- | --- | --- |
-| `available` | bool | Faro/histogram metrics exist for the service. |
-| `source` | string? | Metric source, e.g. `"alloy-histogram"`. |
-| `vitals` | object? | p75 web vitals map; keys `lcp`, `fcp`, `cls`, `inp`, `ttfb` (numbers). |
-| `errorRate` | number | Frontend error rate over 6 h. |
-| `hasLoki` | bool? | Loki has Faro data for enrichment. |
+| Field       | Type    | Description                                                            |
+| ----------- | ------- | ---------------------------------------------------------------------- |
+| `available` | bool    | Faro/histogram metrics exist for the service.                          |
+| `source`    | string? | Metric source, e.g. `"alloy-histogram"`.                               |
+| `vitals`    | object? | p75 web vitals map; keys `lcp`, `fcp`, `cls`, `inp`, `ttfb` (numbers). |
+| `errorRate` | number  | Frontend error rate over 6 h.                                          |
+| `hasLoki`   | bool?   | Loki has Faro data for enrichment.                                     |
 
 ### Example
 
 ```bash
-curl -s ".../services/fager/min-side-arbeidsgiver/frontend"
+curl -s ".../services/team-a/storefront/frontend"
 ```
 
 ```json
@@ -75,34 +76,46 @@ defaults).
 
 ### Response — `FrontendVersionsResponse`
 
-| Field | Type | Description |
-| --- | --- | --- |
-| `versions` | array&lt;VersionStat&gt; | Up to 20, sorted by sessions desc. |
-| `latestVersion` | string? | Version on the newest deploy annotation in range. |
-| `unavailable` | bool? | Loki not configured/reachable. |
+| Field           | Type                     | Description                                       |
+| --------------- | ------------------------ | ------------------------------------------------- |
+| `versions`      | array&lt;VersionStat&gt; | Up to 20, sorted by sessions desc.                |
+| `latestVersion` | string?                  | Version on the newest deploy annotation in range. |
+| `unavailable`   | bool?                    | Loki not configured/reachable.                    |
 
 **VersionStat**:
 
-| Field | Type | Description |
-| --- | --- | --- |
-| `version` | string | `app_version` tag. |
-| `sessions` | number | Distinct sessions on this version. |
-| `adoption` | number | Share of all sessions (0–1). |
-| `errorFreeRate` | number | `1 − min(errSessions/sessions, 1)` (0–1). |
-| `exceptions` | number | Exception occurrences on this version. |
-| `deployedAtMs` | int64? | Earliest deploy-annotation timestamp (epoch ms). |
+| Field           | Type   | Description                                      |
+| --------------- | ------ | ------------------------------------------------ |
+| `version`       | string | `app_version` tag.                               |
+| `sessions`      | number | Distinct sessions on this version.               |
+| `adoption`      | number | Share of all sessions (0–1).                     |
+| `errorFreeRate` | number | `1 − min(errSessions/sessions, 1)` (0–1).        |
+| `exceptions`    | number | Exception occurrences on this version.           |
+| `deployedAtMs`  | int64? | Earliest deploy-annotation timestamp (epoch ms). |
 
 ### Example
 
 ```bash
-curl -s ".../services/fager/min-side-arbeidsgiver/frontend/versions?from=1783090000&to=1783185000"
+curl -s ".../services/team-a/storefront/frontend/versions?from=1783090000&to=1783185000"
 ```
 
 ```json
 {
   "versions": [
-    { "version": "fc89e5cfff95a8375e22b0f0cbabe7dd86fcd2f4", "sessions": 1238, "adoption": 0.6087, "errorFreeRate": 0.9685, "exceptions": 47 },
-    { "version": "5448e74f7b748c8930e976d7ef1c89723ca23676", "sessions": 792,  "adoption": 0.3894, "errorFreeRate": 0.9432, "exceptions": 61 }
+    {
+      "version": "fc89e5cfff95a8375e22b0f0cbabe7dd86fcd2f4",
+      "sessions": 1238,
+      "adoption": 0.6087,
+      "errorFreeRate": 0.9685,
+      "exceptions": 47
+    },
+    {
+      "version": "5448e74f7b748c8930e976d7ef1c89723ca23676",
+      "sessions": 792,
+      "adoption": 0.3894,
+      "errorFreeRate": 0.9432,
+      "exceptions": 61
+    }
   ]
 }
 ```
@@ -120,36 +133,36 @@ metadata.
 
 `namespace`, `service` (path); `environment`, `from`, `to` (query); plus:
 
-| Name | Sanitization | Meaning |
-| --- | --- | --- |
-| `q` | trimmed, lower-cased substring (not label-sanitized) | Free-text filter over sessionId / userId / userEmail. |
+| Name | Sanitization                                         | Meaning                                               |
+| ---- | ---------------------------------------------------- | ----------------------------------------------------- |
+| `q`  | trimmed, lower-cased substring (not label-sanitized) | Free-text filter over sessionId / userId / userEmail. |
 
 ### Response — `FrontendSessionsResponse`
 
-| Field | Type | Description |
-| --- | --- | --- |
-| `sessions` | array&lt;SessionSummary&gt; | Up to 50, sorted by errors desc. |
-| `truncated` | bool | More sessions matched than the cap. |
-| `unavailable` | bool | Loki not configured/reachable. |
-| `windowSeconds` | int? | Narrowed effective window when the fallback ladder was used. |
+| Field           | Type                        | Description                                                  |
+| --------------- | --------------------------- | ------------------------------------------------------------ |
+| `sessions`      | array&lt;SessionSummary&gt; | Up to 50, sorted by errors desc.                             |
+| `truncated`     | bool                        | More sessions matched than the cap.                          |
+| `unavailable`   | bool                        | Loki not configured/reachable.                               |
+| `windowSeconds` | int?                        | Narrowed effective window when the fallback ladder was used. |
 
 **SessionSummary**:
 
-| Field | Type | Description |
-| --- | --- | --- |
-| `sessionId` | string | Faro session id. |
-| `firstSeenMs` / `lastSeenMs` | int64 | Activity bounds (epoch ms). |
-| `events` | number | Total Faro lines for the session. |
-| `errors` | number | Exception count. |
-| `userId` / `userEmail` | string | User identity (may be empty). |
-| `browser` / `os` | string | User-agent details. |
-| `appVersion` | string | App version for the session. |
-| `pages` | int | Distinct page URLs seen. |
+| Field                        | Type   | Description                       |
+| ---------------------------- | ------ | --------------------------------- |
+| `sessionId`                  | string | Faro session id.                  |
+| `firstSeenMs` / `lastSeenMs` | int64  | Activity bounds (epoch ms).       |
+| `events`                     | number | Total Faro lines for the session. |
+| `errors`                     | number | Exception count.                  |
+| `userId` / `userEmail`       | string | User identity (may be empty).     |
+| `browser` / `os`             | string | User-agent details.               |
+| `appVersion`                 | string | App version for the session.      |
+| `pages`                      | int    | Distinct page URLs seen.          |
 
 ### Example
 
 ```bash
-curl -s ".../services/fager/min-side-arbeidsgiver/frontend/sessions?from=1783090000&to=1783185000"
+curl -s ".../services/team-a/storefront/frontend/sessions?from=1783090000&to=1783185000"
 ```
 
 ```json
@@ -189,11 +202,11 @@ Requires `jsonData.clickHouseDataSource`. Time range is capped at 24 h.
 
 ### Response — `SessionRecordingsResponse`
 
-| Field | Type | Description |
-| --- | --- | --- |
-| `sessions` | array | Up to 50 `{ sessionId, firstSeenMs, lastSeenMs, rowCount, eventCount }`. |
-| `truncated` | bool | More sessions matched than the cap. |
-| `unavailable` | bool | ClickHouse datasource not configured/reachable. |
+| Field         | Type  | Description                                                              |
+| ------------- | ----- | ------------------------------------------------------------------------ |
+| `sessions`    | array | Up to 50 `{ sessionId, firstSeenMs, lastSeenMs, rowCount, eventCount }`. |
+| `truncated`   | bool  | More sessions matched than the cap.                                      |
+| `unavailable` | bool  | ClickHouse datasource not configured/reachable.                          |
 
 ---
 
@@ -218,15 +231,15 @@ when the recording is entirely malformed/incomplete.
 
 ### Response — `SessionReplayResponse`
 
-| Field | Type | Description |
-| --- | --- | --- |
-| `events` | array | rrweb events (`type`, `data`, `timestamp`). |
-| `mode` | string | Always `"recording"` for HyperDX. |
-| `chunkCount` | int | Input row count. |
-| `eventCount` | int | Successfully parsed events. |
-| `drops` | array? | Dropped chunk groups (`parse-error`, `incomplete-event`, …). |
-| `truncated` | bool? | Hit row/size cap. |
-| `unavailable` | bool? | ClickHouse not configured. |
+| Field         | Type   | Description                                                  |
+| ------------- | ------ | ------------------------------------------------------------ |
+| `events`      | array  | rrweb events (`type`, `data`, `timestamp`).                  |
+| `mode`        | string | Always `"recording"` for HyperDX.                            |
+| `chunkCount`  | int    | Input row count.                                             |
+| `eventCount`  | int    | Successfully parsed events.                                  |
+| `drops`       | array? | Dropped chunk groups (`parse-error`, `incomplete-event`, …). |
+| `truncated`   | bool?  | Hit row/size cap.                                            |
+| `unavailable` | bool?  | ClickHouse not configured.                                   |
 
 > Replay bodies can contain DOM structure (masked at capture by the SDK). Do
 > not log or commit unredacted fixtures.
@@ -243,35 +256,35 @@ User feedback events (`faro.feedback`) captured by the `@nais/apm` client.
 
 `namespace`, `service` (path); `environment`, `from`, `to` (query); plus:
 
-| Name | Sanitization | Meaning |
-| --- | --- | --- |
-| `sessionId` | `[A-Za-z0-9-_]` (`sanitizeSessionID`) | Filter to one session. |
+| Name          | Sanitization                                   | Meaning                                          |
+| ------------- | ---------------------------------------------- | ------------------------------------------------ |
+| `sessionId`   | `[A-Za-z0-9-_]` (`sanitizeSessionID`)          | Filter to one session.                           |
 | `fingerprint` | `[A-Za-z0-9-_:]` (`sanitizeFingerprintFilter`) | Filter to feedback tied to an issue fingerprint. |
 
 ### Response — `FeedbackResponse`
 
-| Field | Type | Description |
-| --- | --- | --- |
-| `feedback` | array&lt;FeedbackEntry&gt; | Up to 200, newest first. |
-| `unavailable` | bool? | Loki not configured/reachable or query failed. |
+| Field         | Type                       | Description                                    |
+| ------------- | -------------------------- | ---------------------------------------------- |
+| `feedback`    | array&lt;FeedbackEntry&gt; | Up to 200, newest first.                       |
+| `unavailable` | bool?                      | Loki not configured/reachable or query failed. |
 
 **FeedbackEntry**:
 
-| Field | Type | Description |
-| --- | --- | --- |
-| `timeMs` | int64 | Event time (epoch ms). |
-| `message` | string | Feedback message. |
-| `category` | string | Feedback category. |
-| `email` | string? | Submitter email. |
-| `sessionId` | string? | Session id. |
+| Field         | Type    | Description                   |
+| ------------- | ------- | ----------------------------- |
+| `timeMs`      | int64   | Event time (epoch ms).        |
+| `message`     | string  | Feedback message.             |
+| `category`    | string  | Feedback category.            |
+| `email`       | string? | Submitter email.              |
+| `sessionId`   | string? | Session id.                   |
 | `fingerprint` | string? | Associated issue fingerprint. |
-| `pageUrl` | string? | Page the feedback came from. |
-| `appVersion` | string? | App version. |
+| `pageUrl`     | string? | Page the feedback came from.  |
+| `appVersion`  | string? | App version.                  |
 
 ### Example
 
 ```bash
-curl -s ".../services/fager/min-side-arbeidsgiver/feedback?from=1783090000&to=1783185000"
+curl -s ".../services/team-a/storefront/feedback?from=1783090000&to=1783185000"
 ```
 
 ```json

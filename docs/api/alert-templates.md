@@ -13,28 +13,28 @@ Base: `{GRAFANA_URL}/api/plugins/clickhouse-apm-app/resources`.
 
 ### Path parameter — `{kind}`
 
-| Kind | What it alerts on | Datasource |
-| --- | --- | --- |
-| `error-rate` | Service error rate over threshold | metrics (Mimir) |
-| `exception-spike` | Spike in a specific exception hash | logs (Loki) |
-| `web-vitals` | Web-vital regression (Faro) | metrics |
-| `new-exceptions` | Exception types not seen in the previous 7 days (the `#65` "new-exceptions" semantics used by CI gates) | logs |
-| `slo-burn-rate` | Multi-window SLO burn rate | metrics |
+| Kind              | What it alerts on                                                                                       | Datasource      |
+| ----------------- | ------------------------------------------------------------------------------------------------------- | --------------- |
+| `error-rate`      | Service error rate over threshold                                                                       | metrics (Mimir) |
+| `exception-spike` | Spike in a specific exception hash                                                                      | logs (Loki)     |
+| `web-vitals`      | Web-vital regression (Faro)                                                                             | metrics         |
+| `new-exceptions`  | Exception types not seen in the previous 7 days (the `#65` "new-exceptions" semantics used by CI gates) | logs            |
+| `slo-burn-rate`   | Multi-window SLO burn rate                                                                              | metrics         |
 
 Any other kind → `404 {"error":"unknown alert template kind"}`.
 
 ### Query parameters
 
-| Name | Applies to | Sanitization / default | Meaning |
-| --- | --- | --- | --- |
-| `service` | all | `MustSanitizeLabel`, **required** (else `400`) | Service name. |
-| `namespace` | all | `ParseNamespace` | Namespace. |
-| `environment` | all | `parseEnvironment` | Environment (drives the cluster label matcher). |
-| `fingerprint` | exception kinds | `MustSanitizeLabel` | Issue fingerprint to scope the rule. |
-| `hash` | `exception-spike` | CSV, each must match `^[a-zA-Z0-9]+$` | Exception hash(es); missing/invalid → `400 {"error":"missing or invalid hash"}`. |
-| `window` | `slo-burn-rate` | `fast` (default) or `slow`; else `400 {"error":"window must be fast or slow"}` | Burn-rate window pair. |
-| `slo` | `slo-burn-rate` | float in `[0.5, 0.999999]`, default `0.999` | SLO target. |
-| `format` | `new-exceptions` | `prometheusrule`; another known kind → `400`, unknown kind → `404` | Render a PrometheusRule manifest instead of the Grafana rule form (see below). |
+| Name          | Applies to        | Sanitization / default                                                         | Meaning                                                                          |
+| ------------- | ----------------- | ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------- |
+| `service`     | all               | `MustSanitizeLabel`, **required** (else `400`)                                 | Service name.                                                                    |
+| `namespace`   | all               | `ParseNamespace`                                                               | Namespace.                                                                       |
+| `environment` | all               | `parseEnvironment`                                                             | Environment (drives the cluster label matcher).                                  |
+| `fingerprint` | exception kinds   | `MustSanitizeLabel`                                                            | Issue fingerprint to scope the rule.                                             |
+| `hash`        | `exception-spike` | CSV, each must match `^[a-zA-Z0-9]+$`                                          | Exception hash(es); missing/invalid → `400 {"error":"missing or invalid hash"}`. |
+| `window`      | `slo-burn-rate`   | `fast` (default) or `slow`; else `400 {"error":"window must be fast or slow"}` | Burn-rate window pair.                                                           |
+| `slo`         | `slo-burn-rate`   | float in `[0.5, 0.999999]`, default `0.999`                                    | SLO target.                                                                      |
+| `format`      | `new-exceptions`  | `prometheusrule`; another known kind → `400`, unknown kind → `404`             | Render a PrometheusRule manifest instead of the Grafana rule form (see below).   |
 
 ### `format=prometheusrule` — the manifest variant
 
@@ -75,22 +75,22 @@ and an unknown kind still returns `404` as it does without the param.
 
 ### Response — `alertTemplateResponse`
 
-| Field | Type | Description |
-| --- | --- | --- |
-| `url` | string | `/alerting/new?defaults=<url-encoded JSON>` deep link. |
-| `defaults` | object | The `ruleFormDefaults` payload (see below). |
+| Field      | Type   | Description                                            |
+| ---------- | ------ | ------------------------------------------------------ |
+| `url`      | string | `/alerting/new?defaults=<url-encoded JSON>` deep link. |
+| `defaults` | object | The `ruleFormDefaults` payload (see below).            |
 
 **ruleFormDefaults**:
 
-| Field | Type | Description |
-| --- | --- | --- |
-| `type` | string | Always `"grafana"`. |
-| `name` | string | Suggested rule name. |
-| `condition` | string | Ref id of the condition query (always `"C"`). |
-| `evaluateFor` | string | Pending period, e.g. `"5m"`. |
-| `queries` | array&lt;alertQuery&gt; | The A (data) / B (reduce) / C (threshold) query chain. |
-| `annotations` | array&lt;{key,value}&gt; | Suggested annotations (summary, deep link). |
-| `labels` | array&lt;{key,value}&gt; | `namespace`, `service`, `source=clickhouse-apm`. |
+| Field         | Type                     | Description                                            |
+| ------------- | ------------------------ | ------------------------------------------------------ |
+| `type`        | string                   | Always `"grafana"`.                                    |
+| `name`        | string                   | Suggested rule name.                                   |
+| `condition`   | string                   | Ref id of the condition query (always `"C"`).          |
+| `evaluateFor` | string                   | Pending period, e.g. `"5m"`.                           |
+| `queries`     | array&lt;alertQuery&gt;  | The A (data) / B (reduce) / C (threshold) query chain. |
+| `annotations` | array&lt;{key,value}&gt; | Suggested annotations (summary, deep link).            |
+| `labels`      | array&lt;{key,value}&gt; | `namespace`, `service`, `source=clickhouse-apm`.       |
 
 **alertQuery**: `refId`, `queryType`, `relativeTimeRange` (`{from,to}` seconds
 before now; present on the data query), `datasourceUid`, `model` (query model —
@@ -106,7 +106,7 @@ before now; present on the data query), `datasourceUid`, `model` (query model �
 ### Example
 
 ```bash
-curl -s ".../alert-templates/new-exceptions?namespace=fager&service=min-side-arbeidsgiver&environment=prod"
+curl -s ".../alert-templates/new-exceptions?namespace=team-a&service=storefront&environment=prod"
 ```
 
 ```json
@@ -114,7 +114,7 @@ curl -s ".../alert-templates/new-exceptions?namespace=fager&service=min-side-arb
   "url": "/alerting/new?defaults=%7B%22type%22%3A%22grafana%22%2C...",
   "defaults": {
     "type": "grafana",
-    "name": "New exception types – min-side-arbeidsgiver (prod)",
+    "name": "New exception types – storefront (prod)",
     "condition": "C",
     "evaluateFor": "5m",
     "queries": [
@@ -125,15 +125,28 @@ curl -s ".../alert-templates/new-exceptions?namespace=fager&service=min-side-arb
         "datasourceUid": "nav-logs",
         "model": {
           "refId": "A",
-          "expr": "sum by (hash, value) (count_over_time({service_name=\"min-side-arbeidsgiver\", kind=\"exception\", k8s_cluster_name=\"prod\"} | logfmt | hash!=\"\" | keep hash, value [30m])) unless on (hash) sum by (hash) (...)"
+          "expr": "sum by (hash, value) (count_over_time({service_name=\"storefront\", kind=\"exception\", k8s_cluster_name=\"prod\"} | logfmt | hash!=\"\" | keep hash, value [30m])) unless on (hash) sum by (hash) (...)"
         }
       },
-      { "refId": "B", "datasourceUid": "__expr__", "model": { "type": "reduce", "reducer": "last", "expression": "A", "refId": "B" } },
-      { "refId": "C", "datasourceUid": "__expr__", "model": { "type": "threshold", "expression": "B", "refId": "C", "conditions": [ { "evaluator": { "type": "gt", "params": [0] } } ] } }
+      {
+        "refId": "B",
+        "datasourceUid": "__expr__",
+        "model": { "type": "reduce", "reducer": "last", "expression": "A", "refId": "B" }
+      },
+      {
+        "refId": "C",
+        "datasourceUid": "__expr__",
+        "model": {
+          "type": "threshold",
+          "expression": "B",
+          "refId": "C",
+          "conditions": [{ "evaluator": { "type": "gt", "params": [0] } }]
+        }
+      }
     ],
     "labels": [
-      { "key": "namespace", "value": "fager" },
-      { "key": "service", "value": "min-side-arbeidsgiver" },
+      { "key": "namespace", "value": "team-a" },
+      { "key": "service", "value": "storefront" },
       { "key": "source", "value": "clickhouse-apm" }
     ]
   }

@@ -9,13 +9,13 @@ import (
 )
 
 func TestInventorySQL_ContainsVerifiedMetric(t *testing.T) {
-	sql := InventorySQL(time.Now().Add(-time.Hour), time.Now(), "sanad", "prod-k3s-omnivya")
+	sql := InventorySQL(time.Now().Add(-time.Hour), time.Now(), "acme", "prod")
 	for _, want := range []string{
 		MetricSpanCalls,
 		"SPAN_KIND_SERVER",
 		"STATUS_CODE_ERROR",
-		"sanad",
-		"prod-k3s-omnivya",
+		"acme",
+		"prod",
 		"LIMIT 500",
 	} {
 		if !strings.Contains(sql, want) {
@@ -46,7 +46,7 @@ func TestInventoryHistogramLatencySQL(t *testing.T) {
 }
 
 func TestDiscoverInventorySQL_NoSpanKindFilter(t *testing.T) {
-	sql := DiscoverInventorySQL(time.Now().Add(-time.Hour), time.Now(), "sanad", "")
+	sql := DiscoverInventorySQL(time.Now().Add(-time.Hour), time.Now(), "acme", "")
 	if strings.Contains(sql, "SPAN_KIND_SERVER") || strings.Contains(sql, "SPAN_KIND_CLIENT") {
 		t.Fatalf("discover must include all kinds: %s", sql)
 	}
@@ -73,12 +73,12 @@ func TestServiceGraphSQL_BothMetrics(t *testing.T) {
 }
 
 func TestOperationLatencyHistogramSQL(t *testing.T) {
-	sql := OperationLatencyHistogramSQL("nova-api", time.Now().Add(-time.Hour), time.Now(), "prod")
+	sql := OperationLatencyHistogramSQL("checkout-api", time.Now().Add(-time.Hour), time.Now(), "prod")
 	for _, want := range []string{
 		MetricSpanDuration,
 		"otel_metrics_histogram",
 		"quantilePrometheusHistogram",
-		"nova-api",
+		"checkout-api",
 		"prod",
 		"p95_ms",
 	} {
@@ -119,10 +119,10 @@ func TestParseOperations_JoinsNormalizedSpanKind(t *testing.T) {
 
 func TestParseInventoryMaps_RateAndError(t *testing.T) {
 	calls := []map[string]any{
-		{"service": "nova-api", "namespace": "sanad", "environment": "prod", "calls": 120.0, "errors": 12.0},
+		{"service": "checkout-api", "namespace": "acme", "environment": "prod", "calls": 120.0, "errors": 12.0},
 	}
 	lat := []map[string]any{
-		{"service": "nova-api", "p95_ms": 3.5},
+		{"service": "checkout-api", "p95_ms": 3.5},
 	}
 	got := ParseInventoryMaps(calls, lat, 60)
 	if len(got) != 1 {
@@ -144,34 +144,34 @@ func TestParseInventoryMaps_RateAndError(t *testing.T) {
 
 func TestMergeInventory_ClientFallbackAndFrontend(t *testing.T) {
 	discover := []map[string]any{
-		{"service": "nova-api", "namespace": "sanad", "environment": "prod", "sdk_language": "go", "calls": 1.0},
-		{"service": "frontend", "namespace": "sanad", "environment": "prod", "calls": 1.0},
+		{"service": "checkout-api", "namespace": "acme", "environment": "prod", "sdk_language": "go", "calls": 1.0},
+		{"service": "frontend", "namespace": "acme", "environment": "prod", "calls": 1.0},
 	}
 	server := []map[string]any{
-		{"service": "nova-api", "namespace": "sanad", "environment": "prod", "calls": 120.0, "errors": 12.0},
+		{"service": "checkout-api", "namespace": "acme", "environment": "prod", "calls": 120.0, "errors": 12.0},
 	}
 	client := []map[string]any{
-		{"service": "frontend", "namespace": "sanad", "environment": "prod", "calls": 60.0, "errors": 0.0},
+		{"service": "frontend", "namespace": "acme", "environment": "prod", "calls": 60.0, "errors": 0.0},
 	}
-	serverLat := []map[string]any{{"service": "nova-api", "p95_ms": 10.0}}
+	serverLat := []map[string]any{{"service": "checkout-api", "p95_ms": 10.0}}
 	clientLat := []map[string]any{{"service": "frontend", "p95_ms": 5.0}}
 	got := MergeInventory(discover, server, client, serverLat, clientLat, nil, 60)
 	byName := map[string]queries.ServiceSummary{}
 	for _, s := range got {
 		byName[s.Name] = s
 	}
-	api := byName["nova-api"]
+	api := byName["checkout-api"]
 	if !api.HasServerSpans || api.Rate != 2.0 || api.P95Duration != 10.0 || api.SDKLanguage != "go" {
-		t.Fatalf("nova-api=%+v", api)
+		t.Fatalf("checkout-api=%+v", api)
 	}
 	fe := byName["frontend"]
 	if fe.HasServerSpans || fe.Rate != 1.0 || fe.P95Duration != 5.0 {
 		t.Fatalf("frontend CLIENT fallback=%+v", fe)
 	}
 
-	MarkHasFrontend(got, map[string]bool{"nova-frontend": true}, func(inv string) string {
+	MarkHasFrontend(got, map[string]bool{"storefront": true}, func(inv string) string {
 		if inv == "frontend" {
-			return "nova-frontend"
+			return "storefront"
 		}
 		return ""
 	})
@@ -183,11 +183,11 @@ func TestMergeInventory_ClientFallbackAndFrontend(t *testing.T) {
 }
 
 func TestParseServiceNames(t *testing.T) {
-	got := ParseServiceNames("sanad/nova-api,/envoy-gateway,_/admin-api,sanad/nova-api")
+	got := ParseServiceNames("acme/checkout-api,/ingress-gateway,_/billing-api,acme/checkout-api")
 	if len(got) != 3 {
 		t.Fatalf("got %v", got)
 	}
-	want := map[string]bool{"nova-api": true, "envoy-gateway": true, "admin-api": true}
+	want := map[string]bool{"checkout-api": true, "ingress-gateway": true, "billing-api": true}
 	for _, n := range got {
 		if !want[n] {
 			t.Errorf("unexpected %q", n)
@@ -196,12 +196,12 @@ func TestParseServiceNames(t *testing.T) {
 }
 
 func TestInventoryCallsSeriesSQL(t *testing.T) {
-	sql := InventoryCallsSeriesSQL(time.Now().Add(-time.Hour), time.Now(), 60, "sanad", "prod", "sanad/nova-api")
+	sql := InventoryCallsSeriesSQL(time.Now().Add(-time.Hour), time.Now(), 60, "acme", "prod", "acme/checkout-api")
 	for _, want := range []string{
 		"toStartOfInterval",
 		"toUnixTimestamp",
 		"SPAN_KIND_SERVER",
-		"nova-api",
+		"checkout-api",
 		"error_rate",
 		MetricSpanCalls,
 	} {
@@ -212,7 +212,7 @@ func TestInventoryCallsSeriesSQL(t *testing.T) {
 }
 
 func TestInventoryDurationSeriesSQL_HistogramPrimary(t *testing.T) {
-	sql := InventoryDurationSeriesSQL(time.Now().Add(-time.Hour), time.Now(), 60, "sanad", "prod", "sanad/nova-api")
+	sql := InventoryDurationSeriesSQL(time.Now().Add(-time.Hour), time.Now(), 60, "acme", "prod", "acme/checkout-api")
 	for _, want := range []string{
 		MetricSpanDuration,
 		"quantilePrometheusHistogram",
@@ -229,8 +229,8 @@ func TestInventoryDurationSeriesSQL_HistogramPrimary(t *testing.T) {
 }
 
 func TestFrontendServiceNamesSQL(t *testing.T) {
-	sql := FrontendServiceNamesSQL(time.Now().Add(-time.Hour), time.Now(), "prod-k3s-omnivya")
-	for _, want := range []string{"webvitals", "hyperdx_sessions", "rum.sessionId", "prod-k3s-omnivya"} {
+	sql := FrontendServiceNamesSQL(time.Now().Add(-time.Hour), time.Now(), "prod")
+	for _, want := range []string{"webvitals", "hyperdx_sessions", "rum.sessionId", "prod"} {
 		if !strings.Contains(sql, want) {
 			t.Errorf("missing %q\n%s", want, sql)
 		}
@@ -238,14 +238,14 @@ func TestFrontendServiceNamesSQL(t *testing.T) {
 }
 
 func TestAttachInventorySeries(t *testing.T) {
-	sums := []queries.ServiceSummary{{Name: "nova-api", Rate: 1}}
+	sums := []queries.ServiceSummary{{Name: "checkout-api", Rate: 1}}
 	calls := []map[string]any{
-		{"service": "nova-api", "t": int64(1000), "rate": 1.5, "error_rate": 0.02},
-		{"service": "nova-api", "t": int64(2000), "rate": 2.0, "error_rate": 0.0},
+		{"service": "checkout-api", "t": int64(1000), "rate": 1.5, "error_rate": 0.02},
+		{"service": "checkout-api", "t": int64(2000), "rate": 2.0, "error_rate": 0.0},
 	}
 	durs := []map[string]any{
-		{"service": "nova-api", "t": int64(1000), "p95_ms": 3.0},
-		{"service": "nova-api", "t": int64(2000), "p95_ms": 4.0},
+		{"service": "checkout-api", "t": int64(1000), "p95_ms": 3.0},
+		{"service": "checkout-api", "t": int64(2000), "p95_ms": 4.0},
 	}
 	AttachInventorySeries(sums, calls, durs)
 	if len(sums[0].RateSeries) != 2 || sums[0].RateSeries[1].Value != 2.0 {
@@ -270,11 +270,11 @@ func TestNamespaceDisplayExpr_PrefersK8s(t *testing.T) {
 }
 
 func TestFilterClause_NamespaceMatchesK8sOrService(t *testing.T) {
-	got := FilterClause("prod-nova", "", "", "ResourceAttributes")
+	got := FilterClause("demo", "", "", "ResourceAttributes")
 	if !strings.Contains(got, "k8s.namespace.name") || !strings.Contains(got, "service.namespace") {
 		t.Fatalf("namespace filter must OR k8s + service.namespace: %s", got)
 	}
-	if !strings.Contains(got, "prod-nova") {
+	if !strings.Contains(got, "demo") {
 		t.Fatalf("missing namespace value: %s", got)
 	}
 }
@@ -324,14 +324,14 @@ func TestADR0003_ContractHelpers(t *testing.T) {
 	}
 
 	// InventorySQL must use metric helpers (SPAN_KIND_* / STATUS_CODE_* / TimeUnix).
-	inv := InventorySQL(from, to, "sanad", "prod")
+	inv := InventorySQL(from, to, "acme", "prod")
 	for _, want := range []string{SpanKindServer, StatusError, "fromUnixTimestamp64Milli", ColTimeUnix} {
 		if !strings.Contains(inv, want) {
 			t.Errorf("InventorySQL missing %q", want)
 		}
 	}
 	// ErrorSpansSQL must use dual StatusCode filter, not metrics STATUS_CODE alone.
-	errSQL := ErrorSpansSQL("nova-api", from, to, "")
+	errSQL := ErrorSpansSQL("checkout-api", from, to, "")
 	if !strings.Contains(errSQL, TraceStatusError) || !strings.Contains(errSQL, StatusError) {
 		t.Fatalf("ErrorSpansSQL expected dual StatusCode: %s", errSQL)
 	}
@@ -341,8 +341,8 @@ func TestADR0003_ContractHelpers(t *testing.T) {
 }
 
 func TestWebVitalsSQL_TargetsHyperDXSpans(t *testing.T) {
-	sql := WebVitalsSQL("nova-frontend", "prod-k3s-omnivya", time.Now().Add(-6*time.Hour), time.Now())
-	for _, want := range []string{"webvitals", "nova-frontend", "quantileIf(0.75)", "SpanAttributes['lcp']", "prod-k3s-omnivya"} {
+	sql := WebVitalsSQL("storefront", "prod", time.Now().Add(-6*time.Hour), time.Now())
+	for _, want := range []string{"webvitals", "storefront", "quantileIf(0.75)", "SpanAttributes['lcp']", "prod"} {
 		if !strings.Contains(sql, want) {
 			t.Errorf("WebVitalsSQL missing %q\n%s", want, sql)
 		}
@@ -352,10 +352,10 @@ func TestWebVitalsSQL_TargetsHyperDXSpans(t *testing.T) {
 func TestBrowserExceptionGroupsSQL_HyperDXSelector(t *testing.T) {
 	from := time.Unix(1_700_000_000, 0)
 	to := from.Add(time.Hour)
-	sql := BrowserExceptionGroupsSQL("nova-frontend", from, to, "prod-k3s-omnivya", "team-a", 50)
+	sql := BrowserExceptionGroupsSQL("storefront", from, to, "prod", "team-a", 50)
 	for _, want := range []string{
-		"nova-frontend", "unhandledrejection", "error.object", "error.message",
-		"rum.sessionId", "has(Events.Name", "prod-k3s-omnivya", "team-a",
+		"storefront", "unhandledrejection", "error.object", "error.message",
+		"rum.sessionId", "has(Events.Name", "prod", "team-a",
 		ResK8sNamespace, ResServiceNamespace,
 	} {
 		if !strings.Contains(sql, want) {
@@ -378,7 +378,7 @@ func TestTracesEnvFilter_MultiEnv(t *testing.T) {
 func TestServerExceptionGroupsSQL_ExcludesBrowserShapes(t *testing.T) {
 	from := time.Unix(1_700_000_000, 0)
 	to := from.Add(time.Hour)
-	sql := ServerExceptionGroupsSQL("nova-api", from, to, "", "team-a", 50)
+	sql := ServerExceptionGroupsSQL("checkout-api", from, to, "", "team-a", 50)
 	if !strings.Contains(sql, "has(Events.Name") || !strings.Contains(sql, "NOT (SpanName") {
 		t.Fatalf("expected Events.exception + browser exclusion: %s", sql)
 	}
@@ -387,7 +387,7 @@ func TestServerExceptionGroupsSQL_ExcludesBrowserShapes(t *testing.T) {
 func TestBrowserExceptionOccurrencesSQL_ReplayFields(t *testing.T) {
 	from := time.Unix(1_700_000_000, 0)
 	to := from.Add(time.Hour)
-	sql := BrowserExceptionOccurrencesSQL("nova-frontend", from, to, "", "Error", 50)
+	sql := BrowserExceptionOccurrencesSQL("storefront", from, to, "", "Error", 50)
 	for _, want := range []string{"error.stack", "rum.sessionId", "userId", "location.href", "session_id"} {
 		if !strings.Contains(sql, want) {
 			t.Errorf("BrowserExceptionOccurrencesSQL missing %q\n%s", want, sql)
@@ -398,7 +398,7 @@ func TestBrowserExceptionOccurrencesSQL_ReplayFields(t *testing.T) {
 func TestSessionEnrichmentSQL_AllSpansNotErrorsOnly(t *testing.T) {
 	from := time.Unix(1_700_000_000, 0)
 	to := from.Add(time.Hour)
-	sql := SessionEnrichmentSQL("nova-frontend", from, to, "prod-k3s-omnivya")
+	sql := SessionEnrichmentSQL("storefront", from, to, "prod")
 	for _, want := range []string{
 		"countIf(",
 		"unhandledrejection",
@@ -410,7 +410,7 @@ func TestSessionEnrichmentSQL_AllSpansNotErrorsOnly(t *testing.T) {
 		"app_version",
 		"pages",
 		"user_agent",
-		"prod-k3s-omnivya",
+		"prod",
 	} {
 		if !strings.Contains(sql, want) {
 			t.Errorf("SessionEnrichmentSQL missing %q\n%s", want, sql)
@@ -466,7 +466,7 @@ func TestOperationsToEndpointGroups(t *testing.T) {
 
 func TestParseServiceGraphMaps(t *testing.T) {
 	rows := []map[string]any{
-		{"client": "nova-api", "server": "postgres", "total": 100.0, "failed": 5.0},
+		{"client": "checkout-api", "server": "postgres", "total": 100.0, "failed": 5.0},
 	}
 	edges := ParseServiceGraphMaps(rows, 50)
 	if len(edges) != 1 || edges[0].ErrorRate != 0.05 || edges[0].Rate != 2.0 {
@@ -475,11 +475,11 @@ func TestParseServiceGraphMaps(t *testing.T) {
 }
 
 func TestLogServiceIdentityFilter_IncludesK8s(t *testing.T) {
-	got := LogServiceIdentityFilter("nova-api", "nova-app")
+	got := LogServiceIdentityFilter("checkout-api", "checkout")
 	for _, want := range []string{
-		"ServiceName IN ('nova-api', 'nova-app')",
+		"ServiceName IN ('checkout-api', 'checkout')",
 		"k8s.deployment.name",
-		"startsWith(ResourceAttributes['k8s.pod.name'], 'nova-app-')",
+		"startsWith(ResourceAttributes['k8s.pod.name'], 'checkout-')",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("missing %q in %s", want, got)
@@ -488,7 +488,7 @@ func TestLogServiceIdentityFilter_IncludesK8s(t *testing.T) {
 }
 
 func TestLogPatternSQL_NormalizesDigits(t *testing.T) {
-	sql := LogPatternSQL("nova-api", time.Now().Add(-time.Hour), time.Now(), "", 20)
+	sql := LogPatternSQL("checkout-api", time.Now().Add(-time.Hour), time.Now(), "", 20)
 	if !strings.Contains(sql, "replaceRegexpAll") {
 		t.Fatal(sql)
 	}
@@ -503,21 +503,21 @@ func TestTraceDetailSQL_BindsTraceID(t *testing.T) {
 
 func TestRuntimeSQL_UsesScrapeName(t *testing.T) {
 	from, to := time.Now().Add(-time.Hour), time.Now()
-	disc := RuntimeDiscoverSQL("nova-app", "prod-nova", from, to)
-	for _, want := range []string{"nova-app", "go_", "process_", "otel_metrics_gauge"} {
+	disc := RuntimeDiscoverSQL("checkout", "demo", from, to)
+	for _, want := range []string{"checkout", "go_", "process_", "otel_metrics_gauge"} {
 		if !strings.Contains(disc, want) {
 			t.Errorf("discover missing %q\n%s", want, disc)
 		}
 	}
-	if strings.Contains(disc, "nova-api") {
+	if strings.Contains(disc, "checkout-api") {
 		t.Fatal("must not query inventory name")
 	}
-	gauges := RuntimeGaugeAvgsSQL("nova-app", "prod-nova", []string{"go_goroutines"}, from, to)
-	if !strings.Contains(gauges, "go_goroutines") || !strings.Contains(gauges, "nova-app") {
+	gauges := RuntimeGaugeAvgsSQL("checkout", "demo", []string{"go_goroutines"}, from, to)
+	if !strings.Contains(gauges, "go_goroutines") || !strings.Contains(gauges, "checkout") {
 		t.Fatalf("gauges: %s", gauges)
 	}
-	cpu := RuntimeProcessCPURateSQL("admin-app", "", from, to)
-	if !strings.Contains(cpu, "process_cpu_seconds_total") || !strings.Contains(cpu, "admin-app") {
+	cpu := RuntimeProcessCPURateSQL("billing", "", from, to)
+	if !strings.Contains(cpu, "process_cpu_seconds_total") || !strings.Contains(cpu, "billing") {
 		t.Fatalf("cpu: %s", cpu)
 	}
 }
@@ -539,16 +539,16 @@ func TestParseGoRuntimeMaps(t *testing.T) {
 
 func TestCustomMetricsDiscoverSQL_DenylistAndScrape(t *testing.T) {
 	deny := `jvm_.*|go_.*|process_.*|up|promhttp_.*`
-	sql := CustomMetricsDiscoverSQL("nova-app", "prod-nova", deny, time.Now().Add(-time.Hour), time.Now(), 50)
+	sql := CustomMetricsDiscoverSQL("checkout", "demo", deny, time.Now().Add(-time.Hour), time.Now(), 50)
 	for _, want := range []string{
-		"nova-app", "NOT match", "otel_metrics_sum", "otel_metrics_histogram", "^(jvm_.*",
+		"checkout", "NOT match", "otel_metrics_sum", "otel_metrics_histogram", "^(jvm_.*",
 		"GROUP BY MetricName, kind", // CH code 215 without outer agg keys
 	} {
 		if !strings.Contains(sql, want) {
 			t.Errorf("missing %q\n%s", want, sql)
 		}
 	}
-	if strings.Contains(sql, "nova-api") {
+	if strings.Contains(sql, "checkout-api") {
 		t.Fatal("must not use inventory name")
 	}
 	pat := DenylistMatchPattern(deny)
@@ -567,19 +567,19 @@ func TestChartHintForKind(t *testing.T) {
 }
 
 func TestScrapeServiceFilter_EmitsAliasName(t *testing.T) {
-	got := ScrapeServiceFilter("nova-app", "prod-nova")
-	if !strings.Contains(got, "nova-app") || !strings.Contains(got, "prod-nova") {
+	got := ScrapeServiceFilter("checkout", "demo")
+	if !strings.Contains(got, "checkout") || !strings.Contains(got, "demo") {
 		t.Fatal(got)
 	}
 }
 
 func TestScorecardProbeSQL(t *testing.T) {
 	from, to := time.Now().Add(-time.Hour), time.Now()
-	span := SpanMetricsProbeSQL("nova-api", "prod", from, to)
-	if !strings.Contains(span, MetricSpanCalls) || !strings.Contains(span, "nova-api") {
+	span := SpanMetricsProbeSQL("checkout-api", "prod", from, to)
+	if !strings.Contains(span, MetricSpanCalls) || !strings.Contains(span, "checkout-api") {
 		t.Fatal(span)
 	}
-	browser := BrowserScorecardProbeSQL("nova-frontend", "prod", from, to)
+	browser := BrowserScorecardProbeSQL("storefront", "prod", from, to)
 	for _, want := range []string{"hyperdx_sessions", "webvitals", "unhandledrejection", "rum.sessionId"} {
 		if !strings.Contains(browser, want) {
 			t.Errorf("browser probe missing %q\n%s", want, browser)
@@ -589,30 +589,30 @@ func TestScorecardProbeSQL(t *testing.T) {
 
 func TestScorecardV2ProbeSQL(t *testing.T) {
 	from, to := time.Now().Add(-time.Hour), time.Now()
-	db := DatabasePresenceProbeSQL("nova-api", "prod", from, to)
-	for _, want := range []string{"db.system", "nova-api", MetricSpanCalls} {
+	db := DatabasePresenceProbeSQL("checkout-api", "prod", from, to)
+	for _, want := range []string{"db.system", "checkout-api", MetricSpanCalls} {
 		if !strings.Contains(db, want) {
 			t.Errorf("database probe missing %q\n%s", want, db)
 		}
 	}
-	msg := MessagingOrWorkflowPresenceProbeSQL("nova-api", "prod", from, to)
+	msg := MessagingOrWorkflowPresenceProbeSQL("checkout-api", "prod", from, to)
 	for _, want := range []string{"messaging.system", "rpc.system", "temporal", "temporal.workflow.id"} {
 		if !strings.Contains(msg, want) {
 			t.Errorf("messaging probe missing %q\n%s", want, msg)
 		}
 	}
-	structured := StructuredLogProbeSQL("nova-api", "nova-app", "prod", from, to)
-	for _, want := range []string{"exception.type", "exception.stacktrace", "nova-api"} {
+	structured := StructuredLogProbeSQL("checkout-api", "checkout", "prod", from, to)
+	for _, want := range []string{"exception.type", "exception.stacktrace", "checkout-api"} {
 		if !strings.Contains(structured, want) {
 			t.Errorf("structured log probe missing %q\n%s", want, structured)
 		}
 	}
-	errors := BrowserErrorPresenceProbeSQL("nova-frontend", "prod", from, to)
-	if !strings.Contains(errors, "unhandledrejection") || !strings.Contains(errors, "nova-frontend") {
+	errors := BrowserErrorPresenceProbeSQL("storefront", "prod", from, to)
+	if !strings.Contains(errors, "unhandledrejection") || !strings.Contains(errors, "storefront") {
 		t.Fatalf("browser error probe: %s", errors)
 	}
-	maps := SourcemapsProbeSQL("nova-frontend", "prod", from, to)
-	for _, want := range []string{"error.stack", ".ts:", "webpack://", "nova-frontend"} {
+	maps := SourcemapsProbeSQL("storefront", "prod", from, to)
+	for _, want := range []string{"error.stack", ".ts:", "webpack://", "storefront"} {
 		if !strings.Contains(maps, want) {
 			t.Errorf("sourcemaps probe missing %q\n%s", want, maps)
 		}
@@ -620,8 +620,8 @@ func TestScorecardV2ProbeSQL(t *testing.T) {
 }
 
 func TestTopDBQueriesSQL(t *testing.T) {
-	sql := TopDBQueriesSQL("nova-api", "prod", time.Now().Add(-time.Hour), time.Now(), 100)
-	for _, want := range []string{"db.statement", "db.system", "nova-api", "duration_ms"} {
+	sql := TopDBQueriesSQL("checkout-api", "prod", time.Now().Add(-time.Hour), time.Now(), 100)
+	for _, want := range []string{"db.statement", "db.system", "checkout-api", "duration_ms"} {
 		if !strings.Contains(sql, want) {
 			t.Errorf("missing %q\n%s", want, sql)
 		}
@@ -630,13 +630,13 @@ func TestTopDBQueriesSQL(t *testing.T) {
 
 func TestBrowserVersionsSQL_UsesServiceVersionNotRumVersion(t *testing.T) {
 	from, to := time.Now().Add(-time.Hour), time.Now()
-	sql := BrowserVersionsSQL("nova-frontend", from, to, "prod", 20)
+	sql := BrowserVersionsSQL("storefront", from, to, "prod", 20)
 	for _, want := range []string{
 		"service.version",
 		"@hyperdx/otel-web",
 		"telemetry.sdk.name",
 		"rum.sessionId",
-		"nova-frontend",
+		"storefront",
 		"unhandledrejection",
 	} {
 		if !strings.Contains(sql, want) {
@@ -646,7 +646,7 @@ func TestBrowserVersionsSQL_UsesServiceVersionNotRumVersion(t *testing.T) {
 	if strings.Contains(sql, "rum.version") {
 		t.Fatalf("must never query rum.version (SDK): %s", sql)
 	}
-	probe := BrowserVersionsProbeSQL("nova-frontend", "prod", from, to)
+	probe := BrowserVersionsProbeSQL("storefront", "prod", from, to)
 	if !strings.Contains(probe, "service.version") || strings.Contains(probe, "rum.version") {
 		t.Fatalf("probe=%s", probe)
 	}
@@ -661,7 +661,7 @@ func TestBrowserVersionsSQL_UsesServiceVersionNotRumVersion(t *testing.T) {
 
 func TestBrowserFeedbackSQL_FaroShapedContract(t *testing.T) {
 	from, to := time.Now().Add(-time.Hour), time.Now()
-	sql := BrowserFeedbackSQL("nova-frontend", from, to, "prod", "sess-1", "v1:abc", 50)
+	sql := BrowserFeedbackSQL("storefront", from, to, "prod", "sess-1", "v1:abc", 50)
 	for _, want := range []string{
 		"faro.feedback",
 		"feedback.message",
@@ -681,7 +681,7 @@ func TestBrowserFeedbackSQL_FaroShapedContract(t *testing.T) {
 	if strings.Contains(sql, "/api/feedback") {
 		t.Fatal("must not bind to product HTTP /api/feedback")
 	}
-	probe := BrowserFeedbackProbeSQL("nova-frontend", "", from, to)
+	probe := BrowserFeedbackProbeSQL("storefront", "", from, to)
 	if !strings.Contains(probe, "faro.feedback") {
 		t.Fatalf("probe=%s", probe)
 	}
@@ -694,7 +694,7 @@ func TestBrowserFeedbackSQL_FaroShapedContract(t *testing.T) {
 }
 
 func TestErrorRateAlertSQL_UsesTimeFilterMacro(t *testing.T) {
-	sql := ErrorRateAlertSQL("nova-api", "ns", "prod")
+	sql := ErrorRateAlertSQL("checkout-api", "ns", "prod")
 	for _, want := range []string{"$__timeFilter(TimeUnix)", MetricSpanCalls, "STATUS_CODE_ERROR", "SPAN_KIND_SERVER"} {
 		if !strings.Contains(sql, want) {
 			t.Errorf("missing %q\n%s", want, sql)
@@ -703,13 +703,13 @@ func TestErrorRateAlertSQL_UsesTimeFilterMacro(t *testing.T) {
 }
 
 func TestRegressingExceptionsAlertSQL_VolumeVsBaseline(t *testing.T) {
-	sql := RegressingExceptionsAlertSQL("nova-api", "prod")
+	sql := RegressingExceptionsAlertSQL("checkout-api", "prod")
 	for _, want := range []string{
 		"hourly_avg",
 		"INTERVAL 1 HOUR",
 		"INTERVAL 7 DAY",
 		"greatest",
-		"ServiceName = 'nova-api'",
+		"ServiceName = 'checkout-api'",
 		"has(Events.Name, 'exception')",
 	} {
 		if !strings.Contains(sql, want) {

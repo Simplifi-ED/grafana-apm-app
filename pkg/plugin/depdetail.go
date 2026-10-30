@@ -47,7 +47,7 @@ func (a *App) queryDependencyDetail(
 	)
 	// Spanmetrics supplement: find upstream callers that target this dependency
 	// via server_address or http_host. Uses regex matching to handle address
-	// normalization (e.g., "idporten.no" must match "idporten.no:443" in labels).
+	// normalization (e.g., "auth.example.com" must match "auth.example.com:443" in labels).
 	addrRegex := addressMatchRegex(depName)
 	envFilter := ""
 	if m := envMatcher(cfg.Labels.DeploymentEnv, filterEnvironment); m != "" {

@@ -9,7 +9,7 @@ import (
 )
 
 // RuntimeMetricNameMatch is the CH match() pattern for go_*/process_* families
-// present in Sanad CH (research 06). JVM/Node/etc. stay omitted until emitted.
+// present in ClickHouse (research 06). JVM/Node/etc. stay omitted until emitted.
 const RuntimeMetricNameMatch = "^(go_|process_)"
 
 // ScrapeServiceFilter scopes otel_metrics_* rows to a scrape ServiceName

@@ -1,5 +1,5 @@
--- Minimal otel_traces schema for CI / local fixture loads (ticket 16).
--- Column set matches ClickStack DESCRIBE default.otel_traces (Local-ClickHouse).
+-- Minimal otel_traces schema for CI / local fixture loads.
+-- Column set matches ClickStack DESCRIBE default.otel_traces.
 -- Not a full ClickStack install — enough to INSERT + probe GraphQL span attrs.
 
 CREATE TABLE IF NOT EXISTS otel_traces

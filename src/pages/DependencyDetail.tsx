@@ -39,7 +39,7 @@ import { typographyFontSize } from '../utils/themeTypography';
 
 /**
  * Build a PromQL regex that matches the normalized address and its raw forms.
- * e.g., "idporten.no" → "idporten\\.no(:(443|80))?" (matches idporten.no, idporten.no:443)
+ * e.g., "auth.example.com" → "auth\\.example\\.com(:(443|80))?" (matches host, host:443)
  * e.g., "db:5432" → "db:5432" (non-standard port, exact match)
  */
 function addressRegex(normalized: string): string {
@@ -105,7 +105,7 @@ function DependencyDetail() {
     const timeRange = new SceneTimeRange({ from, to });
     const deploymentEnvLabel = labelOverrides.deploymentEnvLabel || otel.labels.deploymentEnv;
     const addrRegex = addressRegex(name);
-    const serverFilter = `${otel.labels.server}=~"${addrRegex}"`; // Spanmetrics: use regex to match both normalized and raw addresses (e.g., idporten.no and idporten.no:443)
+    const serverFilter = `${otel.labels.server}=~"${addrRegex}"`; // Spanmetrics: use regex to match both normalized and raw addresses (e.g., auth.example.com and auth.example.com:443)
     const envLabel = envFilter ? `, ${deploymentEnvLabel}="${envFilter}"` : '';
     const smAddrFilter = `${otel.labels.serverAddress}=~"${addrRegex}", ${otel.labels.spanKind}="${otel.spanKinds.client}"${envLabel}`;
     const smHostFilter = `${otel.labels.httpHost}=~"${addrRegex}", ${otel.labels.spanKind}="${otel.spanKinds.client}"${envLabel}`;

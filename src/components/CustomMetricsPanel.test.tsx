@@ -20,7 +20,7 @@ let mockDatasources = {
 };
 jest.mock('../utils/datasources', () => ({
   usePluginDatasources: () => mockDatasources,
-  useServiceAlias: (name: string) => (name === 'app' ? 'nova-app' : name),
+  useServiceAlias: (name: string) => (name === 'app' ? 'checkout' : name),
 }));
 
 // The auto-charts render an EmbeddedScene; stub @grafana/scenes so the table

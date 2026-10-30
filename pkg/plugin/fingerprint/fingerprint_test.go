@@ -12,8 +12,8 @@ func TestNormalize(t *testing.T) {
 		want string
 	}{
 		{"uuid", "Invalid søknad 8f3a1b2c-4d5e-6f70-8192-a3b4c5d6e7f8", "Invalid søknad <uuid>"},
-		{"url with path and ids", `Failed to fetch https://api.nav.no/soknad/12345?token=abc from upstream`, "Failed to fetch <url> from upstream"},
-		{"email", "User bruker@nav.no not found", "User <email> not found"},
+		{"url with path and ids", `Failed to fetch https://api.example.com/orders/12345?token=abc from upstream`, "Failed to fetch <url> from upstream"},
+		{"email", "User user@example.com not found", "User <email> not found"},
 		{"iso timestamp", "Deadline was 2026-07-03T10:15:30Z exceeded", "Deadline was <ts> exceeded"},
 		{"ip address", "connect ECONNREFUSED 10.0.0.1", "connect ECONNREFUSED <ip>"},
 		{"long hex run", "Trace deadbeefcafe1234 aborted", "Trace <hex> aborted"},
@@ -105,7 +105,7 @@ func TestComputeSeparatesHTTPStatusClasses(t *testing.T) {
 }
 
 func TestComputeDeterministic(t *testing.T) {
-	e := Event{Type: "TypeError", Value: "Failed to fetch https://api.nav.no/x id 12345"}
+	e := Event{Type: "TypeError", Value: "Failed to fetch https://api.example.com/x id 12345"}
 	first := Compute(e)
 	for range 10 {
 		if got := Compute(e); got != first {

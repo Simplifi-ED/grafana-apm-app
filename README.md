@@ -91,7 +91,7 @@ pnpm install
 ### Against an existing ClickStack ClickHouse
 
 ```bash
-# Optional: forward prod/local CH ports (see scripts/clickstack-tunnel.sh)
+# Optional: SSH LocalForward CH ports (set CLICKSTACK_SSH_HOST/USER/KEY; see scripts/clickstack-tunnel.sh)
 mise run clickstack:tunnel
 
 # Provisioning: copy *.local.yaml examples for ClickHouse DS + plugin
@@ -124,7 +124,7 @@ Use `mise run deploy` after Go backend changes. Debug with Delve:
 | `mise run build`                | Production frontend + backend                    |
 | `mise run dev`                  | Local Grafana + frontend watch                  |
 | `mise run deploy:up:clickstack` | Grafana only (expects CH on localhost)           |
-| `mise run clickstack:tunnel`    | SSH LocalForward to ClickHouse                   |
+| `mise run clickstack:tunnel`    | SSH LocalForward to ClickHouse (env-required)    |
 | `mise run deploy`               | Rebuild and reload plugin in Grafana             |
 | `mise run e2e`                  | Playwright against running Grafana               |
 | `mise run release`              | Bump version, changelog, commit + tag (see below)|

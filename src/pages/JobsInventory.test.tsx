@@ -100,11 +100,11 @@ describe('JobsInventory', () => {
     getJobsMock.mockResolvedValueOnce({
       available: false,
       jobs: [],
-      note: 'Deploy KSM via platforms-flux (enablement ticket 17).',
+      note: 'Deploy kube-state-metrics in your cluster.',
     });
     renderJobs();
     expect(await screen.findByText(/Job metrics not available/i)).toBeInTheDocument();
-    expect(screen.getByText(/ticket 17/i)).toBeInTheDocument();
+    expect(screen.getByText(/kube-state-metrics/i)).toBeInTheDocument();
   });
 
   // --- Accessibility (WCAG 1.3.1 / 1.4.1 / 4.1.2) ---

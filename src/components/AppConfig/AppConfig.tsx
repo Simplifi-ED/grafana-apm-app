@@ -835,8 +835,8 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
           Map inventory (spanmetrics) names to scrape/browser <code>ServiceName</code> values for Runtime, Custom
           Metrics, HyperDX sessions/webvitals, and browser Issues. Canonical UI/URL stays the inventory name. Missing
           entries yield empty panels with a configure hint — no silent <code>-api</code>↔<code>-app</code> rewrite.
-          Identity entries (e.g. <code>nova-frontend</code>→<code>nova-frontend</code>) are required when the names
-          already match.
+          Identity entries (e.g. <code>storefront</code>→<code>storefront</code>) are required when the names already
+          match.
         </p>
         {state.serviceAliases.map((alias, idx) => (
           <div key={idx} className={s.envRow}>
@@ -844,7 +844,7 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
               <Input
                 width={30}
                 value={alias.inventory}
-                placeholder="nova-api"
+                placeholder="checkout-api"
                 onChange={onServiceAliasChange(idx, 'inventory')}
               />
             </Field>
@@ -852,7 +852,7 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
               <Input
                 width={30}
                 value={alias.scrape}
-                placeholder="nova-app"
+                placeholder="checkout"
                 onChange={onServiceAliasChange(idx, 'scrape')}
               />
             </Field>
@@ -875,7 +875,7 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
               <Input
                 width={40}
                 value={alias.hostname}
-                placeholder="tilgangsmaskin.intern.nav.no"
+                placeholder="auth.internal.example.com"
                 onChange={onAliasChange(idx, 'hostname')}
               />
             </Field>
@@ -883,7 +883,7 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
               <Input
                 width={30}
                 value={alias.service}
-                placeholder="populasjonstilgangskontroll"
+                placeholder="access-control"
                 onChange={onAliasChange(idx, 'service')}
               />
             </Field>

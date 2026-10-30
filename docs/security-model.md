@@ -35,7 +35,7 @@ and **kept as built** — recorded here so future audits read them as deliberate
 not oversights:
 
 1. **Triage writes are open to any plugin user (Sentry parity).** `POST
-   /triage/{fp}` records an org annotation with the SA token; any authenticated
+/triage/{fp}` records an org annotation with the SA token; any authenticated
    user (incl. Viewer) can resolve/ignore/assign, always attributed. Decision:
    keep it — collaborative triage is the product intent; the risk is low
    (constrained data, recorded actor). NOT gated on Editor (unlike the
