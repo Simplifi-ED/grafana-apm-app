@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.30.0](https://github.com/Simplifi-ED/grafana-apm-app/compare/clickhouse-apm-app-v0.29.0...clickhouse-apm-app-v0.30.0) (2026-10-30)
+
+
+### Features
+
+* **traces:** enhance ClickStackTracesPanel with detail expansion and scrolling ([a1d67a0](https://github.com/Simplifi-ED/grafana-apm-app/commit/a1d67a020b6d938987279c370faa73ef5ae8749e))
+
 ## [0.29.0](https://github.com/Simplifi-ED/grafana-apm-app/compare/clickhouse-apm-app-v0.28.0...clickhouse-apm-app-v0.29.0) (2026-10-29)
 
 
