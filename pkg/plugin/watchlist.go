@@ -3,12 +3,15 @@ package plugin
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"sync"
 
+	"github.com/grafana/grafana-plugin-sdk-go/backend"
 	"github.com/grafana/grafana-plugin-sdk-go/backend/log"
+	"github.com/grafana/grafana-plugin-sdk-go/config"
 )
 
 // OpsWatchlistEntry is a single watched service in the ops watchlist. An entry
@@ -42,15 +45,19 @@ func (a *App) handleOpsWatchlist(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+// getOpsWatchlist reads jsonData from the plugin context Grafana attaches to
+// every resource call, so reads never depend on authenticating a loopback
+// call to the settings API (cookies are not forwarded reliably, e.g. with
+// cookie_samesite=strict).
 func (a *App) getOpsWatchlist(w http.ResponseWriter, req *http.Request) {
-	settings, err := a.fetchPluginSettings(req)
+	jsonData, err := a.currentJSONData(req)
 	if err != nil {
-		log.DefaultLogger.Error("Failed to fetch plugin settings", "error", err)
-		http.Error(w, "failed to fetch plugin settings", http.StatusInternalServerError)
+		log.DefaultLogger.Error("Failed to read plugin settings", "error", err)
+		http.Error(w, "failed to fetch plugin settings: "+publicSettingsError(err), settingsErrorStatus(err))
 		return
 	}
 
-	watchlist := settings.JSONData["opsWatchlist"]
+	watchlist := jsonData["opsWatchlist"]
 	if watchlist == nil {
 		watchlist = []any{}
 	}
@@ -78,23 +85,21 @@ func (a *App) setOpsWatchlist(w http.ResponseWriter, req *http.Request) {
 	watchlistMu.Lock()
 	defer watchlistMu.Unlock()
 
-	// Fetch current settings (includes jsonData and secureJsonFields)
-	settings, err := a.fetchPluginSettings(req)
+	err := a.withSettingsAPI(req, func(cred settingsCredential) error {
+		settings, err := a.fetchPluginSettings(req, cred)
+		if err != nil {
+			return err
+		}
+		if len(valid) > 0 {
+			settings.JSONData["opsWatchlist"] = valid
+		} else {
+			delete(settings.JSONData, "opsWatchlist")
+		}
+		return a.savePluginSettings(req, cred, settings)
+	})
 	if err != nil {
-		log.DefaultLogger.Error("Failed to fetch plugin settings for update", "error", err)
-		http.Error(w, "failed to fetch plugin settings", http.StatusInternalServerError)
-		return
-	}
-
-	if len(valid) > 0 {
-		settings.JSONData["opsWatchlist"] = valid
-	} else {
-		delete(settings.JSONData, "opsWatchlist")
-	}
-
-	if err := a.savePluginSettings(req, settings); err != nil {
 		log.DefaultLogger.Error("Failed to save plugin settings", "error", err)
-		http.Error(w, "failed to save plugin settings", http.StatusInternalServerError)
+		http.Error(w, "failed to save plugin settings: "+publicSettingsError(err), settingsErrorStatus(err))
 		return
 	}
 
@@ -104,42 +109,155 @@ func (a *App) setOpsWatchlist(w http.ResponseWriter, req *http.Request) {
 
 // pluginSettings holds the subset of plugin settings needed for read-modify-write.
 type pluginSettings struct {
-	Enabled          bool            `json:"enabled"`
-	Pinned           bool            `json:"pinned"`
-	JSONData         map[string]any  `json:"jsonData"`
-	SecureJSONFields map[string]bool `json:"secureJsonFields"`
+	Enabled  bool           `json:"enabled"`
+	Pinned   bool           `json:"pinned"`
+	JSONData map[string]any `json:"jsonData"`
 }
 
-// pluginID is the Grafana app id from plugin.json / app.Manage. Kept in one
-// place so settings API paths cannot drift from the installed plugin.
-const pluginID = "clickhouse-apm-app"
+// defaultPluginID is used only when the request carries no plugin context.
+const defaultPluginID = "clickhouse-apm-app"
 
-// applySettingsAPIAuth authenticates Grafana /api/plugins/.../settings calls.
-//
-// Do not use PluginAppClientSecret / forwarded Authorization: after a plugin-id
-// rename (nais-apm-app → clickhouse-apm-app) that auto SA can 404 this endpoint
-// while an org session cookie (or anonymous Admin) still succeeds. Only forward
-// session cookies + org headers; fall back to the manual secureJsonData token.
-func (a *App) applySettingsAPIAuth(apiReq, userReq *http.Request) {
-	for _, key := range []string{"Cookie", "X-Grafana-Org-Id", "X-Grafana-Id"} {
-		for _, v := range userReq.Header.Values(key) {
-			apiReq.Header.Add(key, v)
+func requestPluginID(req *http.Request) string {
+	if id := backend.PluginConfigFromContext(req.Context()).PluginID; id != "" {
+		return id
+	}
+	return defaultPluginID
+}
+
+// currentJSONData returns the plugin's jsonData, preferring the per-request
+// plugin context and falling back to the settings API when it is absent.
+func (a *App) currentJSONData(req *http.Request) (map[string]any, error) {
+	if s := backend.PluginConfigFromContext(req.Context()).AppInstanceSettings; s != nil {
+		jsonData := map[string]any{}
+		if len(bytes.TrimSpace(s.JSONData)) > 0 {
+			if err := json.Unmarshal(s.JSONData, &jsonData); err != nil {
+				return nil, fmt.Errorf("failed to decode plugin jsonData: %w", err)
+			}
 		}
+		return jsonData, nil
 	}
-	if a.serviceToken != "" {
-		apiReq.Header.Set("Authorization", "Bearer "+a.serviceToken)
+
+	var jsonData map[string]any
+	err := a.withSettingsAPI(req, func(cred settingsCredential) error {
+		settings, err := a.fetchPluginSettings(req, cred)
+		if err != nil {
+			return err
+		}
+		jsonData = settings.JSONData
+		return nil
+	})
+	return jsonData, err
+}
+
+// settingsCredential is one way of authenticating a settings API call.
+type settingsCredential struct {
+	name  string
+	apply func(apiReq *http.Request)
+}
+
+// settingsCredentials lists the ways to authenticate against the settings API,
+// in order: managed service account, configured service account token, then
+// the caller's forwarded session. Which one works depends on the deployment
+// (managed SA permissions, OAuth proxy, cookie SameSite policy), so callers
+// try each in turn via withSettingsAPI.
+func (a *App) settingsCredentials(req *http.Request) []settingsCredential {
+	var creds []settingsCredential
+	seen := map[string]bool{}
+	addToken := func(name, token string) {
+		if token == "" || seen[token] {
+			return
+		}
+		seen[token] = true
+		creds = append(creds, settingsCredential{name: name, apply: func(apiReq *http.Request) {
+			apiReq.Header.Set("Authorization", "Bearer "+token)
+			for _, v := range req.Header.Values("X-Grafana-Org-Id") {
+				apiReq.Header.Add("X-Grafana-Org-Id", v)
+			}
+		}})
 	}
+
+	if token, err := config.GrafanaConfigFromContext(req.Context()).PluginAppClientSecret(); err == nil {
+		addToken("managed service account", token)
+	}
+	addToken("configured service account token", a.serviceToken)
+
+	creds = append(creds, settingsCredential{name: "forwarded user session", apply: func(apiReq *http.Request) {
+		for _, key := range []string{"Cookie", "Authorization", "X-Grafana-Org-Id", "X-Grafana-Id"} {
+			for _, v := range req.Header.Values(key) {
+				apiReq.Header.Add(key, v)
+			}
+		}
+	}})
+	return creds
+}
+
+// withSettingsAPI runs fn with each credential until one is not rejected by
+// Grafana (401/403/404). Any other error stops immediately.
+func (a *App) withSettingsAPI(req *http.Request, fn func(settingsCredential) error) error {
+	var lastErr error
+	for _, cred := range a.settingsCredentials(req) {
+		err := fn(cred)
+		var apiErr *settingsAPIError
+		if err == nil || !errors.As(err, &apiErr) || !apiErr.authRejected() {
+			return err
+		}
+		log.DefaultLogger.Warn("Plugin settings API rejected credential, trying next",
+			"credential", cred.name, "status", apiErr.status)
+		lastErr = err
+	}
+	return lastErr
+}
+
+// settingsAPIError is a non-2xx response from Grafana's plugin settings API.
+type settingsAPIError struct {
+	status int
+	body   string
+}
+
+func (e *settingsAPIError) Error() string {
+	return fmt.Sprintf("grafana API returned %d: %s", e.status, e.body)
+}
+
+func (e *settingsAPIError) authRejected() bool {
+	switch e.status {
+	case http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound:
+		return true
+	}
+	return false
+}
+
+// publicSettingsError is the client-facing detail: the upstream status only,
+// never the upstream body. The plugins:write hint is only for 403.
+func publicSettingsError(err error) string {
+	var apiErr *settingsAPIError
+	if errors.As(err, &apiErr) {
+		if apiErr.status == http.StatusForbidden {
+			return fmt.Sprintf("grafana settings API returned %d (check the plugin service account has plugins:write on this app)", apiErr.status)
+		}
+		return fmt.Sprintf("grafana settings API returned %d", apiErr.status)
+	}
+	return "internal error"
+}
+
+func settingsErrorStatus(err error) int {
+	var apiErr *settingsAPIError
+	if errors.As(err, &apiErr) {
+		return http.StatusBadGateway
+	}
+	return http.StatusInternalServerError
+}
+
+func (a *App) settingsURL(req *http.Request) string {
+	return fmt.Sprintf("%s/api/plugins/%s/settings", a.grafanaURL, requestPluginID(req))
 }
 
 // fetchPluginSettings retrieves the plugin's current settings from the Grafana API.
-func (a *App) fetchPluginSettings(req *http.Request) (*pluginSettings, error) {
-	url := fmt.Sprintf("%s/api/plugins/%s/settings", a.grafanaURL, pluginID)
-
-	apiReq, err := http.NewRequestWithContext(req.Context(), http.MethodGet, url, nil)
+func (a *App) fetchPluginSettings(req *http.Request, cred settingsCredential) (*pluginSettings, error) {
+	apiReq, err := http.NewRequestWithContext(req.Context(), http.MethodGet, a.settingsURL(req), nil)
 	if err != nil {
 		return nil, err
 	}
-	a.applySettingsAPIAuth(apiReq, req)
+	cred.apply(apiReq)
 
 	resp, err := a.healthClient.Do(apiReq)
 	if err != nil {
@@ -149,7 +267,7 @@ func (a *App) fetchPluginSettings(req *http.Request) (*pluginSettings, error) {
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
-		return nil, fmt.Errorf("grafana API returned %d: %s", resp.StatusCode, string(body))
+		return nil, &settingsAPIError{status: resp.StatusCode, body: string(body)}
 	}
 
 	var settings pluginSettings
@@ -163,33 +281,23 @@ func (a *App) fetchPluginSettings(req *http.Request) (*pluginSettings, error) {
 }
 
 // savePluginSettings updates the plugin's settings via the Grafana API.
-// It preserves secureJsonFields to avoid wiping existing secrets.
-func (a *App) savePluginSettings(req *http.Request, settings *pluginSettings) error {
-	url := fmt.Sprintf("%s/api/plugins/%s/settings", a.grafanaURL, pluginID)
-
-	// Build the save payload preserving secure fields.
-	// When secureJsonFields are included with true values, Grafana keeps
-	// existing secrets intact without requiring us to re-send the actual values.
-	payload := map[string]any{
+// Grafana merges secureJsonData on update, so omitting it keeps existing secrets.
+func (a *App) savePluginSettings(req *http.Request, cred settingsCredential, settings *pluginSettings) error {
+	body, err := json.Marshal(map[string]any{
 		"enabled":  settings.Enabled,
 		"pinned":   settings.Pinned,
 		"jsonData": settings.JSONData,
-	}
-	if len(settings.SecureJSONFields) > 0 {
-		payload["secureJsonFields"] = settings.SecureJSONFields
-	}
-
-	body, err := json.Marshal(payload)
+	})
 	if err != nil {
 		return err
 	}
 
-	apiReq, err := http.NewRequestWithContext(req.Context(), http.MethodPost, url, bytes.NewReader(body))
+	apiReq, err := http.NewRequestWithContext(req.Context(), http.MethodPost, a.settingsURL(req), bytes.NewReader(body))
 	if err != nil {
 		return err
 	}
 	apiReq.Header.Set("Content-Type", "application/json")
-	a.applySettingsAPIAuth(apiReq, req)
+	cred.apply(apiReq)
 
 	resp, err := a.healthClient.Do(apiReq)
 	if err != nil {
@@ -199,7 +307,7 @@ func (a *App) savePluginSettings(req *http.Request, settings *pluginSettings) er
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
-		return fmt.Errorf("grafana API returned %d: %s", resp.StatusCode, string(respBody))
+		return &settingsAPIError{status: resp.StatusCode, body: string(respBody)}
 	}
 	return nil
 }

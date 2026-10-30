@@ -16,6 +16,7 @@ node_modules/
 .yarn/install-state.gz
 .pnp.*
 .scratch*/
+.scratch*.txt
 
 # Runtime data
 pids

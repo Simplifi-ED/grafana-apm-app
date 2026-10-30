@@ -204,6 +204,15 @@ handles authentication directly (no OAuth2 proxy in front).
 The plugin uses a 3-tier fallback: auto-managed token → manual token →
 forwarded user headers.
 
+### Ops watchlist
+
+The Ops Status board reads the watchlist from the plugin context Grafana sends
+with every request, so reading it needs no extra auth. Saving it writes plugin
+settings: the managed service account gets `plugins:write` on this app from
+`plugin.json`. With a manual token instead, the service account needs the
+**Admin** role (Viewer is not enough). Each credential is tried in turn, and a
+failed save reports Grafana's status code (for example `401`).
+
 ---
 
 ## Deploy Annotations
