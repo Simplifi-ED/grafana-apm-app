@@ -122,13 +122,13 @@ func TestDiagnoseSourcemap_UnfetchableMapFails(t *testing.T) {
 func TestSourcemapHostAllowed(t *testing.T) {
 	cases := map[string]bool{
 		"cdn.example.com":          true,
-		"CDN.EXAMPLE.COM":     true,
+		"CDN.EXAMPLE.COM":          true,
 		"cdn.example.com:443":      true,
-		"evil.example.com":    false,
+		"evil.example.com":         false,
 		"cdn.example.com.evil.com": false,
-		"localhost:8080":      false,
+		"localhost:8080":           false,
 		"cdn.example.com.":         false, // trailing-dot FQDN is not the exact host
-		"internal.nais.local": false,
+		"internal.nais.local":      false,
 	}
 	for host, want := range cases {
 		if got := sourcemapHostAllowed(host); got != want {

@@ -230,6 +230,7 @@ type nplusTrace struct {
 // statement) and emits a finding for every group repeated at least `threshold`
 // times in that one trace. Findings are ordered by repeat count desc (the worst
 // offenders first) and capped at `limit`.
+//
 //nolint:unparam // threshold is a tunable N+1 sensitivity knob (§9); kept a param so the grouping logic is exercised at other thresholds in tests.
 func detectNPlusOne(traces []nplusTrace, threshold, limit int) []NPlusOneFinding {
 	findings := make([]NPlusOneFinding, 0)
@@ -329,8 +330,9 @@ func isOracle(system string) bool {
 // candidate traces and whether the trace limit was hit.
 //
 // TraceQL: { <svc> = "…" [&& <ns> = "…"] && span.db.system != "" }
-//          | select(span.db.statement, span.db.system, span.db.sql.table)
-//          | count() > <repeat-1>
+//
+//	| select(span.db.statement, span.db.system, span.db.sql.table)
+//	| count() > <repeat-1>
 func (a *App) searchNPlusOneTraces(ctx context.Context, headers http.Header, tracesUID, namespace, service string, from, to time.Time) ([]nplusTrace, bool, error) {
 	base := a.proxyURL(tracesUID)
 	if base == "" {
