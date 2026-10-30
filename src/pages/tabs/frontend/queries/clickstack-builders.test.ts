@@ -17,10 +17,8 @@ import {
 
 describe('clickstack frontend SQL builders', () => {
   it('scopes service and optional cluster', () => {
-    expect(clickStackFrontendWhere('nova-frontend')).toContain("ServiceName = 'nova-frontend'");
-    expect(clickStackFrontendWhere('nova-frontend', 'prod-k3s-omnivya')).toContain(
-      "ResourceAttributes['cluster'] = 'prod-k3s-omnivya'"
-    );
+    expect(clickStackFrontendWhere('storefront')).toContain("ServiceName = 'storefront'");
+    expect(clickStackFrontendWhere('storefront', 'prod')).toContain("ResourceAttributes['cluster'] = 'prod'");
   });
 
   it('rejects unsafe service names via sanitize', () => {
@@ -28,7 +26,7 @@ describe('clickstack frontend SQL builders', () => {
   });
 
   it('page load SQL uses webvitals and LCP/FCP/TTFB', () => {
-    const sql = pageLoadVitalsSql('nova-frontend', 'prod');
+    const sql = pageLoadVitalsSql('storefront', 'prod');
     expect(sql).toContain("SpanName = 'webvitals'");
     expect(sql).toContain("SpanAttributes['lcp']");
     expect(sql).toContain('$__timeFilter(Timestamp)');
@@ -48,7 +46,7 @@ describe('clickstack frontend SQL builders', () => {
   });
 
   it('browser events exclude webvitals/HTTP/errors and include longtask', () => {
-    const top = browserEventsTopSql('nova-frontend', 'prod');
+    const top = browserEventsTopSql('storefront', 'prod');
     expect(top).toContain("NOT startsWith(SpanName, 'HTTP ')");
     expect(top).toContain("'webvitals'");
     expect(top).toContain('AS event');
@@ -61,13 +59,13 @@ describe('clickstack frontend SQL builders', () => {
     expect(cwvRatingExpr('lcp', 'v')).toContain('2500');
     expect(cwvRatingExpr('lcp', 'v')).toContain('4000');
     expect(cwvRatingExpr('lcp', 'v')).toContain('needs-improvement');
-    const sql = ratingDistributionSql('nova-frontend');
+    const sql = ratingDistributionSql('storefront');
     expect(sql).toContain('UNION ALL');
     expect(sql).toContain('good');
   });
 
   it('browser breakdown joins session UA', () => {
-    const sql = browserBreakdownSql('nova-frontend');
+    const sql = browserBreakdownSql('storefront');
     expect(sql).toContain('ua_by_session');
     expect(sql).toContain('http.user_agent');
     expect(sql).toContain('rum.sessionId');
@@ -76,7 +74,7 @@ describe('clickstack frontend SQL builders', () => {
   });
 
   it('per-page uses URL path()', () => {
-    const sql = perPageSql('nova-frontend');
+    const sql = perPageSql('storefront');
     expect(sql).toContain("path(SpanAttributes['location.href'])");
     expect(sql).toContain('p75_lcp');
   });

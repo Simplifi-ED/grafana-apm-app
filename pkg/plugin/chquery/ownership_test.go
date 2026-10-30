@@ -19,7 +19,7 @@ func TestOwnershipAttrsSQL(t *testing.T) {
 }
 
 func TestNamespaceOwnershipSQL(t *testing.T) {
-	sql := NamespaceOwnershipSQL("sanad", time.Unix(0, 0), time.Unix(3600, 0))
+	sql := NamespaceOwnershipSQL("acme", time.Unix(0, 0), time.Unix(3600, 0))
 	if !strings.Contains(sql, "GROUP BY ServiceName") {
 		t.Fatalf("expected group by:\n%s", sql)
 	}

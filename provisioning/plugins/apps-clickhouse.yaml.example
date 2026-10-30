@@ -14,12 +14,11 @@ apps:
       # Inventory (spanmetrics) → scrape/browser ServiceName for Runtime,
       # Custom Metrics, HyperDX sessions/webvitals, and browser Issues.
       # Canonical UI/URL stays the inventory key. Missing → empty + hint.
-      # Sanad seeds (confirmed 2026-10-27 against Local-ClickHouse):
       serviceAliases:
-        nova-api: nova-app
-        admin-api: admin-app
+        checkout-api: checkout
+        billing-api: billing
         # Browser/session identity (ServiceName already matches inventory):
-        nova-frontend: nova-frontend
+        storefront: storefront
       # LGTM UIDs may remain empty while porting pages to ClickHouse.
       # metricsDataSource / tracesDataSource / logsDataSource are still used
       # by existing handlers until those routes are migrated.

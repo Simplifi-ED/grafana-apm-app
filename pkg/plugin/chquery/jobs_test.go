@@ -18,20 +18,20 @@ func TestJobsKubeProbeSQL_MatchesKubeOnly(t *testing.T) {
 			t.Errorf("JobsKubeProbeSQL missing %q\n%s", want, sql)
 		}
 	}
-	if strings.Contains(sql, "nova_job_") {
-		t.Fatal("probe must not match nova_job_*")
+	if strings.Contains(sql, "app_job_") {
+		t.Fatal("probe must not match app_job_*")
 	}
 }
 
 func TestJobsGaugeLatestSQL_LabelsAndNamespace(t *testing.T) {
-	sql := JobsGaugeLatestSQL(MetricKubeCronjobInfo, "prod-nova", time.Now().Add(-time.Hour), time.Now())
+	sql := JobsGaugeLatestSQL(MetricKubeCronjobInfo, "prod-shop", time.Now().Add(-time.Hour), time.Now())
 	for _, want := range []string{
 		MetricKubeCronjobInfo,
 		"Attributes['cronjob']",
 		"Attributes['namespace']",
 		"k8s_cluster_name",
 		"argMax(Value, TimeUnix)",
-		"prod-nova",
+		"prod-shop",
 		"otel_metrics_gauge",
 	} {
 		if !strings.Contains(sql, want) {
@@ -47,11 +47,11 @@ func TestJobsGaugeLatestSQL_LabelsAndNamespace(t *testing.T) {
 func TestParseJobsGaugeRows(t *testing.T) {
 	rows := []map[string]any{
 		{
-			"cronjob": "gfs-backup-retention", "namespace": "prod-nova",
+			"cronjob": "gfs-backup-retention", "namespace": "prod-shop",
 			"k8s_cluster_name": "prod-k3s", "schedule": "0 3 * * *", "value": 1.0,
 		},
 		{
-			"job_name": "gfs-backup-retention-28938400", "namespace": "prod-nova",
+			"job_name": "gfs-backup-retention-28938400", "namespace": "prod-shop",
 			"k8s_cluster_name": "prod-k3s", "owner_kind": "CronJob",
 			"owner_name": "gfs-backup-retention", "value": 1.0,
 		},

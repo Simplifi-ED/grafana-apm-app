@@ -1,6 +1,6 @@
 # ClickStack schema inventory
 
-**Inspected:** 2026-10-27 via ClickStack MCP (`clickstack_list_sources`, `clickstack_describe_source`, `clickstack_sql`) against connection **Local-ClickHouse** (`connectionId` `6ad0e2cb978a70ad2dbf744c`).
+**Inspected:** 2026-10-27 via ClickStack MCP (`clickstack_list_sources`, `clickstack_describe_source`, `clickstack_sql`) against a local ClickHouse connection.
 
 **Normative query rules** (enums, time, env/ns, duration, inventory discover vs RED): see [ADR 0003 — ClickStack query contract](../adr/0003-clickstack-query-contract.md). This file remains the **live examples / verified shapes** reference.
 
@@ -60,7 +60,7 @@ ClickStack source mapping (HyperDX UI):
 | EventName | String |
 | `__otel_materialized_*` | LowCardinality(String) materialized k8s / env fields |
 
-✅ Sampled map keys include k8s resource attrs and various LogAttributes (`level`, `msg`, envoy access fields, postgres `record.*`, …).
+✅ Sampled map keys include k8s resource attrs and various LogAttributes (`level`, `msg`, gateway access fields, postgres `record.*`, …).
 
 ⚠️ Exception / browser-error shape in logs: not fully catalogued here — sample for `exception.*` / Faro-like attrs before porting Issues.
 
@@ -99,7 +99,7 @@ ClickStack source mapping (HyperDX UI):
 
 - Spanmetrics: `traces.spanmetrics.calls`, `traces.spanmetrics.duration` (unit ms)
 - Service graph: `traces_service_graph_request_total`, `traces_service_graph_request_failed_total`, `traces_service_graph_request_server`, `traces_service_graph_request_client`
-- App/runtime: `nova_http_request_duration_seconds`, `go_*`, envoy/controller metrics, …
+- App/runtime: `http_request_duration_seconds`, `go_*`, gateway/controller metrics, …
 
 ⚠️ Attribute keys for spanmetrics series (service name label vs `ServiceName` column vs `Attributes['…']`) must be confirmed per metric with `clickstack_describe_metric` before rewriting RED queries.
 
@@ -109,15 +109,15 @@ ClickStack source mapping (HyperDX UI):
 
 ✅ Table exists; column layout matches log-like OTel row shape (`Timestamp`, `TraceId`, `SpanId`, `ServiceName`, `Body`, attribute maps, materialized k8s fields) per `clickstack_describe_source`.
 
-✅ **Verified recording format (2026-10-27, live sample against Local-ClickHouse):**
+✅ **Verified recording format (2026-10-27, live sample against ClickHouse):**
 
 | Aspect | Value |
 |--------|-------|
 | Table | `default.hyperdx_sessions` |
 | ScopeName | `rum.rr-web` |
-| Service | `ServiceName` (observed: `nova-frontend`); also `ResourceAttributes['service.name']` |
+| Service | `ServiceName` (e.g. `storefront`); also `ResourceAttributes['service.name']` |
 | Session ID | `ResourceAttributes['rum.sessionId']` (32-char hex) |
-| Environment | `ResourceAttributes['cluster']` (observed: `prod-k3s-omnivya`) — not `deployment.environment` |
+| Environment | `ResourceAttributes['cluster']` — not `deployment.environment` |
 | SDK | `ResourceAttributes['telemetry.sdk.name']` = `@hyperdx/otel-web`, `rum.version` ≈ `0.20.0` |
 | Body | **Raw JSON string** — one rrweb `eventWithTime` per logical event (`type`, `data`, `timestamp`). **Not** NAIS Faro `gzip+b64` |
 | Chunking | Large events split ~950KB: `LogAttributes['rr-web.event']`, `rr-web.chunk` (1-based), `rr-web.total-chunks`, `rr-web.offset`. Chunk >1 bodies are **string fragments** (do not parse alone) |

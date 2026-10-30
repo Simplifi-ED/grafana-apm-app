@@ -38,17 +38,17 @@ func TestFrameworkFromSDKLanguage(t *testing.T) {
 func TestApplyFrameworkFromSDKLanguage(t *testing.T) {
 	t.Parallel()
 	summaries := []queries.ServiceSummary{
-		{Name: "nova-api", SDKLanguage: "go"},
-		{Name: "envoy-gateway", SDKLanguage: "cpp"},
-		{Name: "nova-frontend", SDKLanguage: "webjs"},
+		{Name: "checkout-api", SDKLanguage: "go"},
+		{Name: "ingress-gateway", SDKLanguage: "cpp"},
+		{Name: "storefront", SDKLanguage: "webjs"},
 		{Name: "ktor-svc", Framework: "Ktor", SDKLanguage: "java"},
 	}
 	applyFrameworkFromSDKLanguage(summaries)
 	if summaries[0].Framework != "Go" {
-		t.Fatalf("nova-api framework = %q, want Go", summaries[0].Framework)
+		t.Fatalf("checkout-api framework = %q, want Go", summaries[0].Framework)
 	}
 	if summaries[1].Framework != "C++" {
-		t.Fatalf("envoy framework = %q, want C++", summaries[1].Framework)
+		t.Fatalf("ingress-gateway framework = %q, want C++", summaries[1].Framework)
 	}
 	if summaries[2].Framework != "Browser" {
 		t.Fatalf("frontend framework = %q, want Browser", summaries[2].Framework)

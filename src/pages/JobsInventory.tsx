@@ -288,7 +288,7 @@ function JobsInventory() {
           emptyTitle="Job metrics not available"
           emptyMessage={
             data?.note ??
-            'CronJob / Job monitoring needs kube-state-metrics (kube_cronjob_*, kube_job_*) on a Prometheus metricsDataSource (Path A) or the same series in ClickHouse (Path B). Deploy KSM via platforms-flux (enablement ticket 17).'
+            'CronJob / Job monitoring needs kube-state-metrics (kube_cronjob_*, kube_job_*) on a Prometheus metricsDataSource (Path A) or the same series in ClickHouse (Path B). Deploy kube-state-metrics in your cluster.'
           }
         >
           <>

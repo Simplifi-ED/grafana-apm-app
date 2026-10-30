@@ -17,9 +17,9 @@ func TestHandleRuntime_ClickStackAliasMissHint(t *testing.T) {
 		},
 		chClient: &queries.ClickHouseClient{},
 	}
-	req := httptest.NewRequest(http.MethodGet, "/services/sanad/nova-api/runtime?from=1&to=2", nil)
-	req.SetPathValue("namespace", "sanad")
-	req.SetPathValue("service", "nova-api")
+	req := httptest.NewRequest(http.MethodGet, "/services/acme/checkout-api/runtime?from=1&to=2", nil)
+	req.SetPathValue("namespace", "acme")
+	req.SetPathValue("service", "checkout-api")
 	w := httptest.NewRecorder()
 	app.handleRuntime(w, req)
 	if w.Code != http.StatusOK {
@@ -29,7 +29,7 @@ func TestHandleRuntime_ClickStackAliasMissHint(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
 		t.Fatal(err)
 	}
-	if resp.Hint == "" || !strings.Contains(resp.Hint, "serviceAliases") || !strings.Contains(resp.Hint, "nova-api") {
+	if resp.Hint == "" || !strings.Contains(resp.Hint, "serviceAliases") || !strings.Contains(resp.Hint, "checkout-api") {
 		t.Fatalf("hint=%q", resp.Hint)
 	}
 	if resp.Go != nil || resp.Container != nil {
@@ -41,14 +41,14 @@ func TestHandleRuntime_ClickStackAliasHitNoWrongNameQuery(t *testing.T) {
 	app := &App{
 		settings: queries.PluginSettings{
 			ClickHouseDataSource: queries.DataSourceRef{UID: "clickhouse"},
-			ServiceAliases:       map[string]string{"nova-api": "nova-app"},
+			ServiceAliases:       map[string]string{"checkout-api": "checkout"},
 		},
 		// Empty client (no grafana URL) → CH queries fail soft; must not hint and must not use inventory name.
 		chClient: &queries.ClickHouseClient{},
 	}
-	req := httptest.NewRequest(http.MethodGet, "/services/sanad/nova-api/runtime?from=1&to=2", nil)
-	req.SetPathValue("namespace", "sanad")
-	req.SetPathValue("service", "nova-api")
+	req := httptest.NewRequest(http.MethodGet, "/services/acme/checkout-api/runtime?from=1&to=2", nil)
+	req.SetPathValue("namespace", "acme")
+	req.SetPathValue("service", "checkout-api")
 	w := httptest.NewRecorder()
 	app.handleRuntime(w, req)
 	if w.Code != http.StatusOK {
@@ -70,9 +70,9 @@ func TestHandleCustomMetrics_ClickStackAliasMissHint(t *testing.T) {
 		},
 		chClient: &queries.ClickHouseClient{},
 	}
-	req := httptest.NewRequest(http.MethodGet, "/services/sanad/admin-api/custom-metrics?from=1&to=2", nil)
-	req.SetPathValue("namespace", "sanad")
-	req.SetPathValue("service", "admin-api")
+	req := httptest.NewRequest(http.MethodGet, "/services/acme/billing-api/custom-metrics?from=1&to=2", nil)
+	req.SetPathValue("namespace", "acme")
+	req.SetPathValue("service", "billing-api")
 	w := httptest.NewRecorder()
 	app.handleCustomMetrics(w, req)
 	if w.Code != http.StatusOK {
@@ -82,7 +82,7 @@ func TestHandleCustomMetrics_ClickStackAliasMissHint(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
 		t.Fatal(err)
 	}
-	if resp.Hint == "" || !strings.Contains(resp.Hint, "admin-api") || !strings.Contains(resp.Hint, "serviceAliases") {
+	if resp.Hint == "" || !strings.Contains(resp.Hint, "billing-api") || !strings.Contains(resp.Hint, "serviceAliases") {
 		t.Fatalf("hint=%q", resp.Hint)
 	}
 	if len(resp.Metrics) != 0 {

@@ -1,7 +1,6 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-# Must be prod-nova: otel-collector-logs filter/namespace drops other k8s namespaces.
-namespace: prod-nova
+namespace: prod-shop
 resources:
   - k8s/deployment.yaml
 configMapGenerator:

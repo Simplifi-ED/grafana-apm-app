@@ -48,7 +48,7 @@ func LogSearchSQL(service string, from, to time.Time, environment, severity stri
 }
 
 // LogSearchSQLFiltered returns recent log rows with body search, field chips, and optional SQL WHERE.
-// scrapeOrBrowser is the optional serviceAliases target (e.g. nova-app for nova-api).
+// scrapeOrBrowser is the optional serviceAliases target (e.g. checkout for checkout-api).
 func LogSearchSQLFiltered(
 	service, scrapeOrBrowser string,
 	from, to time.Time,

@@ -148,7 +148,7 @@ func TestClickHouseQueryParsesTableFrames(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"results":{"A":{"frames":[{
 			"schema":{"fields":[{"name":"ServiceName","type":"string"},{"name":"c","type":"number"}]},
-			"data":{"values":[["nova-app","dex"],[12,3]]}
+			"data":{"values":[["checkout","dex"],[12,3]]}
 		}]}}}`))
 	})
 
@@ -167,7 +167,7 @@ func TestClickHouseQueryParsesTableFrames(t *testing.T) {
 		t.Fatalf("columns = %+v", res.Columns)
 	}
 	maps := res.Maps()
-	if maps[0]["ServiceName"] != "nova-app" {
+	if maps[0]["ServiceName"] != "checkout" {
 		t.Fatalf("row0 = %+v", maps[0])
 	}
 	if maps[1]["c"].(float64) != 3 {

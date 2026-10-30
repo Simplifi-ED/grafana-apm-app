@@ -151,7 +151,7 @@ describe('Components/AppConfig', () => {
         jsonData: {
           ...props.plugin.meta.jsonData,
           clickHouseDataSource: { uid: 'clickhouse', type: 'grafana-clickhouse-datasource' },
-          serviceAliases: { 'nova-api': 'nova-app' },
+          serviceAliases: { 'checkout-api': 'checkout' },
         },
       },
     };
@@ -162,15 +162,15 @@ describe('Components/AppConfig', () => {
     });
 
     expect(screen.getByRole('group', { name: /service aliases \(clickstack\)/i })).toBeInTheDocument();
-    expect(screen.getByDisplayValue('nova-api')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('nova-app')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('checkout-api')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('checkout')).toBeInTheDocument();
 
     await act(async () => {
       fireEvent.click(screen.getByTestId(testIds.appConfig.submit));
     });
 
     const payload = submittedPayload();
-    expect(payload.jsonData.serviceAliases).toEqual({ 'nova-api': 'nova-app' });
+    expect(payload.jsonData.serviceAliases).toEqual({ 'checkout-api': 'checkout' });
   });
 
   test('persists optional pyroscopeDataSource.uid on save', async () => {

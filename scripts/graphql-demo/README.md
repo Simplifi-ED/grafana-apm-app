@@ -1,15 +1,13 @@
-# graphql-demo — OTel GraphQL span emitter (ticket 16)
+# graphql-demo — OTel GraphQL span emitter
 
-Sanad has **no GraphQL server**. This minimal emitter posts OTLP/HTTP traces with
-`graphql.operation.name` / `.type` / `.document` so ClickStack `otel_traces` (and
-plugin letter **H**) can detect GraphQL without faking UI.
-
-Same ingest path as Nova/Admin:
+Minimal emitter that posts OTLP/HTTP traces with `graphql.operation.name` /
+`.type` / `.document` so ClickStack `otel_traces` (and the plugin GraphQL tab)
+can detect GraphQL without a real GraphQL server.
 
 | Mode | Endpoint |
 |------|----------|
-| In-cluster (prod-k3s) | `http://otel-collector-logs.observability.svc.cluster.local:4318` |
-| ClickStack VM (Tailscale) | `http://monitoring-clickstack:4318` + `Authorization: <ingestion key>` |
+| In-cluster collector | `http://otel-collector.observability.svc.cluster.local:4318` |
+| Remote ClickStack | `$OTLP_ENDPOINT` + `Authorization: <ingestion key>` |
 | Local | any OTLP HTTP collector on `:4318` |
 
 ## Quick emit
@@ -18,10 +16,10 @@ Same ingest path as Nova/Admin:
 # one-shot against local collector
 ONCE=1 python3 scripts/graphql-demo/emit_graphql_spans.py
 
-# ClickStack (needs ingestion key from Team Settings → API Keys)
-OTLP_ENDPOINT=http://monitoring-clickstack:4318/v1/traces \
+# remote ClickStack (set your host and ingestion key)
+OTLP_ENDPOINT=http://clickhouse-host:4318/v1/traces \
 OTLP_AUTH="$CLICKSTACK_INGESTION_KEY" \
-ENVIRONMENT=prod-k3s-omnivya \
+ENVIRONMENT=prod \
 ONCE=1 python3 scripts/graphql-demo/emit_graphql_spans.py
 ```
 
@@ -34,13 +32,14 @@ cd scripts/graphql-demo
 OTLP_ENDPOINT=http://host.docker.internal:4318/v1/traces docker compose up --build
 ```
 
-Set `OTLP_AUTH` in the environment when targeting ClickStack `:4318` (returns **401** without it).
+Set `OTLP_AUTH` in the environment when the collector requires a bearer token
+(returns **401** without it).
 
-## Kubernetes (deploy remaining)
+## Kubernetes
 
 Kustomize root: [`kustomization.yaml`](kustomization.yaml) (ConfigMap from `emit_graphql_spans.py`).
 
-**Must deploy in `prod-nova`:** `otel-collector-logs` `filter/namespace` drops every other `k8s.namespace.name`.
+Default namespace is `prod-shop` — change it if your collector filters namespaces.
 
 ```bash
 kubectl apply -k scripts/graphql-demo

@@ -1,6 +1,6 @@
-# ClickHouse fixtures (ticket 16)
+# ClickHouse fixtures
 
-Synthetic telemetry for CI / local smoke when live Sanad apps do not emit the signal.
+Synthetic telemetry for CI / local smoke when live apps do not emit the signal.
 
 ## GraphQL spans
 
@@ -39,15 +39,17 @@ n≥1 rows for GetInvoice/query and CreateInvoice/mutation
 ServiceName = graphql-demo
 ```
 
-Plugin letter **H** then answers `GET …/services/demo/graphql-demo/graphql?environment=ci` with `detected:true`, `source:"spans"`.
+The plugin GraphQL tab then answers
+`GET …/services/demo/graphql-demo/graphql?environment=ci` with `detected:true`,
+`source:"spans"`.
 
-### Live prod CH
+### Live ClickHouse via OTLP
 
-MCP / HyperDX SQL users are **read-only**. Seed live cluster via OTLP:
+MCP / HyperDX SQL users are often **read-only**. Seed a live cluster via OTLP:
 
 ```bash
 # see scripts/graphql-demo/README.md
-OTLP_ENDPOINT=http://monitoring-clickstack:4318/v1/traces \
+OTLP_ENDPOINT=http://clickhouse-host:4318/v1/traces \
 OTLP_AUTH="$CLICKSTACK_INGESTION_KEY" \
 ONCE=1 ./scripts/graphql-demo/emit_graphql_spans.py
 ```

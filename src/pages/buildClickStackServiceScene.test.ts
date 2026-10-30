@@ -2,9 +2,9 @@ import { buildClickStackServiceScene } from './buildClickStackServiceScene';
 
 describe('buildClickStackServiceScene', () => {
   const base = {
-    service: 'nova-api',
-    namespace: 'sanad',
-    envFilter: 'prod-k3s-omnivya',
+    service: 'checkout-api',
+    namespace: 'acme',
+    envFilter: 'prod',
     percentile: '0.95',
     percentileLabel: 'P95',
     from: 'now-1h',

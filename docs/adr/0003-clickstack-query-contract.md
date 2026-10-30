@@ -19,7 +19,7 @@ ClickStack mode talks to OTel/HyperDX tables in ClickHouse with **different stri
 5. **Service identity**  
    - Metrics: `coalesce(nullIf(Attributes['service.name'], ''), ServiceName)`.  
    - Traces: `ServiceName`.  
-   - Scrape↔inventory aliases (`nova-api` vs `nova-app`) are **out of this ADR** (wayfinder ticket 15).
+   - Scrape↔inventory aliases (e.g. `checkout-api` vs `checkout`) are **out of this ADR**.
 
 6. **Duration**  
    - Inventory p95 + duration sparklines: **histogram-primary** on `traces.spanmetrics.duration` via `quantilePrometheusHistogram` (not `Sum/Count`, not short-window trace quantiles).  
@@ -31,10 +31,9 @@ ClickStack mode talks to OTel/HyperDX tables in ClickHouse with **different stri
 
 ## Why
 
-Live Sanad CH showed metrics and traces disagreeing on enum strings; short-window Server spans are too sparse for inventory p95 while histograms are dense; env/namespace keys that look “OTel-standard” (`deployment.environment.name`, k8s ns) are wrong for this deployment’s inventory UX. Encoding these as Prom/Tempo idioms caused 404-empty charts and silent zeros.
+Live ClickHouse showed metrics and traces disagreeing on enum strings; short-window Server spans are too sparse for inventory p95 while histograms are dense; env/namespace keys that look “OTel-standard” (`deployment.environment.name`, k8s ns) can be wrong for inventory UX. Encoding these as Prom/Tempo idioms caused 404-empty charts and silent zeros.
 
 ## See also
 
-- Facts: `.scratch/clickstack-nais-parity/research/01-ch-query-contract-facts.md`, `04-duration-from-spanmetrics.md`  
 - Examples: `docs/clickstack-migration/schema.md`  
 - Status: accepted (2026-10-27)

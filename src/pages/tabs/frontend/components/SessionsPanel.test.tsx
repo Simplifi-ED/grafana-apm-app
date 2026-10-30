@@ -145,7 +145,7 @@ describe('SessionsPanel', () => {
       sessions: [],
       truncated: false,
       unavailable: false,
-      hint: 'No serviceAliases entry for "nova-frontend". Add jsonData.serviceAliases…',
+      hint: 'No serviceAliases entry for "storefront". Add jsonData.serviceAliases…',
     });
     render(
       <MemoryRouter>

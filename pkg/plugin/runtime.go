@@ -48,7 +48,7 @@ func (a *App) handleRuntime(w http.ResponseWriter, req *http.Request) {
 }
 
 // queryRuntimeMetricsClickHouse loads go_*/process_* for the resolved scrape
-// ServiceName. JVM/Node/DB/Kafka/Container families are absent in Sanad CH
+// ServiceName. JVM/Node/DB/Kafka/Container families are absent in ClickHouse
 // (research 06) and stay omitted until collectors emit them.
 func (a *App) queryRuntimeMetricsClickHouse(
 	ctx context.Context,

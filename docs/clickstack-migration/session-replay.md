@@ -64,7 +64,7 @@ Fixtures are **synthetic** (example.test URLs, empty DOM nodes). Do not commit l
 
 ```bash
 curl -sS -H "Authorization: Bearer $TOKEN" \
-  "$GRAFANA/api/plugins/clickhouse-apm-app/resources/services/_/nova-frontend/frontend/sessions/SESSION_ID/replay/probe?from=FROM&to=TO"
+  "$GRAFANA/api/plugins/clickhouse-apm-app/resources/services/_/storefront/frontend/sessions/SESSION_ID/replay/probe?from=FROM&to=TO"
 ```
 
 7. Click **Play replay** — player should mount with ≥2 events (Meta + FullSnapshot).

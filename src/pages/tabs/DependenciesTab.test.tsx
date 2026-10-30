@@ -8,7 +8,7 @@ const mockCallers: ConnectedService[] = [
   { name: 'frontend', rate: 10, errorRate: 1.5, p95Duration: 200, durationUnit: 'ms' },
   { name: 'db-node', connectionType: 'database', rate: 5, errorRate: 0, p95Duration: 50, durationUnit: 'ms' },
   {
-    name: 'envoy',
+    name: 'ingress-gateway',
     rate: 8,
     errorRate: 0,
     p95Duration: 10,

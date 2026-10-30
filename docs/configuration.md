@@ -46,8 +46,6 @@ Install the Grafana plugin alongside ClickHouse:
 GF_INSTALL_PLUGINS=grafana-clickhouse-datasource,grafana-pyroscope-datasource
 ```
 
-Enablement notes: `.scratch/clickstack-nais-parity/enablement/18-pyroscope-ds.md`.
-
 ### LGTM path (optional dual-mode)
 
 | Signal  | Type       | Default UID | Purpose                                                       |
@@ -96,9 +94,9 @@ jsonData:
   # Inventory (spanmetrics) → scrape/browser ServiceName for Runtime, Custom,
   # sessions/webvitals, browser Issues. Missing → empty panels + configure hint.
   serviceAliases:
-    nova-api: nova-app
-    admin-api: admin-app
-    nova-frontend: nova-frontend
+    checkout-api: checkout
+    billing-api: billing
+    storefront: storefront
 ```
 
 Schema notes for this fork's ClickStack instance:

@@ -31,10 +31,10 @@ import (
 //	kube_job_status_completion_time{job_name, ...}         value = unix seconds
 //
 // Path B: same MetricNames in ClickHouse otel_metrics_gauge (KSM → OTel → CH).
-// nova_job_* app metrics are NOT a substitute (research 09).
+// Application job metrics (e.g. app_job_*) are NOT a substitute.
 //
 // When neither path has series the endpoint returns {available:false} with an
-// enablement note (ticket 17 / platforms-flux KSM) — no fake zeros.
+// enablement note — no fake zeros.
 // ---------------------------------------------------------------------------
 
 // jobsCHLookback is the gauge snapshot window ending at `to` for Path B.
@@ -44,8 +44,8 @@ const jobsCHLookback = 2 * time.Hour
 const jobsEnablementNote = "CronJob / Job monitoring needs kube-state-metrics " +
 	"(kube_cronjob_*, kube_job_*) on a Prometheus metricsDataSource (Path A) " +
 	"or the same series in ClickHouse otel_metrics_gauge (Path B). " +
-	"Deploy KSM via platforms-flux (enablement ticket 17). " +
-	"Application metrics such as nova_job_* are not a substitute."
+	"Deploy kube-state-metrics in your cluster. " +
+	"Application metrics such as app_job_* are not a substitute."
 
 // Standard kube-state-metrics label names used to join and scope job series.
 const (

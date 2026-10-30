@@ -650,8 +650,9 @@ Ktor > Spring Boot > Node.js > Go, then SDK-language fallback.
 
 These metrics must be scraped by Prometheus (or ClickStack) for metric probes
 to work. The `app` label on Prometheus scrapes should match inventory
-`service_name` (Sanad: scrape `app=nova-api` while OTel `service.name` stays
-`nova-api`; `serviceAliases` still maps runtime scrapes `nova-api` → `nova-app`).
+`service_name` (example: scrape `app=checkout-api` while OTel `service.name`
+stays `checkout-api`; `serviceAliases` still maps runtime scrapes
+`checkout-api` → `checkout`).
 
 ---
 

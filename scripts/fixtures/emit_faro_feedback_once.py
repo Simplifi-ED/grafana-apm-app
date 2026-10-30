@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-"""One-shot OTLP faro.feedback span for ticket 21 plugin Feedback smoke.
+"""One-shot OTLP faro.feedback span for plugin Feedback smoke.
 
 Mirrors HyperDX addAction('faro.feedback', …) → SpanName=faro.feedback.
-Does NOT replace the Sanad Support-form human smoke; use that for app wiring proof.
 
 Env:
-  OTLP_ENDPOINT  default http://otel-collector-logs.observability.svc.cluster.local:4318/v1/traces
+  OTLP_ENDPOINT  default http://otel-collector.observability.svc.cluster.local:4318/v1/traces
   OTLP_AUTH      optional Authorization header
 """
 
@@ -20,12 +19,12 @@ from typing import Any
 
 OTLP_ENDPOINT = os.environ.get(
     "OTLP_ENDPOINT",
-    "http://otel-collector-logs.observability.svc.cluster.local:4318/v1/traces",
+    "http://otel-collector.observability.svc.cluster.local:4318/v1/traces",
 )
 OTLP_AUTH = os.environ.get("OTLP_AUTH", "").strip()
-SERVICE_NAME = os.environ.get("SERVICE_NAME", "nova-frontend")
+SERVICE_NAME = os.environ.get("SERVICE_NAME", "storefront")
 APP_VERSION = os.environ.get("APP_VERSION", "20260422164408-main")
-NAMESPACE = os.environ.get("K8S_NAMESPACE", "dev-nova")
+NAMESPACE = os.environ.get("K8S_NAMESPACE", "dev-shop")
 
 
 def _hex_id(nbytes: int) -> str:
@@ -71,7 +70,7 @@ def build_payload() -> dict[str, Any]:
                                         "ticket-21 synthetic smoke (not from Support form)",
                                     ),
                                     _attr("feedback.category", "other"),
-                                    _attr("location.href", "https://app.dev.sanad.cloud/support"),
+                                    _attr("location.href", "https://app.example.com/support"),
                                 ],
                                 "status": {"code": 1},
                             }

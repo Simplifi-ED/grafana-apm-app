@@ -134,7 +134,7 @@ func ServiceExpr(attrCol string) string {
 }
 
 // NamespaceDisplayExpr prefers k8s.namespace.name over OTel service.namespace
-// (product labels like "sanad" break scrape/runtime filters that expect k8s ns).
+// (product labels like "acme" break scrape/runtime filters that expect a k8s ns).
 func NamespaceDisplayExpr(resourceCol string) string {
 	return fmt.Sprintf(
 		"coalesce(nullIf(%s['%s'], ''), nullIf(%s['%s'], ''))",
@@ -151,8 +151,8 @@ func FilterClause(namespace, environment, service string, resourceCol string) st
 			ServiceExpr("Attributes"), q(service), q(service)))
 	}
 	if namespace != "" {
-		// Prefer k8s deployment ns; Sanad also sets OTel service.namespace=product
-		// ("sanad") which is not useful for inventory filters / scrape joins.
+		// Prefer k8s deployment ns; some apps also set OTel service.namespace to a
+		// product label (e.g. "acme") which is not useful for inventory filters / scrape joins.
 		parts = append(parts, fmt.Sprintf(
 			"(%s['%s'] = %s OR %s['%s'] = %s)",
 			resourceCol, ResK8sNamespace, q(namespace),

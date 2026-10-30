@@ -54,7 +54,7 @@ func TestAggregateJobsUnavailable(t *testing.T) {
 	if len(resp.Jobs) != 0 {
 		t.Errorf("Jobs = %d, want 0", len(resp.Jobs))
 	}
-	if resp.Note == "" || !strings.Contains(resp.Note, "ticket 17") {
+	if resp.Note == "" || !strings.Contains(resp.Note, "kube-state-metrics") {
 		t.Errorf("expected enablement Note, got %q", resp.Note)
 	}
 }
@@ -66,7 +66,7 @@ func TestResolveJobs_NoDatasources(t *testing.T) {
 	if resp.Available || len(resp.Jobs) != 0 {
 		t.Fatalf("want unavailable empty, got %+v", resp)
 	}
-	if !strings.Contains(resp.Note, "platforms-flux") {
+	if !strings.Contains(resp.Note, "your cluster") {
 		t.Errorf("note=%q", resp.Note)
 	}
 }
@@ -76,31 +76,31 @@ func TestQueryJobsClickHouse_MapsIntoAggregate(t *testing.T) {
 	rm := map[string][]queries.PromResult{
 		"cronjobInfo": {
 			pvSchedule(map[string]string{
-				ksmLabelCluster: "prod", ksmLabelNamespace: "prod-nova", ksmLabelCronjob: "gfs-backup-retention",
+				ksmLabelCluster: "prod", ksmLabelNamespace: "prod-shop", ksmLabelCronjob: "gfs-backup-retention",
 			}, "0 3 * * *"),
 		},
 		"jobOwner": {
 			pv(map[string]string{
-				ksmLabelCluster: "prod", ksmLabelNamespace: "prod-nova",
+				ksmLabelCluster: "prod", ksmLabelNamespace: "prod-shop",
 				ksmLabelJobName: "gfs-backup-retention-1",
 				ksmLabelOwnerKind: ownerKindCronJob, ksmLabelOwnerName: "gfs-backup-retention",
 			}, "1"),
 		},
 		"jobSucceeded": {
 			pv(map[string]string{
-				ksmLabelCluster: "prod", ksmLabelNamespace: "prod-nova",
+				ksmLabelCluster: "prod", ksmLabelNamespace: "prod-shop",
 				ksmLabelJobName: "gfs-backup-retention-1",
 			}, "1"),
 		},
 		"jobStart": {
 			pv(map[string]string{
-				ksmLabelCluster: "prod", ksmLabelNamespace: "prod-nova",
+				ksmLabelCluster: "prod", ksmLabelNamespace: "prod-shop",
 				ksmLabelJobName: "gfs-backup-retention-1",
 			}, "1000"),
 		},
 		"jobCompletion": {
 			pv(map[string]string{
-				ksmLabelCluster: "prod", ksmLabelNamespace: "prod-nova",
+				ksmLabelCluster: "prod", ksmLabelNamespace: "prod-shop",
 				ksmLabelJobName: "gfs-backup-retention-1",
 			}, "1060"),
 		},

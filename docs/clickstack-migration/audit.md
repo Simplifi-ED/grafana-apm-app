@@ -61,7 +61,7 @@ Credentials must live on the Grafana datasource (`secureJsonData`); the app only
 
 ## ClickStack schema (verified)
 
-Live inspection via ClickStack MCP against connection `Local-ClickHouse` (database `default`). See [schema.md](schema.md).
+Live inspection via ClickStack MCP against a local ClickHouse connection (database `default`). See [schema.md](schema.md).
 
 | Signal | Table | Notes |
 |--------|-------|-------|

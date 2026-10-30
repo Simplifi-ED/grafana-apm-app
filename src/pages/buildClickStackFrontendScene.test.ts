@@ -2,8 +2,8 @@ import { buildClickStackFrontendScene } from './buildClickStackFrontendScene';
 
 describe('buildClickStackFrontendScene', () => {
   const base = {
-    service: 'nova-frontend',
-    environment: 'prod-k3s-omnivya',
+    service: 'storefront',
+    environment: 'prod',
     from: 'now-1h',
     to: 'now',
     clickHouseUid: 'clickhouse',
