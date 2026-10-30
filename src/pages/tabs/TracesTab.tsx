@@ -218,6 +218,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
     flex-direction: column;
     flex: 1;
     min-height: 0;
+    overflow: auto;
   `,
   controls: css`
     display: flex;

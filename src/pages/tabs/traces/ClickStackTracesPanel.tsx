@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Button, LinkButton, useStyles2 } from '@grafana/ui';
 import { GrafanaTheme2 } from '@grafana/data';
 import { css } from '@emotion/css';
@@ -48,6 +48,7 @@ export function ClickStackTracesPanel({
   const [selectedTraceId, setSelectedTraceId] = useState('');
   const [fields, setFields] = useState<ExploreFieldFilter[]>([]);
   const [sqlWhere, setSqlWhere] = useState('');
+  const detailRef = useRef<HTMLElement | null>(null);
   const { data, loading, error } = useFetch(
     () =>
       getTraceSearch(namespace, service, fromMs, toMs, status, spanSearch, durationMin, durationMax, fields, sqlWhere),
@@ -61,6 +62,17 @@ export function ClickStackTracesPanel({
 
   const traces = data?.traces ?? [];
   const selectedSpans = detail.data?.spans ?? [];
+
+  useEffect(() => {
+    if (!selectedTraceId || !detailRef.current) {
+      return;
+    }
+    detailRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, [selectedTraceId]);
+
+  const toggleTrace = (traceId: string) => {
+    setSelectedTraceId((prev) => (prev === traceId ? '' : traceId));
+  };
 
   return (
     <div className={styles.container}>
@@ -117,47 +129,50 @@ export function ClickStackTracesPanel({
               </tr>
             </thead>
             <tbody>
-              {traces.map((trace) => (
-                <TraceRow
-                  key={trace.traceId}
-                  trace={trace}
-                  selected={trace.traceId === selectedTraceId}
-                  onSelect={() => setSelectedTraceId(trace.traceId)}
-                />
-              ))}
+              {traces.map((trace) => {
+                const selected = trace.traceId === selectedTraceId;
+                return (
+                  <Fragment key={trace.traceId}>
+                    <TraceRow trace={trace} selected={selected} onSelect={() => toggleTrace(trace.traceId)} />
+                    {selected && (
+                      <tr className={styles.detailRow}>
+                        <td colSpan={5}>
+                          <section ref={detailRef} className={styles.detail} aria-label={`Trace ${selectedTraceId}`}>
+                            <div className={styles.detailHeader}>
+                              <div>
+                                <h4 className={styles.detailTitle}>Trace waterfall</h4>
+                                <code>{selectedTraceId}</code>
+                              </div>
+                              <Button variant="secondary" size="sm" onClick={() => setSelectedTraceId('')}>
+                                Close
+                              </Button>
+                            </div>
+                            <DataState
+                              loading={detail.loading}
+                              error={
+                                detail.error
+                                  ? 'Failed to load trace details'
+                                  : detail.data?.mode === 'unavailable'
+                                    ? detail.data.note
+                                    : null
+                              }
+                              empty={selectedSpans.length === 0}
+                              emptyTitle="No spans found"
+                              emptyMessage="The trace details are outside the selected time range."
+                            >
+                              <Waterfall spans={selectedSpans} />
+                            </DataState>
+                          </section>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                );
+              })}
             </tbody>
           </table>
         </div>
       </DataState>
-
-      {selectedTraceId && (
-        <section className={styles.detail} aria-label={`Trace ${selectedTraceId}`}>
-          <div className={styles.detailHeader}>
-            <div>
-              <h4 className={styles.detailTitle}>Trace waterfall</h4>
-              <code>{selectedTraceId}</code>
-            </div>
-            <Button variant="secondary" size="sm" onClick={() => setSelectedTraceId('')}>
-              Close
-            </Button>
-          </div>
-          <DataState
-            loading={detail.loading}
-            error={
-              detail.error
-                ? 'Failed to load trace details'
-                : detail.data?.mode === 'unavailable'
-                  ? detail.data.note
-                  : null
-            }
-            empty={selectedSpans.length === 0}
-            emptyTitle="No spans found"
-            emptyMessage="The trace details are outside the selected time range."
-          >
-            <Waterfall spans={selectedSpans} />
-          </DataState>
-        </section>
-      )}
 
       {data?.note && data.mode === 'clickhouse' && (
         <Alert severity="info" title="ClickHouse traces">
@@ -179,9 +194,22 @@ function TraceRow({
 }) {
   const styles = useStyles2(getStyles);
   return (
-    <tr className={selected ? styles.selectedRow : undefined} onClick={onSelect}>
+    <tr
+      className={selected ? styles.selectedRow : undefined}
+      onClick={onSelect}
+      aria-expanded={selected}
+      data-testid={`trace-row-${trace.traceId}`}
+    >
       <td>
-        <button className={styles.traceButton} type="button" onClick={onSelect}>
+        <button
+          className={styles.traceButton}
+          type="button"
+          onClick={(e) => {
+            // Row already handles select; prevent double-toggle from bubble.
+            e.stopPropagation();
+            onSelect();
+          }}
+        >
           {trace.traceId.slice(0, 16)}
         </button>
       </td>
@@ -203,7 +231,7 @@ function Waterfall({ spans }: { spans: ClickStackTraceSpan[] }) {
   const byId = useMemo(() => new Map(spans.map((span) => [span.spanId, span])), [spans]);
 
   return (
-    <div className={styles.waterfall}>
+    <div className={styles.waterfall} data-testid="trace-waterfall">
       {spans.map((span) => {
         let depth = 0;
         let parent = span.parentSpanId;
@@ -270,7 +298,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
       color: ${theme.colors.text.secondary};
       font-weight: ${theme.typography.fontWeightMedium};
     }
-    tbody tr {
+    tbody tr[data-testid^='trace-row-'] {
       cursor: pointer;
       &:hover {
         background: ${theme.colors.action.hover};
@@ -292,10 +320,20 @@ const getStyles = (theme: GrafanaTheme2) => ({
   selectedRow: css`
     background: ${theme.colors.action.selected};
   `,
+  detailRow: css`
+    cursor: default;
+    td {
+      white-space: normal;
+      padding: ${theme.spacing(0, 1, 1.5)};
+      border-bottom: 1px solid ${theme.colors.border.medium};
+      background: ${theme.colors.background.secondary};
+    }
+  `,
   detail: css`
     border: 1px solid ${theme.colors.border.weak};
     border-radius: ${theme.shape.radius.default};
     padding: ${theme.spacing(1.5)};
+    background: ${theme.colors.background.primary};
   `,
   detailHeader: css`
     display: flex;
