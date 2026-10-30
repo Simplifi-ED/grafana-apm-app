@@ -227,11 +227,14 @@ func (e *settingsAPIError) authRejected() bool {
 }
 
 // publicSettingsError is the client-facing detail: the upstream status only,
-// never the upstream body.
+// never the upstream body. The plugins:write hint is only for 403.
 func publicSettingsError(err error) string {
 	var apiErr *settingsAPIError
 	if errors.As(err, &apiErr) {
-		return fmt.Sprintf("grafana settings API returned %d (check the plugin service account has plugins:write on this app)", apiErr.status)
+		if apiErr.status == http.StatusForbidden {
+			return fmt.Sprintf("grafana settings API returned %d (check the plugin service account has plugins:write on this app)", apiErr.status)
+		}
+		return fmt.Sprintf("grafana settings API returned %d", apiErr.status)
 	}
 	return "internal error"
 }
