@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.30.1](https://github.com/Simplifi-ED/grafana-apm-app/compare/clickhouse-apm-app-v0.30.0...clickhouse-apm-app-v0.30.1) (2026-10-30)
+
+
+### Bug Fixes
+
+* improve code readability and formatting in dbnplusone.go and sourcemapdoctor_test.go ([790508d](https://github.com/Simplifi-ED/grafana-apm-app/commit/790508ddc6d5b2640d27f78d5822517de9bff88f))
+* **watchlist:** read from plugin context and fall back across settings API credentials ([371ecde](https://github.com/Simplifi-ED/grafana-apm-app/commit/371ecdeaeaa95100d0f92336c601e391e6abcb9c))
+* **watchlist:** read from plugin context and fall back across settings API credentials ([3857078](https://github.com/Simplifi-ED/grafana-apm-app/commit/38570781f145420c7ebc5d7ec2315e53a9a4e029))
+* **watchlist:** refine publicSettingsError to include plugins:write hint for 403 status ([b3f0dcc](https://github.com/Simplifi-ED/grafana-apm-app/commit/b3f0dccb47e0ff7304f41b94c0851fc9a8ca8417))
+
 ## [0.30.0](https://github.com/Simplifi-ED/grafana-apm-app/compare/clickhouse-apm-app-v0.29.0...clickhouse-apm-app-v0.30.0) (2026-10-30)
 
 
