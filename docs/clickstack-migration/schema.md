@@ -16,27 +16,27 @@ Do not treat HyperDX UI defaults as authoritative without a verified row below.
 
 ## Databases & tables
 
-| Database | Table | Engine | Approx rows (then) | Signal | Status |
-|----------|-------|--------|--------------------|--------|--------|
-| `default` | `otel_logs` | MergeTree | ~84k | Logs | ✅ |
-| `default` | `otel_traces` | MergeTree | ~287k | Traces / spans | ✅ |
-| `default` | `otel_traces_trace_id_ts` | MergeTree | ~56k | TraceId time index | ✅ |
-| `default` | `otel_traces_trace_id_ts_mv` | MaterializedView | — | MV for trace index | ✅ |
-| `default` | `otel_metrics_gauge` | MergeTree | ~67M | Gauge metrics | ✅ |
-| `default` | `otel_metrics_sum` | MergeTree | ~85M | Sum / counters | ✅ |
-| `default` | `otel_metrics_histogram` | MergeTree | ~45M | Histograms | ✅ |
-| `default` | `otel_metrics_summary` | MergeTree | ~3M | Summaries | ✅ |
-| `default` | `otel_metrics_exponential_histogram` | MergeTree | 0 | Exp. histograms | ✅ (empty) |
-| `default` | `hyperdx_sessions` | MergeTree | ~2.2k | Session replay | ✅ |
+| Database  | Table                                | Engine           | Approx rows (then) | Signal             | Status     |
+| --------- | ------------------------------------ | ---------------- | ------------------ | ------------------ | ---------- |
+| `default` | `otel_logs`                          | MergeTree        | ~84k               | Logs               | ✅         |
+| `default` | `otel_traces`                        | MergeTree        | ~287k              | Traces / spans     | ✅         |
+| `default` | `otel_traces_trace_id_ts`            | MergeTree        | ~56k               | TraceId time index | ✅         |
+| `default` | `otel_traces_trace_id_ts_mv`         | MaterializedView | —                  | MV for trace index | ✅         |
+| `default` | `otel_metrics_gauge`                 | MergeTree        | ~67M               | Gauge metrics      | ✅         |
+| `default` | `otel_metrics_sum`                   | MergeTree        | ~85M               | Sum / counters     | ✅         |
+| `default` | `otel_metrics_histogram`             | MergeTree        | ~45M               | Histograms         | ✅         |
+| `default` | `otel_metrics_summary`               | MergeTree        | ~3M                | Summaries          | ✅         |
+| `default` | `otel_metrics_exponential_histogram` | MergeTree        | 0                  | Exp. histograms    | ✅ (empty) |
+| `default` | `hyperdx_sessions`                   | MergeTree        | ~2.2k              | Session replay     | ✅         |
 
 ClickStack source mapping (HyperDX UI):
 
-| Source name | kind | Table / metricTables | Status |
-|-------------|------|----------------------|--------|
-| Logs | log | `otel_logs` | ✅ |
-| Traces | trace | `otel_traces` | ✅ (table via source config + DESCRIBE) |
-| Metrics | metric | gauge/sum/histogram/summary tables above | ✅ |
-| Sessions | session | `hyperdx_sessions` | ✅ |
+| Source name | kind    | Table / metricTables                     | Status                                  |
+| ----------- | ------- | ---------------------------------------- | --------------------------------------- |
+| Logs        | log     | `otel_logs`                              | ✅                                      |
+| Traces      | trace   | `otel_traces`                            | ✅ (table via source config + DESCRIBE) |
+| Metrics     | metric  | gauge/sum/histogram/summary tables above | ✅                                      |
+| Sessions    | session | `hyperdx_sessions`                       | ✅                                      |
 
 ---
 
@@ -44,21 +44,21 @@ ClickStack source mapping (HyperDX UI):
 
 ✅ Columns (from `clickstack_describe_source`):
 
-| Column | Type |
-|--------|------|
-| Timestamp | DateTime64(9) |
-| TraceId, SpanId | String |
-| TraceFlags | UInt8 |
-| SeverityText | LowCardinality(String) |
-| SeverityNumber | UInt8 |
-| ServiceName | LowCardinality(String) |
-| Body | String |
-| ResourceSchemaUrl, ScopeSchemaUrl | LowCardinality(String) |
-| ResourceAttributes, ScopeAttributes, LogAttributes | Map(LowCardinality(String), String) |
-| ScopeName | String |
-| ScopeVersion | LowCardinality(String) |
-| EventName | String |
-| `__otel_materialized_*` | LowCardinality(String) materialized k8s / env fields |
+| Column                                             | Type                                                 |
+| -------------------------------------------------- | ---------------------------------------------------- |
+| Timestamp                                          | DateTime64(9)                                        |
+| TraceId, SpanId                                    | String                                               |
+| TraceFlags                                         | UInt8                                                |
+| SeverityText                                       | LowCardinality(String)                               |
+| SeverityNumber                                     | UInt8                                                |
+| ServiceName                                        | LowCardinality(String)                               |
+| Body                                               | String                                               |
+| ResourceSchemaUrl, ScopeSchemaUrl                  | LowCardinality(String)                               |
+| ResourceAttributes, ScopeAttributes, LogAttributes | Map(LowCardinality(String), String)                  |
+| ScopeName                                          | String                                               |
+| ScopeVersion                                       | LowCardinality(String)                               |
+| EventName                                          | String                                               |
+| `__otel_materialized_*`                            | LowCardinality(String) materialized k8s / env fields |
 
 ✅ Sampled map keys include k8s resource attrs and various LogAttributes (`level`, `msg`, gateway access fields, postgres `record.*`, …).
 
@@ -70,16 +70,16 @@ ClickStack source mapping (HyperDX UI):
 
 ✅ Columns (from `DESCRIBE TABLE default.otel_traces`):
 
-| Column | Type |
-|--------|------|
-| Timestamp | DateTime64(9) |
-| TraceId, SpanId, ParentSpanId, TraceState | String |
-| SpanName, SpanKind, ServiceName, StatusCode | LowCardinality(String) |
-| ResourceAttributes, SpanAttributes | Map(LowCardinality(String), String) |
-| ScopeName, ScopeVersion, StatusMessage | String |
-| Duration | UInt64 (**nanoseconds** — ClickStack `durationPrecision: 9`) |
-| Events.Timestamp / Name / Attributes | Arrays |
-| Links.TraceId / SpanId / TraceState / Attributes | Arrays |
+| Column                                           | Type                                                         |
+| ------------------------------------------------ | ------------------------------------------------------------ |
+| Timestamp                                        | DateTime64(9)                                                |
+| TraceId, SpanId, ParentSpanId, TraceState        | String                                                       |
+| SpanName, SpanKind, ServiceName, StatusCode      | LowCardinality(String)                                       |
+| ResourceAttributes, SpanAttributes               | Map(LowCardinality(String), String)                          |
+| ScopeName, ScopeVersion, StatusMessage           | String                                                       |
+| Duration                                         | UInt64 (**nanoseconds** — ClickStack `durationPrecision: 9`) |
+| Events.Timestamp / Name / Attributes             | Arrays                                                       |
+| Links.TraceId / SpanId / TraceState / Attributes | Arrays                                                       |
 
 ✅ Sample: `count()` where `StatusCode = 'Error'` returned non-zero (~10k) — `StatusCode` values include at least `Error`.
 
@@ -111,19 +111,19 @@ ClickStack source mapping (HyperDX UI):
 
 ✅ **Verified recording format (2026-10-27, live sample against ClickHouse):**
 
-| Aspect | Value |
-|--------|-------|
-| Table | `default.hyperdx_sessions` |
-| ScopeName | `rum.rr-web` |
-| Service | `ServiceName` (e.g. `storefront`); also `ResourceAttributes['service.name']` |
-| Session ID | `ResourceAttributes['rum.sessionId']` (32-char hex) |
-| Environment | `ResourceAttributes['cluster']` — not `deployment.environment` |
-| SDK | `ResourceAttributes['telemetry.sdk.name']` = `@hyperdx/otel-web`, `rum.version` ≈ `0.20.0` |
-| Body | **Raw JSON string** — one rrweb `eventWithTime` per logical event (`type`, `data`, `timestamp`). **Not** NAIS Faro `gzip+b64` |
-| Chunking | Large events split ~950KB: `LogAttributes['rr-web.event']`, `rr-web.chunk` (1-based), `rr-web.total-chunks`, `rr-web.offset`. Chunk >1 bodies are **string fragments** (do not parse alone) |
-| Ordering | Prefer `Timestamp ASC`, then `rr-web.event`, then `rr-web.chunk`. Reassemble by sorting chunks within an event id before `JSON.parse` |
-| Compression | None at rest in Body |
-| Size | Observed p50 Body ~251 B, p95 ~890 KB, max ~973 KB per row; multi-chunk FullSnapshots concatenate larger |
+| Aspect      | Value                                                                                                                                                                                       |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Table       | `default.hyperdx_sessions`                                                                                                                                                                  |
+| ScopeName   | `rum.rr-web`                                                                                                                                                                                |
+| Service     | `ServiceName` (e.g. `storefront`); also `ResourceAttributes['service.name']`                                                                                                                |
+| Session ID  | `ResourceAttributes['rum.sessionId']` (32-char hex)                                                                                                                                         |
+| Environment | `ResourceAttributes['cluster']` — not `deployment.environment`                                                                                                                              |
+| SDK         | `ResourceAttributes['telemetry.sdk.name']` = `@hyperdx/otel-web`, `rum.version` ≈ `0.20.0`                                                                                                  |
+| Body        | **Raw JSON string** — one rrweb `eventWithTime` per logical event (`type`, `data`, `timestamp`). **Not** NAIS Faro `gzip+b64`                                                               |
+| Chunking    | Large events split ~950KB: `LogAttributes['rr-web.event']`, `rr-web.chunk` (1-based), `rr-web.total-chunks`, `rr-web.offset`. Chunk >1 bodies are **string fragments** (do not parse alone) |
+| Ordering    | Prefer `Timestamp ASC`, then `rr-web.event`, then `rr-web.chunk`. Reassemble by sorting chunks within an event id before `JSON.parse`                                                       |
+| Compression | None at rest in Body                                                                                                                                                                        |
+| Size        | Observed p50 Body ~251 B, p95 ~890 KB, max ~973 KB per row; multi-chunk FullSnapshots concatenate larger                                                                                    |
 
 ⚠️ Avoid selecting full `Body` in unbounded queries. Cap rows and assembled bytes in the plugin.
 
@@ -173,7 +173,7 @@ Grafana datasource: point `grafana-clickhouse-datasource` at this host/db; put t
 
 ---
 
-## What this step does *not* claim
+## What this step does _not_ claim
 
 - End-to-end verification through **Grafana's** ClickHouse datasource from this repo's docker stack (not provisioned here yet).
 - Completeness of browser/exception/session payload schemas beyond table/column inventory.

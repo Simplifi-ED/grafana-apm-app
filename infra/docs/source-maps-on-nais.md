@@ -1,7 +1,7 @@
 # Frontend source maps on Nais
 
-> **TARGET LOCATION:** nais docs (docs.nais.io), alongside the existing
-> [frontend observability page](https://docs.nais.io/observability/frontend/).
+> **TARGET LOCATION:** nais docs (docs.example.com), alongside the existing
+> [frontend observability page](https://docs.example.com/observability/frontend/).
 > Link to it from the Nais APM plugin's Frontend tab once the plugin ships
 > the Phase 2 "source map doctor" hint (nais/grafana-apm-app#60).
 >
@@ -40,7 +40,7 @@ each emitted JS file — Alloy regex-extracts that comment to find the map.
 Set your bundler's public-path / asset-prefix to:
 
 ```
-https://cdn.nav.no/<team>/<app>/<release>/
+https://cdn.example.com/<team>/<app>/<release>/
 ```
 
 - `<release>` **must** be unique per deploy and never reused — this is what
@@ -54,7 +54,7 @@ https://cdn.nav.no/<team>/<app>/<release>/
   problem without needing a stamped ID.
 - Upload the **whole** `dist/` directory, including the `.map` files, to
   that prefix. Don't upload only the JS and skip the maps.
-- Most NAV frontend source is public per NAV's open-source policy, so a
+- Many frontend sources are published under an open-source policy, so a
   public CDN path is the default, acceptable choice. If your app must not
   publish source publicly, use the non-public `location` block opt-out
   documented (as a commented block) in the live Alloy config at
@@ -64,7 +64,7 @@ https://cdn.nav.no/<team>/<app>/<release>/
 ### 3. CI ordering: upload maps BEFORE you deploy
 
 ```
-build → upload dist/ (incl. .map) to cdn.nav.no/<team>/<app>/<release>/ → deploy
+build → upload dist/ (incl. .map) to cdn.example.com/<team>/<app>/<release>/ → deploy
 ```
 
 **This ordering is not optional — it's the difference between working and
@@ -100,7 +100,7 @@ map doctor" automates.
    re-symbolicate anything already in Loki. If you need clean history,
    there is no backfill path; this is a declared non-goal of #60.
 3. **Origin allowlist.** Is the frame URL actually served from
-   `cdn.nav.no`? Alloy's `download_from_origins` only matches that host
+   `cdn.example.com`? Alloy's `download_from_origins` only matches that host
    (`wildcard.Match(origin+"*", url)`, so subpaths are fine, other hosts
    are not). A stack frame still pointing at your app's own origin (e.g.
    you forgot to set `publicPath`/`assetPrefix`) will never resolve.

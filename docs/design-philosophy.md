@@ -63,7 +63,7 @@ everything is fine, the page should feel calm (neutral colors, no highlighted
 sections). If something needs attention, it should be visually obvious
 without reading any numbers.
 
-> *"A dashboard should tell a story or answer a question."*
+> _"A dashboard should tell a story or answer a question."_
 > — Grafana dashboard best practices
 
 ### 2. Show symptoms, not causes
@@ -74,8 +74,8 @@ direct proxies for user experience. Leave infrastructure metrics (CPU,
 memory, GC pauses) to dedicated detail tabs where they serve as clues
 during root-cause investigation.
 
-> *"The USE method tells you how happy your machines are. The RED method
-> tells you how happy your users are."*
+> _"The USE method tells you how happy your machines are. The RED method
+> tells you how happy your users are."_
 > — Tom Wilkie
 
 ### 3. Reduce cognitive load, don't add to it
@@ -85,7 +85,7 @@ ratio**: maximize the proportion of visual elements that represent actual
 data. Remove decorative borders, redundant labels, and chrome that doesn't
 help the user answer their current question.
 
-> *"Dashboards should reduce cognitive load, not add to it."*
+> _"Dashboards should reduce cognitive load, not add to it."_
 > — Grafana dashboard best practices
 
 ### 4. Progressive disclosure over information overload
@@ -131,22 +131,22 @@ users in this specific environment seeing slow responses only when the
 request hits this particular endpoint?" This requires high-cardinality,
 high-dimensionality data — distributed traces and structured logs.
 
-> *"If you can't break down by high cardinality dimensions like build IDs,
+> _"If you can't break down by high cardinality dimensions like build IDs,
 > unique IDs, requests, and function names, you cannot inspect the
 > intersection of your code + production + users with the specificity
-> required to associate specific changes with specific behaviors."*
+> required to associate specific changes with specific behaviors."_
 > — Charity Majors
 
 ### How we bridge both
 
-| Capability | Monitoring | Observability |
-|-----------|-----------|---------------|
-| **Namespace page** | ✅ Health dots, attention list, stat boxes | — |
-| **Service RED panels** | ✅ Pre-defined time series | — |
-| **Latency heatmap** | — | ✅ Shows distribution shape, reveals bimodal patterns |
-| **Traces tab** | — | ✅ Individual request inspection, high cardinality |
-| **Logs tab** | — | ✅ Full-text search, structured fields |
-| **Drill-down links** | — | ✅ From symptom to root-cause data |
+| Capability             | Monitoring                                 | Observability                                         |
+| ---------------------- | ------------------------------------------ | ----------------------------------------------------- |
+| **Namespace page**     | ✅ Health dots, attention list, stat boxes | —                                                     |
+| **Service RED panels** | ✅ Pre-defined time series                 | —                                                     |
+| **Latency heatmap**    | —                                          | ✅ Shows distribution shape, reveals bimodal patterns |
+| **Traces tab**         | —                                          | ✅ Individual request inspection, high cardinality    |
+| **Logs tab**           | —                                          | ✅ Full-text search, structured fields                |
+| **Drill-down links**   | —                                          | ✅ From symptom to root-cause data                    |
 
 The plugin's monitoring layer (health, RED panels) catches problems. The
 observability layer (traces, logs, heatmaps) explains them. Navigation
@@ -177,22 +177,22 @@ hierarchical drill-down as the navigation pattern.
 
 ### Why RED over USE or Four Golden Signals?
 
-| Method | Focus | Our usage |
-|--------|-------|-----------|
-| **USE** (Utilization, Saturation, Errors) | Infrastructure resources | Not used — our users care about services, not machines. K8s handles infrastructure. |
-| **RED** (Rate, Errors, Duration) | Service endpoints | **Primary** — every service shows these three metrics. |
-| **Four Golden Signals** (Latency, Traffic, Errors, Saturation) | Services + capacity | Partially — we show latency, traffic, and errors. Saturation is an infrastructure concern handled by the platform. |
+| Method                                                         | Focus                    | Our usage                                                                                                          |
+| -------------------------------------------------------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------ |
+| **USE** (Utilization, Saturation, Errors)                      | Infrastructure resources | Not used — our users care about services, not machines. K8s handles infrastructure.                                |
+| **RED** (Rate, Errors, Duration)                               | Service endpoints        | **Primary** — every service shows these three metrics.                                                             |
+| **Four Golden Signals** (Latency, Traffic, Errors, Saturation) | Services + capacity      | Partially — we show latency, traffic, and errors. Saturation is an infrastructure concern handled by the platform. |
 
 ### A note on latency measurement
 
 The Google SRE book emphasizes distinguishing latency of successful requests
 from latency of failed requests:
 
-> *"An HTTP 500 error triggered due to loss of connection to a database
+> _"An HTTP 500 error triggered due to loss of connection to a database
 > might be served very quickly; however, as an HTTP 500 error indicates a
 > failed request, factoring 500s into your overall latency might result in
 > misleading calculations. On the other hand, a slow error is even worse
-> than a fast error!"*
+> than a fast error!"_
 
 Our backend separates successful and failed request latency in the PromQL
 queries that feed the service detail panels. The health classification uses
@@ -201,11 +201,11 @@ lower the P95, so if P95 is still high, the latency problem is real.
 
 ### RED at every level
 
-| Level | Rate | Errors | Duration |
-|-------|------|--------|----------|
+| Level         | Rate                    | Errors                        | Duration                                  |
+| ------------- | ----------------------- | ----------------------------- | ----------------------------------------- |
 | **Namespace** | Total req/s (sparkline) | Services with errors (X of Y) | — (max P95 is misleading across services) |
-| **Service** | Req/s (time series) | Error rate % (time series) | P50/P95/P99 (time series + heatmap) |
-| **Endpoint** | Req/s per route | Error rate per route | Duration distribution per route |
+| **Service**   | Req/s (time series)     | Error rate % (time series)    | P50/P95/P99 (time series + heatmap)       |
+| **Endpoint**  | Req/s per route         | Error rate per route          | Duration distribution per route           |
 
 Duration is intentionally absent from the namespace level because aggregating
 P95 across heterogeneous services produces a meaningless number. We surface
@@ -218,7 +218,7 @@ latency health via the health classification system instead.
 Our pages follow a strict **overview → focus → detail** hierarchy,
 inspired by Shneiderman's Visual Information Seeking Mantra:
 
-> *"Overview first, zoom and filter, then details on demand."*
+> _"Overview first, zoom and filter, then details on demand."_
 
 ```
 Level 0: Service Inventory
@@ -260,13 +260,14 @@ uses both, and it's important to know which is which.
 **Characteristics:** Continuously updating data, immediate action required,
 minimal interaction needed.
 
-> *"Dashboards are not intended as expansive views of complex data: their
+> _"Dashboards are not intended as expansive views of complex data: their
 > goal is not to facilitate exploration; instead, they provide information
 > that can be consumed fast, with a minimum of interaction or cognitive
-> processing."*
+> processing."_
 > — Nielsen Norman Group
 
 **Our operational views:**
+
 - Namespace page (health counts, attention list)
 - Service inventory (quick scan for outliers)
 - Status board / TV mode (future, [#29](https://github.com/nais/grafana-apm-app/issues/29))
@@ -278,19 +279,20 @@ making, without the same level of time sensitivity.
 **Characteristics:** Support investigation, exploration, and correlation.
 
 **Our analytical views:**
+
 - Service detail tabs (RED time series, heatmaps)
 - Traces tab (search and inspect individual requests)
 - Logs tab (structured log exploration)
 
 ### Design implications
 
-| Aspect | Operational view | Analytical view |
-|--------|-----------------|----------------|
-| Interactivity | Minimal — scan, click to drill-down | Rich — zoom, hover, filter, inspect |
-| Update cadence | Auto-refresh essential | Manual refresh acceptable |
-| Color usage | Semantic only (health states) | Data-driven (series differentiation) |
-| Chart types | Stat boxes, health dots, sparklines | Time series, heatmaps, tables |
-| Information density | Low — one clear message per section | High — multiple data dimensions |
+| Aspect              | Operational view                    | Analytical view                      |
+| ------------------- | ----------------------------------- | ------------------------------------ |
+| Interactivity       | Minimal — scan, click to drill-down | Rich — zoom, hover, filter, inspect  |
+| Update cadence      | Auto-refresh essential              | Manual refresh acceptable            |
+| Color usage         | Semantic only (health states)       | Data-driven (series differentiation) |
+| Chart types         | Stat boxes, health dots, sparklines | Time series, heatmaps, tables        |
+| Information density | Low — one clear message per section | High — multiple data dimensions      |
 
 ---
 
@@ -302,11 +304,11 @@ incident at 2 AM.
 
 ### Budget allocation per page
 
-| Page | Primary question | Budget allocation |
-|------|-----------------|-------------------|
-| Namespace | "Do I need to act?" | 70% status/health, 20% navigation, 10% context |
-| Service overview | "What's wrong?" | 60% RED time series, 25% stats, 15% navigation |
-| Detail tab | "Why?" | 80% data panels, 10% filters, 10% navigation |
+| Page             | Primary question    | Budget allocation                              |
+| ---------------- | ------------------- | ---------------------------------------------- |
+| Namespace        | "Do I need to act?" | 70% status/health, 20% navigation, 10% context |
+| Service overview | "What's wrong?"     | 60% RED time series, 25% stats, 15% navigation |
+| Detail tab       | "Why?"              | 80% data panels, 10% filters, 10% navigation   |
 
 ### Rules
 
@@ -326,15 +328,16 @@ incident at 2 AM.
 Color is the most powerful preattentive attribute. Use it consistently
 and sparingly.
 
-| Color | Meaning | Used for |
-|-------|---------|----------|
-| 🟢 Green | Healthy / good | Health dots, stat boxes when all services are healthy |
-| 🟡 Yellow/amber | Warning / degraded | Health dots, topology borders (1–5% error rate) |
-| 🔴 Red | Critical / failing | Health dots, topology borders (>5% error rate) |
-| Blue/default | Neutral / informational | Standard stat boxes, sparklines, rate metrics |
-| Gray | Inactive / no data | Disabled states, "no previous period" |
+| Color           | Meaning                 | Used for                                              |
+| --------------- | ----------------------- | ----------------------------------------------------- |
+| 🟢 Green        | Healthy / good          | Health dots, stat boxes when all services are healthy |
+| 🟡 Yellow/amber | Warning / degraded      | Health dots, topology borders (1–5% error rate)       |
+| 🔴 Red          | Critical / failing      | Health dots, topology borders (>5% error rate)        |
+| Blue/default    | Neutral / informational | Standard stat boxes, sparklines, rate metrics         |
+| Gray            | Inactive / no data      | Disabled states, "no previous period"                 |
 
 **Rules:**
+
 - Never use red for something that isn't a problem.
 - Never use green for something that could be bad (e.g., "high throughput"
   isn't necessarily good).
@@ -364,12 +367,14 @@ instantly — before conscious attention engages. Not all preattentive
 attributes are equal for conveying quantitative information.
 
 **Best for quantitative comparison** (use these for data):
+
 - **Length** — bar charts, sparkline height. People accurately estimate
   "how much more" one bar is than another.
 - **2D position** — line charts, scatter plots. People instantly see which
   point is highest/lowest.
 
 **Good for categorical distinction** (use these for grouping):
+
 - **Color hue** — distinguishes categories, but people cannot judge "how
   much more red" something is. Never use color alone for magnitude.
 - **Shape** — distinguish item types (e.g., 🟢 vs ⚠️).
@@ -377,24 +382,25 @@ attributes are equal for conveying quantitative information.
   as belonging together.
 
 **Poor for quantitative data** (avoid these):
+
 - **Area** — pie charts, treemaps. People are poor at comparing areas.
 - **Angle** — radial gauges. Consume space, hard to read precisely.
 - **3D** — distorts all other attributes. Never use 3D charts.
 
-> *"Pie charts are notoriously poor at most information-communication
-> tasks and should be avoided most of the time."*
+> _"Pie charts are notoriously poor at most information-communication
+> tasks and should be avoided most of the time."_
 > — Nielsen Norman Group
 
 Our usage:
 
-| Attribute | Our usage |
-|-----------|-----------|
-| **Length** | Sparklines (height encodes value), bar widths in bullet graphs |
-| **2D position** | Time series panels (Scenes), scatter within heatmaps |
-| **Color hue** | Health dots (🟢🟡🔴), topology borders — categorical only |
-| **Size** | Stat box values are large; supplementary text is small |
-| **Position** | "Needs Attention" section is above the table, not below |
-| **Enclosure** | Card borders on stat boxes group related numbers |
+| Attribute       | Our usage                                                      |
+| --------------- | -------------------------------------------------------------- |
+| **Length**      | Sparklines (height encodes value), bar widths in bullet graphs |
+| **2D position** | Time series panels (Scenes), scatter within heatmaps           |
+| **Color hue**   | Health dots (🟢🟡🔴), topology borders — categorical only      |
+| **Size**        | Stat box values are large; supplementary text is small         |
+| **Position**    | "Needs Attention" section is above the table, not below        |
+| **Enclosure**   | Card borders on stat boxes group related numbers               |
 
 **Rule:** If everything is highlighted, nothing is highlighted. Reserve
 strong visual signals (red, bold, top-of-page position) for genuine
@@ -419,14 +425,14 @@ relevant traces/logs."**
 
 ### Drill-down paths we support
 
-| Starting point | Click target | Destination |
-|---------------|-------------|-------------|
-| Namespace attention list | Service name | Service overview |
-| Namespace services table | Service row | Service overview |
-| Namespace topology | Service node | Service overview |
-| Service RED panels | Time range drag | Zoomed time range |
-| Service traces tab | Trace row | Trace detail (external) |
-| Service logs tab | Log line | Log context (external) |
+| Starting point           | Click target    | Destination             |
+| ------------------------ | --------------- | ----------------------- |
+| Namespace attention list | Service name    | Service overview        |
+| Namespace services table | Service row     | Service overview        |
+| Namespace topology       | Service node    | Service overview        |
+| Service RED panels       | Time range drag | Zoomed time range       |
+| Service traces tab       | Trace row       | Trace detail (external) |
+| Service logs tab         | Log line        | Log context (external)  |
 
 ### Breadcrumb trail
 
@@ -500,9 +506,9 @@ classification pre-computes this judgment.
 Services and dependencies use different functions because their error rate
 metrics have different scales:
 
-| Context | Error rate format | Example | Function |
-|---------|------------------|---------|----------|
-| Service | Percentage (4.2 = 4.2%) | `ServiceSummary.errorRate` | `getServiceHealth()` |
+| Context    | Error rate format       | Example                         | Function                |
+| ---------- | ----------------------- | ------------------------------- | ----------------------- |
+| Service    | Percentage (4.2 = 4.2%) | `ServiceSummary.errorRate`      | `getServiceHealth()`    |
 | Dependency | Fraction (0.042 = 4.2%) | `NamespaceDependency.errorRate` | `getDependencyHealth()` |
 
 Using one function for both would silently misclassify. This is
@@ -535,6 +541,7 @@ archetypes:
 threshold coloring.
 
 Key characteristics:
+
 - Scannable from across the room (or across the table in a standup).
 - Auto-refreshable (tracked in [#30](https://github.com/nais/grafana-apm-app/issues/30)).
 - TV/kiosk mode compatible (tracked in [#29](https://github.com/nais/grafana-apm-app/issues/29)).
@@ -548,6 +555,7 @@ Key characteristics:
 **Grafana parallel:** USE/RED dashboards with drill-down links.
 
 Key characteristics:
+
 - RED panels in consistent layout: rate left, errors center, duration right.
 - Heatmap for latency distribution (shows bimodal distributions that
   percentile lines hide).
@@ -562,6 +570,7 @@ Key characteristics:
 **Grafana parallel:** Dashboard list / metrics exploration dashboard.
 
 Key characteristics:
+
 - Efficient scanning of many services (20–200).
 - Inline sparklines for quick trend assessment without clicking.
 - Sort by any column to find outliers (highest error rate, most traffic).
@@ -642,9 +651,9 @@ lookback windows.
 Google's SRE team found that the most effective monitoring systems are
 the simplest ones. This principle guides our design at every level.
 
-> *"The sources of potential complexity are never-ending. Like all software
+> _"The sources of potential complexity are never-ending. Like all software
 > systems, monitoring can become so complex that it's fragile, complicated
-> to change, and a maintenance burden."*
+> to change, and a maintenance burden."_
 > — Google SRE Book, "Monitoring Distributed Systems"
 
 ### Guidelines from Google SRE, applied to our context
@@ -671,8 +680,8 @@ the simplest ones. This principle guides our design at every level.
 
 ### The latency tail matters
 
-> *"If you run a web service with an average latency of 100ms at 1,000
-> requests per second, 1% of requests might easily take 5 seconds."*
+> _"If you run a web service with an average latency of 100ms at 1,000
+> requests per second, 1% of requests might easily take 5 seconds."_
 > — Google SRE Book
 
 This is why we show P95/P99 percentiles and latency heatmaps instead of
@@ -684,13 +693,13 @@ for rendering a histogram), rather than actual latencies."
 
 ### Symptoms vs causes, mapped to our pages
 
-| Page | Shows symptoms | Shows causes |
-|------|---------------|-------------|
-| Namespace | ✅ Error counts, health status | ❌ |
-| Service overview | ✅ RED time series | Partial (heatmap hints at cause) |
-| Runtime (Backend tab) | ❌ | ✅ CPU, memory, GC, threads |
-| Traces tab | ❌ | ✅ Per-request waterfall |
-| Logs tab | ❌ | ✅ Error messages, stack traces |
+| Page                  | Shows symptoms                 | Shows causes                     |
+| --------------------- | ------------------------------ | -------------------------------- |
+| Namespace             | ✅ Error counts, health status | ❌                               |
+| Service overview      | ✅ RED time series             | Partial (heatmap hints at cause) |
+| Runtime (Backend tab) | ❌                             | ✅ CPU, memory, GC, threads      |
+| Traces tab            | ❌                             | ✅ Per-request waterfall         |
+| Logs tab              | ❌                             | ✅ Error messages, stack traces  |
 
 This separation is intentional. The developer starts with "something is
 broken" (namespace page), moves to "here's the pattern" (service RED
@@ -701,11 +710,11 @@ transition narrows the focus.
 
 ## Relationship to Other Docs
 
-| Document | Relationship |
-|----------|-------------|
-| [visualizations.md](visualizations.md) | Component-level guide: _which_ visualization to use and _how_. This document explains _why_. |
-| [configuration.md](configuration.md) | Datasource and environment setup — the "plumbing" that enables the UX. |
-| [metrics-reference.md](metrics-reference.md) | The raw data that feeds into the visualizations and health classification. |
+| Document                                     | Relationship                                                                                 |
+| -------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| [visualizations.md](visualizations.md)       | Component-level guide: _which_ visualization to use and _how_. This document explains _why_. |
+| [configuration.md](configuration.md)         | Datasource and environment setup — the "plumbing" that enables the UX.                       |
+| [metrics-reference.md](metrics-reference.md) | The raw data that feeds into the visualizations and health classification.                   |
 
 ---
 
@@ -720,8 +729,8 @@ transition narrows the focus.
 - Charity Majors. [Observability Is a Many-Splendored Thing](https://charity.wtf/2020/03/03/observability-is-a-many-splendored-thing/)
 - Charity Majors. [Observability: A 5-Year Retrospective](https://www.honeycomb.io/blog/observability-5-year-retrospective)
 - Nielsen Norman Group. [Dashboard Design: Preattentive Processing and Quantitative Representation](https://www.nngroup.com/articles/dashboards-preattentive/)
-- Edward Tufte. *The Visual Display of Quantitative Information* (2001)
-- Stephen Few. *Information Dashboard Design: Displaying Data for At-a-Glance Monitoring* (2013)
-- Ben Shneiderman. *The Eyes Have It: A Task by Data Type Taxonomy for Information Visualizations* (1996)
+- Edward Tufte. _The Visual Display of Quantitative Information_ (2001)
+- Stephen Few. _Information Dashboard Design: Displaying Data for At-a-Glance Monitoring_ (2013)
+- Ben Shneiderman. _The Eyes Have It: A Task by Data Type Taxonomy for Information Visualizations_ (1996)
 - KubeCon 2019. [Fool-Proof Kubernetes Dashboards for Sleep-Deprived Oncalls](https://www.youtube.com/watch?v=YE2aQFiMGfY)
 - Peter Bourgon. [Metrics, Tracing, and Logging](https://peter.bourgon.org/blog/2017/02/21/metrics-tracing-and-logging.html)

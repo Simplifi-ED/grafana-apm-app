@@ -141,12 +141,12 @@ const ERROR_CATALOG = [
     value: "Cannot read properties of undefined (reading 'items')",
     frames: [
       {
-        filename: 'https://cdn.nav.no/team/app/assets/index-b3f9c2d1.js',
+        filename: 'https://cdn.example.com/team/app/assets/index-b3f9c2d1.js',
         function: 'renderCart',
         lineno: 2,
         colno: 41712,
       },
-      { filename: 'https://cdn.nav.no/team/app/assets/index-b3f9c2d1.js', function: 'Wc', lineno: 2, colno: 18220 },
+      { filename: 'https://cdn.example.com/team/app/assets/index-b3f9c2d1.js', function: 'Wc', lineno: 2, colno: 18220 },
     ],
   },
   {
@@ -154,7 +154,7 @@ const ERROR_CATALOG = [
     value: 'Failed to fetch',
     frames: [
       {
-        filename: 'https://cdn.nav.no/team/app/assets/api-7e2a91f0.js',
+        filename: 'https://cdn.example.com/team/app/assets/api-7e2a91f0.js',
         function: 'fetchWithRetry',
         lineno: 1,
         colno: 8804,
@@ -177,7 +177,7 @@ const CONSOLE_ERROR = {
  */
 const PII_CANARIES = [
   { canary: 'pii-fnr', value: 'kunne ikke lagre bruker 01017012345' },
-  { canary: 'pii-email', value: 'validation failed for ola.nordmann@nav.no' },
+  { canary: 'pii-email', value: 'validation failed for ola@example.com' },
   // Not a real credential — a JWT-shaped canary (header 'eyJ…' + the literal
   // word 'secret') that the pipeline's token scrubbing must redact.
   { canary: 'pii-token', value: 'redirect to /callback?token=eyJhbGciOiJIUzI1NiJ9.secret' }, // gitleaks:allow
@@ -214,7 +214,7 @@ export function generateScenario(options: SeedOptions): FaroPayload[] {
         const at = (offsetMs: number): string => new Date(sessionStartMs + offsetMs).toISOString();
         const browser = pick(rng, BROWSERS);
         const route = pick(rng, routes);
-        const pageUrl = `https://${app}.intern.nav.no${route}`;
+        const pageUrl = `https://${app}.intern.example.com${route}`;
 
         const payload: FaroPayload = {
           meta: {

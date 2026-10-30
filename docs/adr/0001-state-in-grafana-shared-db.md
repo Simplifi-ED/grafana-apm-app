@@ -32,7 +32,7 @@ stable Grafana APIs:
 ## Audit summary (2026-07-04)
 
 **Performance:** the load profile is asymmetric — human-paced writes,
-tag-filtered per-service reads. Fine at NAV scale (hundreds of services,
+tag-filtered per-service reads. Fine at large-fleet scale (hundreds of services,
 thousands of triage events/year). Three watch items, in expected order:
 
 1. **Shared-table contention** — the annotation table also holds dashboard
@@ -51,7 +51,7 @@ the plugin touches (stable across majors). Riskier couplings are elsewhere
 
 ## Revisit triggers (any one fires a re-decision)
 
-1. Per-service event counts approaching the fetch limit *after* the
+1. Per-service event counts approaching the fetch limit _after_ the
    newest-first fold optimization is in place.
 2. A feature needing queries annotations cannot express: cross-service
    assignee views, comments/threads, paginated history, audit exports.
@@ -83,11 +83,11 @@ Grafana 12.4.0, dev SQLite instance, 200 fake services, 20 calls/tier.
 The per-service `States()` read (the uncached per-page-load query):
 
 | Org-wide triage events | States() p50 / p95 | POST p50 |
-|---|---|---|
-| 1,000 | 31 / 39 ms | ~25 ms |
-| 5,000 | 143 / 191 ms | |
-| 20,000 | 590 / 751 ms | |
-| 50,000 | 1,491 / 1,593 ms | |
+| ---------------------- | ------------------ | -------- |
+| 1,000                  | 31 / 39 ms         | ~25 ms   |
+| 5,000                  | 143 / 191 ms       |          |
+| 20,000                 | 590 / 751 ms       |          |
+| 50,000                 | 1,491 / 1,593 ms   |          |
 
 **Two audit findings sharpen the triggers:**
 
@@ -113,7 +113,7 @@ in 12.0; grafana-app-sdk unified storage remains pre-1.0/experimental with
 breaking minor releases; every first-party stateful plugin (OnCall, k6,
 Incident) runs its own backend rather than Grafana's DB.
 
-**Practical reading at NAV scale:** thousands of triage events/year keeps
+**Practical reading at large-fleet scale:** thousands of triage events/year keeps
 `States()` in the tens-of-ms band for years. The code mitigations (rare-tag
 query + paginated fetch) are cheap and push both cliffs out by an order of
 magnitude — they should land before any storage re-decision is entertained.

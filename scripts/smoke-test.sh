@@ -32,7 +32,7 @@
 # Usage:
 #   bash scripts/smoke-test.sh
 #   HOST=http://localhost:3000 AUTH='admin:admin' bash scripts/smoke-test.sh
-#   EXPECT_DEPLOY_SYNC=1 DEPLOY_NS=navno DEPLOY_SVC=nav-enonicxp-frontend bash scripts/smoke-test.sh
+#   EXPECT_DEPLOY_SYNC=1 DEPLOY_NS=shop DEPLOY_SVC=storefront bash scripts/smoke-test.sh
 #
 # Env overrides:
 #   HOST                Grafana base URL              (default http://localhost:3000)
@@ -40,9 +40,9 @@
 #   MAXTIME             per-request curl timeout      (default 90)
 #   RANGE_SECS          lookback window in seconds    (default 21600 = 6h)
 #   AT_NS / AT_SVC      service used for alert-template + triage checks
-#                                                     (default pdl / pdl-api)
+#                                                     (default team-a / checkout-api)
 #   DEPLOY_NS/DEPLOY_SVC recently-deployed service for the deploy-sync check
-#                                                     (default navno / nav-enonicxp-frontend)
+#                                                     (default shop / storefront)
 #   EXPECT_DEPLOY_SYNC  set to 1 when a deploy sync (optional) IS provisioned; otherwise
 #                       the deploy-sync check SKIPs (it cannot detect the token
 #                       from outside the backend)
@@ -60,10 +60,10 @@ HOST="${HOST:-http://localhost:3000}"
 AUTH="${AUTH:-admin:admin}"
 MAXTIME="${MAXTIME:-90}"
 RANGE_SECS="${RANGE_SECS:-21600}"
-AT_NS="${AT_NS:-pdl}"
-AT_SVC="${AT_SVC:-pdl-api}"
-DEPLOY_NS="${DEPLOY_NS:-navno}"
-DEPLOY_SVC="${DEPLOY_SVC:-nav-enonicxp-frontend}"
+AT_NS="${AT_NS:-team-a}"
+AT_SVC="${AT_SVC:-checkout-api}"
+DEPLOY_NS="${DEPLOY_NS:-shop}"
+DEPLOY_SVC="${DEPLOY_SVC:-storefront}"
 EXPECT_DEPLOY_SYNC="${EXPECT_DEPLOY_SYNC:-}"
 USER_TOKEN="${USER_TOKEN:-}"
 VERBOSE="${VERBOSE:-0}"

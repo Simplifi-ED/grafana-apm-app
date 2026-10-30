@@ -270,11 +270,11 @@ func TestNamespaceDisplayExpr_PrefersK8s(t *testing.T) {
 }
 
 func TestFilterClause_NamespaceMatchesK8sOrService(t *testing.T) {
-	got := FilterClause("prod-shop", "", "", "ResourceAttributes")
+	got := FilterClause("demo", "", "", "ResourceAttributes")
 	if !strings.Contains(got, "k8s.namespace.name") || !strings.Contains(got, "service.namespace") {
 		t.Fatalf("namespace filter must OR k8s + service.namespace: %s", got)
 	}
-	if !strings.Contains(got, "prod-shop") {
+	if !strings.Contains(got, "demo") {
 		t.Fatalf("missing namespace value: %s", got)
 	}
 }
@@ -503,7 +503,7 @@ func TestTraceDetailSQL_BindsTraceID(t *testing.T) {
 
 func TestRuntimeSQL_UsesScrapeName(t *testing.T) {
 	from, to := time.Now().Add(-time.Hour), time.Now()
-	disc := RuntimeDiscoverSQL("checkout", "prod-shop", from, to)
+	disc := RuntimeDiscoverSQL("checkout", "demo", from, to)
 	for _, want := range []string{"checkout", "go_", "process_", "otel_metrics_gauge"} {
 		if !strings.Contains(disc, want) {
 			t.Errorf("discover missing %q\n%s", want, disc)
@@ -512,7 +512,7 @@ func TestRuntimeSQL_UsesScrapeName(t *testing.T) {
 	if strings.Contains(disc, "checkout-api") {
 		t.Fatal("must not query inventory name")
 	}
-	gauges := RuntimeGaugeAvgsSQL("checkout", "prod-shop", []string{"go_goroutines"}, from, to)
+	gauges := RuntimeGaugeAvgsSQL("checkout", "demo", []string{"go_goroutines"}, from, to)
 	if !strings.Contains(gauges, "go_goroutines") || !strings.Contains(gauges, "checkout") {
 		t.Fatalf("gauges: %s", gauges)
 	}
@@ -539,7 +539,7 @@ func TestParseGoRuntimeMaps(t *testing.T) {
 
 func TestCustomMetricsDiscoverSQL_DenylistAndScrape(t *testing.T) {
 	deny := `jvm_.*|go_.*|process_.*|up|promhttp_.*`
-	sql := CustomMetricsDiscoverSQL("checkout", "prod-shop", deny, time.Now().Add(-time.Hour), time.Now(), 50)
+	sql := CustomMetricsDiscoverSQL("checkout", "demo", deny, time.Now().Add(-time.Hour), time.Now(), 50)
 	for _, want := range []string{
 		"checkout", "NOT match", "otel_metrics_sum", "otel_metrics_histogram", "^(jvm_.*",
 		"GROUP BY MetricName, kind", // CH code 215 without outer agg keys
@@ -567,8 +567,8 @@ func TestChartHintForKind(t *testing.T) {
 }
 
 func TestScrapeServiceFilter_EmitsAliasName(t *testing.T) {
-	got := ScrapeServiceFilter("checkout", "prod-shop")
-	if !strings.Contains(got, "checkout") || !strings.Contains(got, "prod-shop") {
+	got := ScrapeServiceFilter("checkout", "demo")
+	if !strings.Contains(got, "checkout") || !strings.Contains(got, "demo") {
 		t.Fatal(got)
 	}
 }

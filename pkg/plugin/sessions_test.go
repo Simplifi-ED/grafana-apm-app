@@ -128,9 +128,9 @@ func TestQueryFrontendSessionsAggregatesAndSorts(t *testing.T) {
 	}
 	logLines := []queries.LogEntry{
 		{TimeMs: 5000, Line: `kind=log session_id=s3 page_url=https://x/three browser_name=Firefox browser_os="Ubuntu 24.04" app_version=v3`},
-		{TimeMs: 4000, Line: `kind=exception session_id=s2 user_id=u2 user_email=bob@nav.no page_url=https://x/a browser_name=Chrome browser_os=macOS app_version=deadbeef0123`},
+		{TimeMs: 4000, Line: `kind=exception session_id=s2 user_id=u2 user_email=bob@example.com page_url=https://x/a browser_name=Chrome browser_os=macOS app_version=deadbeef0123`},
 		{TimeMs: 3000, Line: `kind=log session_id=s2 page_url=https://x/b app_version=deadbeef0123`},
-		{TimeMs: 2000, Line: `kind=log session_id=s1 user_email=alice@nav.no page_url=https://x/a`},
+		{TimeMs: 2000, Line: `kind=log session_id=s1 user_email=alice@example.com page_url=https://x/a`},
 		{TimeMs: 1000, Line: `kind=log session_id=s2 page_url=https://x/a`},
 	}
 	app, ds := sessionsTestApp(t, map[string][]queries.PromResult{
@@ -158,7 +158,7 @@ func TestQueryFrontendSessionsAggregatesAndSorts(t *testing.T) {
 	if s2.FirstSeenMs != 1000 || s2.LastSeenMs != 4000 {
 		t.Errorf("s2 seen = %d..%d, want 1000..4000", s2.FirstSeenMs, s2.LastSeenMs)
 	}
-	if s2.UserID != "u2" || s2.UserEmail != "bob@nav.no" || s2.Browser != "Chrome" || s2.OS != "macOS" || s2.AppVersion != "deadbeef0123" {
+	if s2.UserID != "u2" || s2.UserEmail != "bob@example.com" || s2.Browser != "Chrome" || s2.OS != "macOS" || s2.AppVersion != "deadbeef0123" {
 		t.Errorf("s2 metadata = %+v", s2)
 	}
 	if s2.Pages != 2 {
@@ -167,7 +167,7 @@ func TestQueryFrontendSessionsAggregatesAndSorts(t *testing.T) {
 	if s3 := by["s3"]; s3.OS != "Ubuntu 24.04" {
 		t.Errorf("s3 quoted logfmt OS = %q, want %q", s3.OS, "Ubuntu 24.04")
 	}
-	if s1 := by["s1"]; s1.UserEmail != "alice@nav.no" || s1.Errors != 1 || s1.Pages != 1 {
+	if s1 := by["s1"]; s1.UserEmail != "alice@example.com" || s1.Errors != 1 || s1.Pages != 1 {
 		t.Errorf("s1 = %+v", s1)
 	}
 }
@@ -324,11 +324,11 @@ func TestParseUserAgent(t *testing.T) {
 }
 
 func TestParseLogfmt(t *testing.T) {
-	got := parseLogfmt(`kind=log session_id=abc user_email="Bob \"The Builder\" <bob@nav.no>" browser_os="macOS 14" empty= trailing`)
+	got := parseLogfmt(`kind=log session_id=abc user_email="Bob \"The Builder\" <bob@example.com>" browser_os="macOS 14" empty= trailing`)
 	want := map[string]string{
 		"kind":       "log",
 		"session_id": "abc",
-		"user_email": `Bob "The Builder" <bob@nav.no>`,
+		"user_email": `Bob "The Builder" <bob@example.com>`,
 		"browser_os": "macOS 14",
 		"empty":      "",
 	}

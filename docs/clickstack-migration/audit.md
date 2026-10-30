@@ -14,14 +14,14 @@ Run Grafana OSS + this app as the UI over an **already-deployed ClickStack** sta
 
 ## Current architecture (LGTM path)
 
-| Layer | Role |
-|-------|------|
-| Frontend (`src/`) | Scenes UI; calls Go resource API (`src/api/`) |
-| Backend (`pkg/plugin/`) | Aggregates PromQL / LogQL / TraceQL; returns JSON DTOs |
-| Metrics | `PrometheusClient` → Grafana datasource **proxy** `/api/datasources/proxy/uid/{mimir}` |
-| Logs / Faro / issues | `DsQueryClient` → `/api/ds/query` against Loki (`expr`, instant/range) |
-| Traces | Tempo UID for Explore links + some TraceQL analytics via Tempo API |
-| Config | `jsonData.metricsDataSource` / `tracesDataSource` / `logsDataSource` (+ per-env overrides) |
+| Layer                   | Role                                                                                       |
+| ----------------------- | ------------------------------------------------------------------------------------------ |
+| Frontend (`src/`)       | Scenes UI; calls Go resource API (`src/api/`)                                              |
+| Backend (`pkg/plugin/`) | Aggregates PromQL / LogQL / TraceQL; returns JSON DTOs                                     |
+| Metrics                 | `PrometheusClient` → Grafana datasource **proxy** `/api/datasources/proxy/uid/{mimir}`     |
+| Logs / Faro / issues    | `DsQueryClient` → `/api/ds/query` against Loki (`expr`, instant/range)                     |
+| Traces                  | Tempo UID for Explore links + some TraceQL analytics via Tempo API                         |
+| Config                  | `jsonData.metricsDataSource` / `tracesDataSource` / `logsDataSource` (+ per-env overrides) |
 
 Key files:
 
@@ -42,13 +42,15 @@ Key files:
 {
   "from": "<epoch_ms>",
   "to": "<epoch_ms>",
-  "queries": [{
-    "refId": "A",
-    "datasource": { "type": "grafana-clickhouse-datasource", "uid": "<uid>" },
-    "rawSql": "SELECT 1",
-    "format": 1,
-    "queryType": "sql"
-  }]
+  "queries": [
+    {
+      "refId": "A",
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "<uid>" },
+      "rawSql": "SELECT 1",
+      "format": 1,
+      "queryType": "sql"
+    }
+  ]
 }
 ```
 
@@ -63,13 +65,13 @@ Credentials must live on the Grafana datasource (`secureJsonData`); the app only
 
 Live inspection via ClickStack MCP against a local ClickHouse connection (database `default`). See [schema.md](schema.md).
 
-| Signal | Table | Notes |
-|--------|-------|-------|
-| Logs | `otel_logs` | OTel logs; `ServiceName`, `Body`, attribute maps |
-| Traces | `otel_traces` | Spans; `Duration` ns; `StatusCode`; events/links arrays |
-| Trace index | `otel_traces_trace_id_ts` | TraceId → time lookup (+ MV) |
-| Metrics | `otel_metrics_{gauge,sum,histogram,summary,exponential_histogram}` | OTel metric tables; spanmetrics present as `traces.spanmetrics.*` / `traces_service_graph_*` |
-| Session replay | `hyperdx_sessions` | HyperDX / browser session payloads |
+| Signal         | Table                                                              | Notes                                                                                        |
+| -------------- | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------- |
+| Logs           | `otel_logs`                                                        | OTel logs; `ServiceName`, `Body`, attribute maps                                             |
+| Traces         | `otel_traces`                                                      | Spans; `Duration` ns; `StatusCode`; events/links arrays                                      |
+| Trace index    | `otel_traces_trace_id_ts`                                          | TraceId → time lookup (+ MV)                                                                 |
+| Metrics        | `otel_metrics_{gauge,sum,histogram,summary,exponential_histogram}` | OTel metric tables; spanmetrics present as `traces.spanmetrics.*` / `traces_service_graph_*` |
+| Session replay | `hyperdx_sessions`                                                 | HyperDX / browser session payloads                                                           |
 
 Browser SDK and collectors are **out of scope** for this step (unchanged).
 

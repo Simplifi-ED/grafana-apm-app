@@ -24,14 +24,14 @@ func TestJobsKubeProbeSQL_MatchesKubeOnly(t *testing.T) {
 }
 
 func TestJobsGaugeLatestSQL_LabelsAndNamespace(t *testing.T) {
-	sql := JobsGaugeLatestSQL(MetricKubeCronjobInfo, "prod-shop", time.Now().Add(-time.Hour), time.Now())
+	sql := JobsGaugeLatestSQL(MetricKubeCronjobInfo, "demo", time.Now().Add(-time.Hour), time.Now())
 	for _, want := range []string{
 		MetricKubeCronjobInfo,
 		"Attributes['cronjob']",
 		"Attributes['namespace']",
 		"k8s_cluster_name",
 		"argMax(Value, TimeUnix)",
-		"prod-shop",
+		"demo",
 		"otel_metrics_gauge",
 	} {
 		if !strings.Contains(sql, want) {
@@ -47,20 +47,20 @@ func TestJobsGaugeLatestSQL_LabelsAndNamespace(t *testing.T) {
 func TestParseJobsGaugeRows(t *testing.T) {
 	rows := []map[string]any{
 		{
-			"cronjob": "gfs-backup-retention", "namespace": "prod-shop",
+			"cronjob": "nightly-backup", "namespace": "demo",
 			"k8s_cluster_name": "prod-k3s", "schedule": "0 3 * * *", "value": 1.0,
 		},
 		{
-			"job_name": "gfs-backup-retention-28938400", "namespace": "prod-shop",
+			"job_name": "nightly-backup-28938400", "namespace": "demo",
 			"k8s_cluster_name": "prod-k3s", "owner_kind": "CronJob",
-			"owner_name": "gfs-backup-retention", "value": 1.0,
+			"owner_name": "nightly-backup", "value": 1.0,
 		},
 	}
 	got := ParseJobsGaugeRows(rows)
 	if len(got) != 2 {
 		t.Fatalf("len=%d", len(got))
 	}
-	if got[0].Metric["cronjob"] != "gfs-backup-retention" || got[0].Value.Float() != 1 {
+	if got[0].Metric["cronjob"] != "nightly-backup" || got[0].Value.Float() != 1 {
 		t.Fatalf("cronjob row: %+v value=%v", got[0].Metric, got[0].Value.Float())
 	}
 	if got[1].Metric["owner_kind"] != "CronJob" || got[1].Metric["job_name"] == "" {

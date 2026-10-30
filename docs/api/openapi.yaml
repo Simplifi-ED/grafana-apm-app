@@ -312,7 +312,7 @@ paths:
       summary: Diagnose why a minified frontend stack's source map wasn't resolved.
       description: >
         Pure diagnostics for issue #60. Server-side, the plugin fetches the given
-        bundle from the allowlisted frontend CDN (cdn.nav.no only — SSRF guard),
+        bundle from the allowlisted frontend CDN (cdn.example.com only — SSRF guard),
         then reports whether the bundle is reachable, advertises a
         `//# sourceMappingURL=` comment, and whether the referenced `.map` is
         fetchable. The plugin never resolves/symbolicates the stack itself; the
@@ -324,7 +324,7 @@ paths:
           in: query
           required: true
           schema: { type: string }
-          description: Absolute http(s) URL of the frame's JS bundle on cdn.nav.no.
+          description: Absolute http(s) URL of the frame's JS bundle on cdn.example.com.
       responses:
         "200":
           description: Source-map diagnosis checklist.
@@ -332,7 +332,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/SourcemapDoctorResult" }
         "400":
-          description: Missing url, or url is not an absolute http(s) URL on cdn.nav.no.
+          description: Missing url, or url is not an absolute http(s) URL on cdn.example.com.
 
   /services/{namespace}/{service}/traces/breakdown:
     get:

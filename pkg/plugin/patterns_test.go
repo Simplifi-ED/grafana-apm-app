@@ -223,7 +223,7 @@ func TestLongestLiteral(t *testing.T) {
 		want string
 	}{
 		{"Failed under påminnelse av sak <_>", "påminnelse"},
-		{"<_> tilbakekrevingId=<_>", "tilbakekrevingId"},
+		{"<_> invoiceId=<_>", "invoiceId"},
 		{"a bc de <_>", ""}, // nothing ≥4 runes
 		{"Timeout calling <_>", "Timeout"},
 	}

@@ -99,7 +99,7 @@ func (a *App) handleServiceMap(w http.ResponseWriter, req *http.Request) {
 }
 
 // handleClusteredServiceMap returns the global service map aggregated by
-// namespace (team). At NAV scale the unclustered global map is ~1200 service
+// namespace (team). At large-fleet scale the unclustered global map is ~1200 service
 // nodes / ~4000 edges — an unusable hairball that crashes the browser tab
 // (why the old global map page was removed, #22). Clustering collapses this to
 // one node per namespace (~130) with cross-namespace call-rate edges.
@@ -1465,7 +1465,7 @@ func (a *App) resolveIngressAlias(name string) string {
 	if a.settings.IngressAliases == nil {
 		return name
 	}
-	// Try the name as-is (e.g., "tilgangsmaskin.intern.nav.no")
+	// Try the name as-is (e.g., "auth.internal.example.com")
 	if svc, ok := a.settings.IngressAliases[name]; ok {
 		return svc
 	}

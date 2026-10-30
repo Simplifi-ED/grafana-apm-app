@@ -50,9 +50,9 @@ describe('parseStackFrame', () => {
   });
 
   it('parses frames without a function name', () => {
-    const f = parseStackFrame('    at https://cdn.nav.no/team/app/1.2.3/assets/vendor-Cq2ZL9.js:2:48211');
+    const f = parseStackFrame('    at https://cdn.example.com/team/app/1.2.3/assets/vendor-Cq2ZL9.js:2:48211');
     expect(f.isFrame).toBe(true);
-    expect(f.path).toBe('https://cdn.nav.no/team/app/1.2.3/assets/vendor-Cq2ZL9.js');
+    expect(f.path).toBe('https://cdn.example.com/team/app/1.2.3/assets/vendor-Cq2ZL9.js');
   });
 
   it('parses frames with function name but no parens position', () => {
@@ -69,15 +69,15 @@ describe('parseStackFrame', () => {
 
 describe('isLikelyMinifiedFrame (#60 heuristic)', () => {
   it('flags a very deep column offset', () => {
-    expect(isLikelyMinifiedFrame('    at https://cdn.nav.no/team/app/1.2.3/assets/vendor-Cq2ZL9.js:2:48211')).toBe(
+    expect(isLikelyMinifiedFrame('    at https://cdn.example.com/team/app/1.2.3/assets/vendor-Cq2ZL9.js:2:48211')).toBe(
       true
     );
   });
 
   it('flags a hashed bundle with a mangled 1–2 char function name', () => {
-    expect(isLikelyMinifiedFrame('    at Kt (https://cdn.nav.no/team/app/1.2.3/assets/main-Dk3js9aP.js:1:200)')).toBe(
-      true
-    );
+    expect(
+      isLikelyMinifiedFrame('    at Kt (https://cdn.example.com/team/app/1.2.3/assets/main-Dk3js9aP.js:1:200)')
+    ).toBe(true);
   });
 
   it('does not flag a clean app frame with real names and a shallow column', () => {
@@ -88,7 +88,7 @@ describe('isLikelyMinifiedFrame (#60 heuristic)', () => {
 
   it('does not flag a hashed bundle when the function name is meaningful and the column is shallow', () => {
     expect(
-      isLikelyMinifiedFrame('  at renderApp (https://cdn.nav.no/team/app/1.2.3/assets/main-Dk3js9aP.js:1:42)')
+      isLikelyMinifiedFrame('  at renderApp (https://cdn.example.com/team/app/1.2.3/assets/main-Dk3js9aP.js:1:42)')
     ).toBe(false);
   });
 
@@ -102,7 +102,7 @@ describe('stackLooksMinified', () => {
   it('is true when any frame looks minified', () => {
     const stack = [
       'TypeError: undefined is not a function',
-      '  at n (https://cdn.nav.no/team/app/1.2.3/assets/index-Bq7Za1.js:1:99213)',
+      '  at n (https://cdn.example.com/team/app/1.2.3/assets/index-Bq7Za1.js:1:99213)',
       '  at /personbruker/shared/logger.ts:47:26',
     ].join('\n');
     expect(stackLooksMinified(stack)).toBe(true);
@@ -120,10 +120,11 @@ describe('stackLooksMinified', () => {
 
 describe('firstScriptUrl', () => {
   it('returns the first http(s) bundle URL without the line/column suffix', () => {
-    const stack = ['TypeError: boom', '  at n (https://cdn.nav.no/team/app/1.2.3/assets/index-Bq7Za1.js:1:99213)'].join(
-      '\n'
-    );
-    expect(firstScriptUrl(stack)).toBe('https://cdn.nav.no/team/app/1.2.3/assets/index-Bq7Za1.js');
+    const stack = [
+      'TypeError: boom',
+      '  at n (https://cdn.example.com/team/app/1.2.3/assets/index-Bq7Za1.js:1:99213)',
+    ].join('\n');
+    expect(firstScriptUrl(stack)).toBe('https://cdn.example.com/team/app/1.2.3/assets/index-Bq7Za1.js');
   });
 
   it('returns undefined for webpack:// or bare-path stacks', () => {

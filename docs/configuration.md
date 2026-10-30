@@ -16,8 +16,8 @@ sessions, and session replay query ClickHouse. **Mimir, Tempo, and Loki are not
 required.** Existing OTel collectors and `@hyperdx/browser` keep writing to the
 same ClickHouse.
 
-| Signal     | Type                            | Example UID  | Purpose |
-| ---------- | ------------------------------- | ------------ | ------- |
+| Signal     | Type                            | Example UID  | Purpose                           |
+| ---------- | ------------------------------- | ------------ | --------------------------------- |
 | ClickHouse | `grafana-clickhouse-datasource` | `clickhouse` | All ClickStack-backed APM queries |
 
 Feature status: [clickstack-migration/feature-matrix.md](clickstack-migration/feature-matrix.md).
@@ -33,12 +33,12 @@ fake profiles). Detection:
    (or legacy `phlare`) via `GET /api/datasources`
 3. `GET .../capabilities` → `pyroscope: { available, uid? }`
 
-| Item | Value |
-|------|--------|
-| Suggested UID | `pyroscope` |
-| Optional plugin config | `jsonData.pyroscopeDataSource.uid` (AppConfig → Profiling) |
-| Example provisioning | [`provisioning/datasources/pyroscope.yaml.example`](../provisioning/datasources/pyroscope.yaml.example) |
-| Local overlay | `docker compose -f docker-compose.yaml -f docker-compose.pyroscope.yaml up` |
+| Item                   | Value                                                                                                   |
+| ---------------------- | ------------------------------------------------------------------------------------------------------- |
+| Suggested UID          | `pyroscope`                                                                                             |
+| Optional plugin config | `jsonData.pyroscopeDataSource.uid` (AppConfig → Profiling)                                              |
+| Example provisioning   | [`provisioning/datasources/pyroscope.yaml.example`](../provisioning/datasources/pyroscope.yaml.example) |
+| Local overlay          | `docker compose -f docker-compose.yaml -f docker-compose.pyroscope.yaml up`                             |
 
 Install the Grafana plugin alongside ClickHouse:
 

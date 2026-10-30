@@ -89,17 +89,12 @@ has_flag() { case ",$1," in *,"$2",*) return 0;; *) return 1;; esac; }
 # --- built-in matrix (override with MATRIX_FILE) -----------------------------
 default_matrix() {
   cat <<'TSV'
-helsearbeidsgiver	hag-dokument-proxy	nodeSSR	logs
-navno	nav-enonicxp-frontend	node	issues,frontend,logs
-amt	amt-distribusjon	jvmKtor	issues,logs
-navno	navno-search-frontend	plaintext	logs
-pdl	pdl-api	mongodb	logs,traces
-pensjon-person	pensjon-representasjon	oracleUCP	runtime_db,logs
-teamforeldrepenger	fpinntektsmelding	pgHikari	runtime_db,logs
-tilbake	tilbakekreving-backend	chattyErr	issues,runtime_db,logs
-min-side	tms-min-side	node	frontend,logs
-_	dp-rapportering-frontend	webjsFE	frontend
-team-researchops	reops-event-proxy	randSpring	logs
+team-a	checkout-api	jvmKtor	issues,logs,traces
+team-a	billing-api	pgHikari	runtime_db,logs
+shop	storefront	node	frontend,logs,issues
+platform	ingress-gateway	cpp	logs
+demo	graphql-demo	node	logs
+_	reporting-frontend	webjsFE	frontend
 TSV
 }
 
@@ -145,7 +140,7 @@ if not d.get("edges"): print("FAIL: edges empty"); sys.exit()
 print("OK")'
 
 # alert templates (require a real service that has metrics + logs)
-AT_NS="pdl"; AT_SVC="pdl-api"
+AT_NS="team-a"; AT_SVC="checkout-api"
 for kind in error-rate exception-spike web-vitals new-exceptions slo-burn-rate; do
   q="service=$AT_SVC&namespace=$AT_NS"
   [ "$kind" = exception-spike ] && q="$q&hash=deadbeef"

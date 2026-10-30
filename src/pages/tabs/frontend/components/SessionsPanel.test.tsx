@@ -31,7 +31,7 @@ const SESSION = {
   events: 42,
   errors: 3,
   userId: 'u-1',
-  userEmail: 'alice@nav.no',
+  userEmail: 'alice@example.com',
   browser: 'Chrome',
   os: 'macOS',
   appVersion: 'deadbeef0123456789',
@@ -72,7 +72,7 @@ describe('SessionsPanel', () => {
 
     // Short id with the full session id on the title attribute
     expect(screen.getByText('sess-abcde')).toHaveAttribute('title', 'sess-abcdef123456');
-    expect(screen.getByText('alice@nav.no')).toBeInTheDocument();
+    expect(screen.getByText('alice@example.com')).toBeInTheDocument();
     expect(screen.getByText('Chrome / macOS')).toBeInTheDocument();
     expect(screen.getByText('deadbeef01')).toBeInTheDocument();
     expect(screen.getByText('42')).toBeInTheDocument();

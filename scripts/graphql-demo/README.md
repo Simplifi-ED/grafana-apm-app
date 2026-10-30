@@ -39,7 +39,7 @@ Set `OTLP_AUTH` in the environment when the collector requires a bearer token
 
 Kustomize root: [`kustomization.yaml`](kustomization.yaml) (ConfigMap from `emit_graphql_spans.py`).
 
-Default namespace is `prod-shop` — change it if your collector filters namespaces.
+Default namespace is `demo` — change it if your collector filters namespaces.
 
 ```bash
 kubectl apply -k scripts/graphql-demo

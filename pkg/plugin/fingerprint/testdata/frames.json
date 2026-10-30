@@ -4,7 +4,7 @@
     {
       "path": "webpack://_N_E/../../node_modules/.pnpm/@grafana+faro-web-sdk@2.7.1/node_modules/@grafana/faro-web-sdk/dist/esm/instrumentations/console/instrumentation.js",
       "inApp": false,
-      "note": "Faro console instrumentation frame from a real NAV pnpm/Next.js build — the console-capture synthetic Error top frame"
+      "note": "Faro console instrumentation frame from a real pnpm/Next.js build — the console-capture synthetic Error top frame"
     },
     {
       "path": "webpack://_N_E/../../node_modules/.pnpm/@grafana+faro-core@2.7.1/node_modules/@grafana/faro-core/dist/esm/utils/reactive.js",
@@ -57,7 +57,7 @@
       "note": "hashed minified app bundle — still the app's own code (source maps not resolved, #60)"
     },
     {
-      "path": "https://cdn.nav.no/team/app/1.2.3/assets/vendor-Cq2ZL9.js",
+      "path": "https://cdn.example.com/team/app/1.2.3/assets/vendor-Cq2ZL9.js",
       "inApp": true,
       "note": "CDN-served app bundle without node_modules in path — conservatively in-app (cannot distinguish vendor chunks without source maps)"
     },

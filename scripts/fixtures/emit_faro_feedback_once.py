@@ -23,7 +23,7 @@ OTLP_ENDPOINT = os.environ.get(
 )
 OTLP_AUTH = os.environ.get("OTLP_AUTH", "").strip()
 SERVICE_NAME = os.environ.get("SERVICE_NAME", "storefront")
-APP_VERSION = os.environ.get("APP_VERSION", "20260422164408-main")
+APP_VERSION = os.environ.get("APP_VERSION", "1.2.3-main")
 NAMESPACE = os.environ.get("K8S_NAMESPACE", "dev-shop")
 
 

@@ -87,8 +87,8 @@ describe('buildDatabaseScene', () => {
     const scene = buildDatabaseScene(defaultParams);
     const serialized = JSON.stringify(scene!.state.body);
     // `ratio * 100 or (rate * 0)` — verified against production services with
-    // real db traffic and zero errors (pdl-api, pensjon-representasjon,
-    // fpinntektsmelding): the plain ratio returns an empty vector for all three.
+    // real db traffic and zero errors (checkout-api, billing-db-client,
+    // payroll-api): the plain ratio returns an empty vector for all three.
     expect(serialized).toMatch(
       /\* 100 or sum by \(db_system\) \(rate\(traces_spanmetrics_calls_total\{[^}]*\}\[\$__rate_interval\]\)\) \* 0/
     );
@@ -168,12 +168,12 @@ describe('buildDatabaseScene', () => {
     // how large the resulting ratio is, so a genuine severe N+1 on a healthy
     // service still renders (and still hits the 20/50 threshold bands).
     const evidence = [
-      { app: 'pdl-api', inbound: 34.6, shown: true }, // 60.8 db/s ÷ 34.6 = 1.76 q/req, genuine
+      { app: 'checkout-api', inbound: 34.6, shown: true }, // 60.8 db/s ÷ 34.6 = 1.76 q/req, genuine
       { app: 'spenn', inbound: 62, shown: true }, // 0.07 db/s ÷ 62 = 0.0011 q/msg, Kafka
       { app: 'severe-n-plus-one', inbound: 1, shown: true }, // 30 db/s ÷ 1 = 30 q/req: modest but real traffic, must stay visible
       { app: 'syfosmregister', inbound: 0.058, shown: false }, // 0.56 db/s ÷ 0.058 = 9.7, inflated
-      { app: 'fpinntektsmelding', inbound: 0.004, shown: false }, // 9.1 db/s ÷ 0.004 = 2275, artifact
-      { app: 'aareg-mottak-opptjeningsgrunnlag', inbound: 0, shown: false }, // batch job
+      { app: 'payroll-api', inbound: 0.004, shown: false }, // 9.1 db/s ÷ 0.004 = 2275, artifact
+      { app: 'ingest-job', inbound: 0, shown: false }, // batch job
     ];
     for (const { app, inbound, shown } of evidence) {
       expect({ app, shown: inbound > floor }).toEqual({ app, shown });

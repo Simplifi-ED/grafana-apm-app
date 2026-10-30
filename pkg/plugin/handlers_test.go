@@ -1342,10 +1342,10 @@ func TestIngressAliasQueryExpansion(t *testing.T) {
 
 		app := newTestApp(t, promSrv.URL, defaultCaps())
 		app.settings.IngressAliases = map[string]string{
-			"myapp.intern.nav.no": "myservice",
+			"myapp.intern.example.com": "myservice",
 		}
 		app.ingressByService = map[string][]string{
-			"myservice": {"myapp.intern.nav.no"},
+			"myservice": {"myapp.intern.example.com"},
 		}
 
 		req := httptest.NewRequest(http.MethodGet,
@@ -1362,7 +1362,7 @@ func TestIngressAliasQueryExpansion(t *testing.T) {
 		foundServerAddr := false
 		foundHTTPHost := false
 		// PromQL escapes dots, so look for the escaped form
-		aliasPattern := `myapp\\.intern\\.nav\\.no`
+		aliasPattern := `myapp\\.intern\\.example\\.com`
 		for _, q := range *captured {
 			if strings.Contains(q, aliasPattern) {
 				if strings.Contains(q, cfg.Labels.ServerAddress) {
@@ -1390,10 +1390,10 @@ func TestIngressAliasQueryExpansion(t *testing.T) {
 
 		app := newTestApp(t, promSrv.URL, defaultCaps())
 		app.settings.IngressAliases = map[string]string{
-			"myapp.intern.nav.no": "myservice",
+			"myapp.intern.example.com": "myservice",
 		}
 		app.ingressByService = map[string][]string{
-			"myservice": {"myapp.intern.nav.no"},
+			"myservice": {"myapp.intern.example.com"},
 		}
 
 		req := httptest.NewRequest(http.MethodGet,
@@ -1407,7 +1407,7 @@ func TestIngressAliasQueryExpansion(t *testing.T) {
 
 		found := false
 		for _, q := range *captured {
-			if strings.Contains(q, `myapp\\.intern\\.nav\\.no`) {
+			if strings.Contains(q, `myapp\\.intern\\.example\\.com`) {
 				found = true
 				break
 			}
@@ -1438,7 +1438,7 @@ func TestIngressAliasQueryExpansion(t *testing.T) {
 		}
 
 		for _, q := range *captured {
-			if strings.Contains(q, `intern\\.nav\\.no`) || strings.Contains(q, "intern.nav.no") {
+			if strings.Contains(q, `intern\\.example\\.com`) || strings.Contains(q, "intern.example.com") {
 				t.Errorf("unexpected alias hostname in query without aliases configured: %s", q)
 			}
 		}
@@ -1450,13 +1450,13 @@ func TestResolveIngressAlias(t *testing.T) {
 		app := &App{
 			settings: queries.PluginSettings{
 				IngressAliases: map[string]string{
-					"myapp.intern.nav.no": "myservice",
+					"myapp.intern.example.com": "myservice",
 				},
 			},
 		}
-		got := app.resolveIngressAlias("myapp.intern.nav.no")
+		got := app.resolveIngressAlias("myapp.intern.example.com")
 		if got != "myservice" {
-			t.Errorf("resolveIngressAlias(myapp.intern.nav.no) = %q, want %q", got, "myservice")
+			t.Errorf("resolveIngressAlias(myapp.intern.example.com) = %q, want %q", got, "myservice")
 		}
 	})
 
@@ -1464,7 +1464,7 @@ func TestResolveIngressAlias(t *testing.T) {
 		app := &App{
 			settings: queries.PluginSettings{
 				IngressAliases: map[string]string{
-					"myapp.intern.nav.no": "myservice",
+					"myapp.intern.example.com": "myservice",
 				},
 			},
 		}
@@ -1476,9 +1476,9 @@ func TestResolveIngressAlias(t *testing.T) {
 
 	t.Run("returns original when no aliases configured", func(t *testing.T) {
 		app := &App{}
-		got := app.resolveIngressAlias("myapp.intern.nav.no")
-		if got != "myapp.intern.nav.no" {
-			t.Errorf("resolveIngressAlias = %q, want %q", got, "myapp.intern.nav.no")
+		got := app.resolveIngressAlias("myapp.intern.example.com")
+		if got != "myapp.intern.example.com" {
+			t.Errorf("resolveIngressAlias = %q, want %q", got, "myapp.intern.example.com")
 		}
 	})
 }
@@ -1490,11 +1490,11 @@ func TestIngressAliasNormalization(t *testing.T) {
 		wantKey string
 		wantSvc string
 	}{
-		{"lowercase", map[string]string{"MyApp.Intern.NAV.NO": "myservice"}, "myapp.intern.nav.no", "myservice"},
-		{"trailing dot", map[string]string{"myapp.intern.nav.no.": "myservice"}, "myapp.intern.nav.no", "myservice"},
-		{"port 443", map[string]string{"myapp.intern.nav.no:443": "myservice"}, "myapp.intern.nav.no", "myservice"},
-		{"port 80", map[string]string{"myapp.intern.nav.no:80": "myservice"}, "myapp.intern.nav.no", "myservice"},
-		{"non-standard port", map[string]string{"myapp.intern.nav.no:8443": "myservice"}, "myapp.intern.nav.no:8443", "myservice"},
+		{"lowercase", map[string]string{"MyApp.Intern.EXAMPLE.COM": "myservice"}, "myapp.intern.example.com", "myservice"},
+		{"trailing dot", map[string]string{"myapp.intern.example.com.": "myservice"}, "myapp.intern.example.com", "myservice"},
+		{"port 443", map[string]string{"myapp.intern.example.com:443": "myservice"}, "myapp.intern.example.com", "myservice"},
+		{"port 80", map[string]string{"myapp.intern.example.com:80": "myservice"}, "myapp.intern.example.com", "myservice"},
+		{"non-standard port", map[string]string{"myapp.intern.example.com:8443": "myservice"}, "myapp.intern.example.com:8443", "myservice"},
 	}
 
 	for _, tc := range tests {

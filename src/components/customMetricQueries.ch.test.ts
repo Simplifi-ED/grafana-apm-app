@@ -7,8 +7,8 @@ function metric(over: Partial<CustomMetric>): CustomMetric {
 
 describe('customMetricScrapeFilter', () => {
   it('scopes by scrape ServiceName and optional namespace', () => {
-    expect(customMetricScrapeFilter('checkout', 'prod-shop')).toContain("ServiceName = 'checkout'");
-    expect(customMetricScrapeFilter('checkout', 'prod-shop')).toContain("Attributes['namespace'] = 'prod-shop'");
+    expect(customMetricScrapeFilter('checkout', 'demo')).toContain("ServiceName = 'checkout'");
+    expect(customMetricScrapeFilter('checkout', 'demo')).toContain("Attributes['namespace'] = 'demo'");
     expect(customMetricScrapeFilter('checkout', '')).not.toContain('namespace');
   });
 });

@@ -7,67 +7,67 @@
 
 **Status legend**
 
-| Status | Meaning |
-|--------|---------|
-| ✅ Verified working | Unit tests + live ClickHouse SQL confirmed against ClickHouse |
+| Status                                 | Meaning                                                                                  |
+| -------------------------------------- | ---------------------------------------------------------------------------------------- |
+| ✅ Verified working                    | Unit tests + live ClickHouse SQL confirmed against ClickHouse                            |
 | 🟨 Implemented, integration-unverified | Code path exists; not exercised end-to-end through Grafana CH datasource in this session |
-| 🟧 Partial | Works for a subset; gaps + plan tickets noted |
-| 🚧 Planned / gated | Locked in plan; plugin and/or platform enablement not shipped yet |
-| ❌ Unsupported (rejected for Phase 0) | Would be empty forever — not acceptable; use 🚧 + enablement ticket instead |
+| 🟧 Partial                             | Works for a subset; gaps + plan tickets noted                                            |
+| 🚧 Planned / gated                     | Locked in plan; plugin and/or platform enablement not shipped yet                        |
+| ❌ Unsupported (rejected for Phase 0)  | Would be empty forever — not acceptable; use 🚧 + enablement ticket instead              |
 
 ---
 
 ## Core workflows
 
-| Feature | Endpoint / UI | CH tables | Status | Plan / notes |
-|---------|---------------|-----------|--------|--------------|
-| Service inventory | `GET /services` → ServiceInventory | `otel_metrics_sum` (`traces.spanmetrics.calls`) + hist duration | ✅ | **B** live: p95 + sparklines; ns prefers `k8s.namespace.name` over product `service.namespace=acme`; residual `graphql-demo` until CH TTL |
-| Capabilities | `GET /capabilities` | sum metrics probes | ✅ | Live: spanmetrics+SG+CH+Pyroscope; Tempo/Loki N/A in CH mode |
-| Operations RED | `GET .../operations` | spanmetrics calls + **duration hist** p50/p95/p99 | ✅ | Hist-primary latency (traces fallback); SpanKind join normalized |
-| Overview RED timeseries | Scenes panels | `otel_metrics_sum` + histogram | ✅ | Covered via inventory sparklines + health/ops RED (same CH metrics) |
-| Endpoints | `GET .../endpoints` | spanmetrics → protocol groups | ✅ | Derived from operations (same hist latency) |
-| Service health | `GET .../health` | spanmetrics + service graph | ✅ | Live: prev-period + degradedOps/deps; p95 from ops hist |
-| Trace breakdown | `GET .../traces/breakdown` | `otel_traces` | ✅ | Live: mode=spanmetrics, 18 rows (redis.dial / query …) |
-| Trace waterfall / Explore | Traces tab | `otel_traces` | ✅ | **E** CH search live via Grafana DS (checkout-api traces) |
-| Log patterns | `GET .../logs/patterns` | `otel_logs` Body clustering | ✅ | **E** k8s identity + JSON body level match (filelog SeverityText empty) |
-| Log Explore | Logs tab | `otel_logs` | ✅ | **E** match via alias→`k8s.deployment.name` / pod prefix when ServiceName empty |
-| Issues / exceptions | `GET .../issues` | `otel_traces` | ✅ | **F** live + post-parity **D**: `isNew` / `returnedAfterResolve` flags, badges, Overview attention strip |
-| Issue occurrences / drawer | CH spans + `rum.sessionId` | `otel_traces`, `hyperdx_sessions` | ✅ | **F** shipped; replay deep-link via `rum.sessionId`; Faro Loki not required |
-| Frontend Web Vitals | `GET .../frontend` + tab | `otel_traces` `webvitals` | ✅ | **G** CH scene: bullets + trends + volume/exceptions + CWV rating pie + browser/per-page tables (HyperDX; no Faro) |
-| Frontend versions | `GET .../frontend/versions` | `ResourceAttributes['service.version']` | ✅ | **G** + **21**: DEV `@hyperdx/otel-web` emits `service.version=APP_VERSION` (never `rum.version`) |
-| Frontend Feedback | Feedback UI | `otel_traces` `SpanName=faro.feedback` | ✅ | **G** + **21**: contract live after `keep-browser-rum` sampling (#121); Support form optional extra proof |
-| Frontend sessions list | `GET .../frontend/sessions` | `hyperdx_sessions` + enrich from traces | ✅ | **F** enrich: errors + user/version/pages/UA from all browser spans (not errors-only) |
-| Session replay | replay / probe / recordings | `hyperdx_sessions` | ✅ | |
-| Service map | `GET /service-map` | `traces_service_graph_*` | ✅ | Live edges via Grafana CH DS (ingress-gateway/checkout-api/postgres/valkey) |
-| Dependencies / connected | `GET .../dependencies`, `/connected` | service graph CH | ✅ | **D** live: checkout-api → valkey/postgres/nova; inbound ingress-gateway (p95 often 0 — graph totals only) |
-| Database top queries / N+1 | DB tab | `otel_traces` db attrs | ✅ | Top queries live (redis EVALSHA…); N+1 API OK, 0 findings in 1h cap (needs `db.statement` + ≥10 repeats/trace) |
-| Runtime metrics | Runtime tab | `otel_metrics_*` `go_*`/`process_*` | ✅ | **C** + aliases: `checkout-api→checkout` Go runtime live |
-| Custom metrics | Custom tab + Overview | `otel_metrics_*` | ✅ | Discovery + letter **E**: Overview auto-charts via CH SQL Scenes (`rate`/`p95`/`summary`/`gauge`); Explore deep-links CH SQL |
-| GraphQL | GraphQL / Server tab | `otel_metrics_*` probes ∨ `otel_traces` `graphql.operation.*` | ✅ | Plugin path live (`detected:false` + hint); needs app emitter (**16**) |
-| Alerts / templates | Alerts UI | Grafana UA + CH SQL | ✅ | **27** + post-parity **B+C**: NEW + `regressing-exceptions` CH SQL; About callout / source badges |
-| Scorecard | Scorecard | CH probes | ✅ | Logs+runtime via aliases; Jobs/Profiling; **F** v2: sourcemaps/DB/messaging|Temporal/structured-logs + data-driven N/A; GraphQL N/A |
-| Jobs | Jobs UI | KSM/Prom and/or `kube_*` in CH | ✅ | **I** + **17**: `kube_cronjob_*` in CH (`namespace=prod-shop`) via KSM + honor_labels |
-| Triage / watchlist / sourcemap | annotations / HTTP | N/A | ✅ | |
-| Profiling | Profiling tab | Pyroscope DS | ✅ | **J** + **18**: local compose Pyroscope DS; plugin detects (`available:true`) |
-| Service identity aliases | plugin `jsonData.serviceAliases` | — | ✅ | **A** / **15** — example seeds: `checkout-api→checkout`, `billing-api→billing`, `storefront` (example + local provisioning) |
+| Feature                        | Endpoint / UI                        | CH tables                                                       | Status | Plan / notes                                                                                                                              |
+| ------------------------------ | ------------------------------------ | --------------------------------------------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Service inventory              | `GET /services` → ServiceInventory   | `otel_metrics_sum` (`traces.spanmetrics.calls`) + hist duration | ✅     | **B** live: p95 + sparklines; ns prefers `k8s.namespace.name` over product `service.namespace=acme`; residual `graphql-demo` until CH TTL |
+| Capabilities                   | `GET /capabilities`                  | sum metrics probes                                              | ✅     | Live: spanmetrics+SG+CH+Pyroscope; Tempo/Loki N/A in CH mode                                                                              |
+| Operations RED                 | `GET .../operations`                 | spanmetrics calls + **duration hist** p50/p95/p99               | ✅     | Hist-primary latency (traces fallback); SpanKind join normalized                                                                          |
+| Overview RED timeseries        | Scenes panels                        | `otel_metrics_sum` + histogram                                  | ✅     | Covered via inventory sparklines + health/ops RED (same CH metrics)                                                                       |
+| Endpoints                      | `GET .../endpoints`                  | spanmetrics → protocol groups                                   | ✅     | Derived from operations (same hist latency)                                                                                               |
+| Service health                 | `GET .../health`                     | spanmetrics + service graph                                     | ✅     | Live: prev-period + degradedOps/deps; p95 from ops hist                                                                                   |
+| Trace breakdown                | `GET .../traces/breakdown`           | `otel_traces`                                                   | ✅     | Live: mode=spanmetrics, 18 rows (redis.dial / query …)                                                                                    |
+| Trace waterfall / Explore      | Traces tab                           | `otel_traces`                                                   | ✅     | **E** CH search live via Grafana DS (checkout-api traces)                                                                                 |
+| Log patterns                   | `GET .../logs/patterns`              | `otel_logs` Body clustering                                     | ✅     | **E** k8s identity + JSON body level match (filelog SeverityText empty)                                                                   |
+| Log Explore                    | Logs tab                             | `otel_logs`                                                     | ✅     | **E** match via alias→`k8s.deployment.name` / pod prefix when ServiceName empty                                                           |
+| Issues / exceptions            | `GET .../issues`                     | `otel_traces`                                                   | ✅     | **F** live + post-parity **D**: `isNew` / `returnedAfterResolve` flags, badges, Overview attention strip                                  |
+| Issue occurrences / drawer     | CH spans + `rum.sessionId`           | `otel_traces`, `hyperdx_sessions`                               | ✅     | **F** shipped; replay deep-link via `rum.sessionId`; Faro Loki not required                                                               |
+| Frontend Web Vitals            | `GET .../frontend` + tab             | `otel_traces` `webvitals`                                       | ✅     | **G** CH scene: bullets + trends + volume/exceptions + CWV rating pie + browser/per-page tables (HyperDX; no Faro)                        |
+| Frontend versions              | `GET .../frontend/versions`          | `ResourceAttributes['service.version']`                         | ✅     | **G** + **21**: DEV `@hyperdx/otel-web` emits `service.version=APP_VERSION` (never `rum.version`)                                         |
+| Frontend Feedback              | Feedback UI                          | `otel_traces` `SpanName=faro.feedback`                          | ✅     | **G** + **21**: contract live after `keep-browser-rum` sampling (#121); Support form optional extra proof                                 |
+| Frontend sessions list         | `GET .../frontend/sessions`          | `hyperdx_sessions` + enrich from traces                         | ✅     | **F** enrich: errors + user/version/pages/UA from all browser spans (not errors-only)                                                     |
+| Session replay                 | replay / probe / recordings          | `hyperdx_sessions`                                              | ✅     |                                                                                                                                           |
+| Service map                    | `GET /service-map`                   | `traces_service_graph_*`                                        | ✅     | Live edges via Grafana CH DS (ingress-gateway/checkout-api/postgres/valkey)                                                               |
+| Dependencies / connected       | `GET .../dependencies`, `/connected` | service graph CH                                                | ✅     | **D** live: checkout-api → valkey/postgres/checkout; inbound ingress-gateway (p95 often 0 — graph totals only)                            |
+| Database top queries / N+1     | DB tab                               | `otel_traces` db attrs                                          | ✅     | Top queries live (redis EVALSHA…); N+1 API OK, 0 findings in 1h cap (needs `db.statement` + ≥10 repeats/trace)                            |
+| Runtime metrics                | Runtime tab                          | `otel_metrics_*` `go_*`/`process_*`                             | ✅     | **C** + aliases: `checkout-api→checkout` Go runtime live                                                                                  |
+| Custom metrics                 | Custom tab + Overview                | `otel_metrics_*`                                                | ✅     | Discovery + letter **E**: Overview auto-charts via CH SQL Scenes (`rate`/`p95`/`summary`/`gauge`); Explore deep-links CH SQL              |
+| GraphQL                        | GraphQL / Server tab                 | `otel_metrics_*` probes ∨ `otel_traces` `graphql.operation.*`   | ✅     | Plugin path live (`detected:false` + hint); needs app emitter (**16**)                                                                    |
+| Alerts / templates             | Alerts UI                            | Grafana UA + CH SQL                                             | ✅     | **27** + post-parity **B+C**: NEW + `regressing-exceptions` CH SQL; About callout / source badges                                         |
+| Scorecard                      | Scorecard                            | CH probes                                                       | ✅     | Logs+runtime via aliases; Jobs/Profiling; **F** v2: sourcemaps/DB/messaging                                                               | Temporal/structured-logs + data-driven N/A; GraphQL N/A |
+| Jobs                           | Jobs UI                              | KSM/Prom and/or `kube_*` in CH                                  | ✅     | **I** + **17**: `kube_cronjob_*` in CH (`namespace=demo`) via KSM + honor_labels                                                          |
+| Triage / watchlist / sourcemap | annotations / HTTP                   | N/A                                                             | ✅     |                                                                                                                                           |
+| Profiling                      | Profiling tab                        | Pyroscope DS                                                    | ✅     | **J** + **18**: local compose Pyroscope DS; plugin detects (`available:true`)                                                             |
+| Service identity aliases       | plugin `jsonData.serviceAliases`     | —                                                               | ✅     | **A** / **15** — example seeds: `checkout-api→checkout`, `billing-api→billing`, `storefront` (example + local provisioning)               |
 
 ---
 
 ## Live ClickHouse checks performed (MCP, not Grafana DS)
 
-| Check | Result |
-|-------|--------|
-| `traces.spanmetrics.calls` Attributes | `service.name`, `span.kind`, `span.name`, `status.code`, http.* |
-| Inventory SERVER aggregate | `ingress-gateway`, `checkout-api`, `billing-api` with calls/errors |
-| Duration | Prefer `traces.spanmetrics.duration` histogram; short windows often empty on traces-only p95 |
-| Service graph edges | client/server including checkout-api→postgres, storefront→ingress-gateway |
-| `hyperdx_sessions` multi-chunk concat | Valid rrweb type=2 + timestamp |
-| Browser Issues | `storefront` `SpanName=unhandledrejection` + `error.message`/`error.stack` + `Events.exception.*` + `rum.sessionId` (**20**) |
-| Server exception events | `checkout-api` `Events.Name=exception` (`exception.type`/`message`) |
-| Frontend `service.version` | ✅ DEV: `20260422164408-main` on `@hyperdx/otel-web` (**21**) |
-| Feedback RUM events | ✅ `SpanName=faro.feedback` after keep-browser-rum (**21** / #121) |
-| Runtime identity gap | spanmetrics `checkout-api` vs scrape `checkout` (**15**/ **06**) — aliases |
-| GraphQL / Jobs / Pyroscope | Jobs ✅ KSM; Pyroscope ✅ local; GraphQL plugin-ready (no live emitter) |
+| Check                                 | Result                                                                                                                       |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `traces.spanmetrics.calls` Attributes | `service.name`, `span.kind`, `span.name`, `status.code`, http.*                                                              |
+| Inventory SERVER aggregate            | `ingress-gateway`, `checkout-api`, `billing-api` with calls/errors                                                           |
+| Duration                              | Prefer `traces.spanmetrics.duration` histogram; short windows often empty on traces-only p95                                 |
+| Service graph edges                   | client/server including checkout-api→postgres, storefront→ingress-gateway                                                    |
+| `hyperdx_sessions` multi-chunk concat | Valid rrweb type=2 + timestamp                                                                                               |
+| Browser Issues                        | `storefront` `SpanName=unhandledrejection` + `error.message`/`error.stack` + `Events.exception.*` + `rum.sessionId` (**20**) |
+| Server exception events               | `checkout-api` `Events.Name=exception` (`exception.type`/`message`)                                                          |
+| Frontend `service.version`            | ✅ DEV: `1.2.3-main` on `@hyperdx/otel-web` (**21**)                                                                         |
+| Feedback RUM events                   | ✅ `SpanName=faro.feedback` after keep-browser-rum (**21** / #121)                                                           |
+| Runtime identity gap                  | spanmetrics `checkout-api` vs scrape `checkout` (**15**/ **06**) — aliases                                                   |
+| GraphQL / Jobs / Pyroscope            | Jobs ✅ KSM; Pyroscope ✅ local; GraphQL plugin-ready (no live emitter)                                                      |
 
 ---
 
@@ -80,23 +80,23 @@
 5. `CheckHealth` must report ClickHouse OK without requiring Tempo/Mimir.
 6. Restart Grafana after backend binary rebuild (`mise run deploy` / `backend:build`).
 
-Docs: [schema.md](schema.md), [session-replay.md](session-replay.md), [ADR 0003](../adr/0003-clickstack-query-contract.md), [configuration.md](../configuration.md).  
+Docs: [schema.md](schema.md), [session-replay.md](session-replay.md), [ADR 0003](../adr/0003-clickstack-query-contract.md), [configuration.md](../configuration.md).
 ---
 
 ## Remaining work (plan spine A→J)
 
-| Letter | Work | Enablement |
-|--------|------|------------|
-| A | ADR helpers + `serviceAliases` | ✅ aliases live |
-| B | Inventory polish | ✅ live Grafana DS (k8s ns prefer) |
-| C | Runtime + Custom | ✅ both live via aliases |
-| D | Alerts / Scorecard / DB / deps health | ✅ alerts + scorecard + deps/connected live |
-| E | Explore depth | ✅ traces/logs/patterns live via Grafana CH DS |
-| F | Issues + Sessions UX | ✅ sessions + Issues live |
-| G | Versions + Feedback | ✅ unit + DEV CH smoke (**21**) |
-| H | GraphQL | ✅ plugin path; live emitter optional (**16**) |
-| I | Jobs | ✅ Path A/B + live `kube_cronjob_*` (**17**) |
-| J | Profiling | ✅ plugin + local Pyroscope DS (**18**) |
+| Letter | Work                                  | Enablement                                     |
+| ------ | ------------------------------------- | ---------------------------------------------- |
+| A      | ADR helpers + `serviceAliases`        | ✅ aliases live                                |
+| B      | Inventory polish                      | ✅ live Grafana DS (k8s ns prefer)             |
+| C      | Runtime + Custom                      | ✅ both live via aliases                       |
+| D      | Alerts / Scorecard / DB / deps health | ✅ alerts + scorecard + deps/connected live    |
+| E      | Explore depth                         | ✅ traces/logs/patterns live via Grafana CH DS |
+| F      | Issues + Sessions UX                  | ✅ sessions + Issues live                      |
+| G      | Versions + Feedback                   | ✅ unit + DEV CH smoke (**21**)                |
+| H      | GraphQL                               | ✅ plugin path; live emitter optional (**16**) |
+| I      | Jobs                                  | ✅ Path A/B + live `kube_cronjob_*` (**17**)   |
+| J      | Profiling                             | ✅ plugin + local Pyroscope DS (**18**)        |
 
 Core spine A→J verified via Grafana ClickHouse datasource.
 
@@ -106,16 +106,17 @@ Core spine A→J verified via Grafana ClickHouse datasource.
 
 No new product scope beyond the post-parity hardening map.
 
-| Letter | Work | Status |
-|--------|------|--------|
-| **A** | Triage pagination + release-please `workflow_run` → `ci-ok` | ✅ [#5](https://github.com/Simplifi-ED/grafana-apm-app/pull/5) |
-| **B+C** | Alerts UX polish + NEW / `regressing-exceptions` (`defaults=`) | ✅ [#6](https://github.com/Simplifi-ED/grafana-apm-app/pull/6) |
-| **D** | In-plugin notify: Issues flags, New/Returned, attention strip, Alerts CTA | ✅ [#7](https://github.com/Simplifi-ED/grafana-apm-app/pull/7) |
-| **E** | Custom signals: CH-native Overview auto-charts | ✅ [#9](https://github.com/Simplifi-ED/grafana-apm-app/pull/9) |
-| **F** | Scorecard v2 depth (sourcemaps, DB, messaging/Temporal, structured-log, probes) | ✅ [#10](https://github.com/Simplifi-ED/grafana-apm-app/pull/10) |
+| Letter  | Work                                                                            | Status                                                           |
+| ------- | ------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| **A**   | Triage pagination + release-please `workflow_run` → `ci-ok`                     | ✅ [#5](https://github.com/Simplifi-ED/grafana-apm-app/pull/5)   |
+| **B+C** | Alerts UX polish + NEW / `regressing-exceptions` (`defaults=`)                  | ✅ [#6](https://github.com/Simplifi-ED/grafana-apm-app/pull/6)   |
+| **D**   | In-plugin notify: Issues flags, New/Returned, attention strip, Alerts CTA       | ✅ [#7](https://github.com/Simplifi-ED/grafana-apm-app/pull/7)   |
+| **E**   | Custom signals: CH-native Overview auto-charts                                  | ✅ [#9](https://github.com/Simplifi-ED/grafana-apm-app/pull/9)   |
+| **F**   | Scorecard v2 depth (sourcemaps, DB, messaging/Temporal, structured-log, probes) | ✅ [#10](https://github.com/Simplifi-ED/grafana-apm-app/pull/10) |
 
 **Closed / skipped:** CH OTel dual-emit “fix” — research (#01) found no ClickStack equivalent (Issues are traces-only); no product work.
 
 **Shipped after spine:**
+
 - UI polish: namespace issues-attention; localStorage scorecard N/A; optimistic skeletons
 - Deferred follow-on: `deployMarkers` scorecard check (Grafana annotations); namespace scorecard rollup (`GET /namespaces/{ns}/scorecard`); Frontend tab browser events / longtask panels (HyperDX UX spans beyond CWV)

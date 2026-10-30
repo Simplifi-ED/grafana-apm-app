@@ -1,0 +1,31 @@
+# Optional LGTM datasources for dual-mode / hybrid setups.
+# Copy to a gitignored *.local.yaml when pointing at your Prometheus/Tempo/Loki.
+
+apiVersion: 1
+
+datasources:
+  - name: Metrics
+    type: prometheus
+    uid: mimir
+    url: https://prometheus.example.com/prometheus
+    access: proxy
+    jsonData:
+      httpMethod: POST
+
+  - name: Tempo Dev
+    type: tempo
+    uid: tempo-dev
+    url: https://tempo-dev.example.com
+    access: proxy
+
+  - name: Tempo Prod
+    type: tempo
+    uid: tempo-prod
+    url: https://tempo-prod.example.com
+    access: proxy
+
+  - name: Loki
+    type: loki
+    uid: loki
+    url: https://loki.example.com
+    access: proxy

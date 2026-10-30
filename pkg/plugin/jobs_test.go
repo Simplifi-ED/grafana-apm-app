@@ -76,32 +76,32 @@ func TestQueryJobsClickHouse_MapsIntoAggregate(t *testing.T) {
 	rm := map[string][]queries.PromResult{
 		"cronjobInfo": {
 			pvSchedule(map[string]string{
-				ksmLabelCluster: "prod", ksmLabelNamespace: "prod-shop", ksmLabelCronjob: "gfs-backup-retention",
+				ksmLabelCluster: "prod", ksmLabelNamespace: "demo", ksmLabelCronjob: "nightly-backup",
 			}, "0 3 * * *"),
 		},
 		"jobOwner": {
 			pv(map[string]string{
-				ksmLabelCluster: "prod", ksmLabelNamespace: "prod-shop",
-				ksmLabelJobName: "gfs-backup-retention-1",
-				ksmLabelOwnerKind: ownerKindCronJob, ksmLabelOwnerName: "gfs-backup-retention",
+				ksmLabelCluster: "prod", ksmLabelNamespace: "demo",
+				ksmLabelJobName: "nightly-backup-1",
+				ksmLabelOwnerKind: ownerKindCronJob, ksmLabelOwnerName: "nightly-backup",
 			}, "1"),
 		},
 		"jobSucceeded": {
 			pv(map[string]string{
-				ksmLabelCluster: "prod", ksmLabelNamespace: "prod-shop",
-				ksmLabelJobName: "gfs-backup-retention-1",
+				ksmLabelCluster: "prod", ksmLabelNamespace: "demo",
+				ksmLabelJobName: "nightly-backup-1",
 			}, "1"),
 		},
 		"jobStart": {
 			pv(map[string]string{
-				ksmLabelCluster: "prod", ksmLabelNamespace: "prod-shop",
-				ksmLabelJobName: "gfs-backup-retention-1",
+				ksmLabelCluster: "prod", ksmLabelNamespace: "demo",
+				ksmLabelJobName: "nightly-backup-1",
 			}, "1000"),
 		},
 		"jobCompletion": {
 			pv(map[string]string{
-				ksmLabelCluster: "prod", ksmLabelNamespace: "prod-shop",
-				ksmLabelJobName: "gfs-backup-retention-1",
+				ksmLabelCluster: "prod", ksmLabelNamespace: "demo",
+				ksmLabelJobName: "nightly-backup-1",
 			}, "1060"),
 		},
 	}
@@ -109,7 +109,7 @@ func TestQueryJobsClickHouse_MapsIntoAggregate(t *testing.T) {
 	if !resp.Available {
 		t.Fatal("Available=false")
 	}
-	e := findJob(resp.Jobs, "gfs-backup-retention")
+	e := findJob(resp.Jobs, "nightly-backup")
 	if e == nil || e.Status != "ok" || e.LastRun == nil || e.LastRun.DurationSec != 60 {
 		t.Fatalf("%+v", e)
 	}

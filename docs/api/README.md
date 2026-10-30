@@ -17,14 +17,14 @@ docs link to.
 
 ## Endpoint groups
 
-| Group | Page | Endpoints |
-| --- | --- | --- |
-| Issues, exceptions & triage | [issues.md](./issues.md) | `/issues`, `/exceptions/groups`, `/triage`, `/triage/{fingerprint}`, `/triage/{fingerprint}/history` |
-| Frontend (Faro) | [frontend.md](./frontend.md) | `/frontend`, `/frontend/versions`, `/frontend/sessions`, `/feedback` |
-| Analytics | [analytics.md](./analytics.md) | `/logs/patterns`, `/traces/breakdown` |
-| Platform | [platform.md](./platform.md) | `/capabilities`, `/scorecard`, `/jobs`, `/service-map`, `/service-map/clustered` |
-| Alert templates | [alert-templates.md](./alert-templates.md) | `/alert-templates/{kind}` |
-| Services, health & topology | [services.md](./services.md) | `/services`, `/health`, `/operations`, `/endpoints`, `/runtime`, plus experimental dependency/graphql endpoints |
+| Group                       | Page                                       | Endpoints                                                                                                       |
+| --------------------------- | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
+| Issues, exceptions & triage | [issues.md](./issues.md)                   | `/issues`, `/exceptions/groups`, `/triage`, `/triage/{fingerprint}`, `/triage/{fingerprint}/history`            |
+| Frontend (Faro)             | [frontend.md](./frontend.md)               | `/frontend`, `/frontend/versions`, `/frontend/sessions`, `/feedback`                                            |
+| Analytics                   | [analytics.md](./analytics.md)             | `/logs/patterns`, `/traces/breakdown`                                                                           |
+| Platform                    | [platform.md](./platform.md)               | `/capabilities`, `/scorecard`, `/jobs`, `/service-map`, `/service-map/clustered`                                |
+| Alert templates             | [alert-templates.md](./alert-templates.md) | `/alert-templates/{kind}`                                                                                       |
+| Services, health & topology | [services.md](./services.md)               | `/services`, `/health`, `/operations`, `/endpoints`, `/runtime`, plus experimental dependency/graphql endpoints |
 
 A machine-readable [OpenAPI 3.0 document](./openapi.yaml) covers the stable
 endpoints in full and the experimental ones at least by path/method. A Go test
@@ -142,7 +142,7 @@ Read `/issues` for a service using a Grafana service account token:
 ```bash
 curl -sf \
   -H "Authorization: Bearer $GRAFANA_SA_TOKEN" \
-  "$GRAFANA_URL/api/plugins/clickhouse-apm-app/resources/services/fager/min-side-arbeidsgiver/issues"
+  "$GRAFANA_URL/api/plugins/clickhouse-apm-app/resources/services/team-a/storefront/issues"
 ```
 
 A complete, runnable GitHub Actions gate that fails a deploy when new issue
@@ -152,21 +152,21 @@ fingerprints appear is in
 ## Stability contract
 
 Stability is enforced **socially** (PR review + a checklist), not by tooling.
-The route-walking test only guarantees that every route is *documented*, not
+The route-walking test only guarantees that every route is _documented_, not
 that its shape is frozen.
 
 ### Stable endpoints
 
 These have settled request/response shapes and a compatibility promise:
 
-| Endpoint | Notes |
-| --- | --- |
-| `GET /capabilities` | Datasource/feature detection. |
-| `GET /services/{namespace}/{service}/issues` | Merged browser + server issue list. |
-| `GET /services/{namespace}/{service}/exceptions/groups` | Fingerprint-grouped frontend exceptions. |
-| `GET /services/{namespace}/{service}/triage` | Folded triage state per fingerprint. |
-| `POST /services/{namespace}/{service}/triage/{fingerprint}` | Record a triage action. |
-| `GET /services/{namespace}/{service}/triage/{fingerprint}/history` | Triage event log. |
+| Endpoint                                                           | Notes                                    |
+| ------------------------------------------------------------------ | ---------------------------------------- |
+| `GET /capabilities`                                                | Datasource/feature detection.            |
+| `GET /services/{namespace}/{service}/issues`                       | Merged browser + server issue list.      |
+| `GET /services/{namespace}/{service}/exceptions/groups`            | Fingerprint-grouped frontend exceptions. |
+| `GET /services/{namespace}/{service}/triage`                       | Folded triage state per fingerprint.     |
+| `POST /services/{namespace}/{service}/triage/{fingerprint}`        | Record a triage action.                  |
+| `GET /services/{namespace}/{service}/triage/{fingerprint}/history` | Triage event log.                        |
 
 **The promise for stable endpoints:**
 

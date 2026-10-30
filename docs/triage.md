@@ -12,11 +12,11 @@ doubles as a full audit history.
 
 One org annotation per state change (no `dashboardUID`):
 
-| Field | Value |
-|---|---|
-| tags | `clickhouse-apm:triage`, `app:<namespace>/<service>`, `fp:<fingerprint>` |
-| text | `{"schema":1,"action":"resolve"\|"ignore"\|"unresolve"\|"assign","actor":"<login>","assignee":"…","resolvedInVersion":"…","note":"…"}` |
-| time | write timestamp (ms) |
+| Field | Value                                                                                                                                  |
+| ----- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| tags  | `clickhouse-apm:triage`, `app:<namespace>/<service>`, `fp:<fingerprint>`                                                               |
+| text  | `{"schema":1,"action":"resolve"\|"ignore"\|"unresolve"\|"assign","actor":"<login>","assignee":"…","resolvedInVersion":"…","note":"…"}` |
+| time  | write timestamp (ms)                                                                                                                   |
 
 State is folded **newest-event-wins** at read time, with status events
 (resolve/ignore/unresolve) and assign events folding independently —
@@ -68,7 +68,7 @@ service account lacks admin scope).
 
 `[annotations.api]` retention is org-wide, so keep-all also keeps every deploy
 marker forever — and those churn (one per deploy of every service) where triage
-events are sparse. The nais deploy sync therefore prunes them itself, once a
+events are sparse. The deploy sync therefore prunes them itself, once a
 day: `clickhouse-apm:deploy` markers older than 90 days are deleted **except** the
 newest per namespace, service and environment, which regression detection
 anchors on.

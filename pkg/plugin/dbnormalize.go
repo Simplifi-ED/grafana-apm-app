@@ -20,7 +20,7 @@ import (
 // driver emits `"?"` for values), verified live against prod Tempo 2026-07.
 // We normalize further regardless, because the parameterization is inconsistent
 // across languages/drivers and Redis keys arrive raw (a live probe showed
-// `GET pdl::medFamilie:<id>` — a raw, potentially-PII key).
+// `GET cache::userProfile:<id>` — a raw, potentially-PII key).
 
 const (
 	// maxStmtInput caps the raw statement length fed to the regex passes. Some

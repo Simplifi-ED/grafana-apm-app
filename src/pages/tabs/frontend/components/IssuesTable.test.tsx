@@ -276,7 +276,7 @@ describe('IssuesTable faceted search (M6)', () => {
           { value: 'Chrome', count: 200 },
           { value: 'Safari', count: 40 },
         ],
-        topPages: [{ value: 'https://tms-min-side.nav.no/', count: 77 }],
+        topPages: [{ value: 'https://app.example.com/', count: 77 }],
       },
     };
   }
@@ -295,7 +295,7 @@ describe('IssuesTable faceted search (M6)', () => {
     expect(within(browserSelect).getByText('Chrome (200)')).toBeInTheDocument();
 
     const pageSelect = screen.getByLabelText('Filter by page');
-    expect(within(pageSelect).getByText('https://tms-min-side.nav.no/ (77)')).toBeInTheDocument();
+    expect(within(pageSelect).getByText('https://app.example.com/ (77)')).toBeInTheDocument();
   });
 
   it('picking a version facet writes the URL param and refetches with the facet', async () => {

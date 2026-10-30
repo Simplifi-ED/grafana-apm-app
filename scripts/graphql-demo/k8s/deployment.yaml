@@ -4,7 +4,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: graphql-demo
-  namespace: prod-shop
+  namespace: demo
   labels:
     app.kubernetes.io/name: graphql-demo
     app.kubernetes.io/part-of: clickstack-apm-demo
@@ -29,7 +29,7 @@ spec:
             - name: SERVICE_NAME
               value: graphql-demo
             - name: SERVICE_NS
-              value: prod-shop
+              value: demo
             - name: ENVIRONMENT
               value: prod
             - name: INTERVAL_SEC

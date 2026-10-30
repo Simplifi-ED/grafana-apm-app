@@ -125,9 +125,9 @@ func inferFromName(name string) string {
 // Heuristic:
 //   - 1 part (no dots): internal K8s service name
 //   - 2 parts: check if the second part is a known TLD (.no, .com, .io, etc.)
-//     If yes → external (e.g., "idporten.no"). If no → internal K8s (e.g.,
-//     "sokos-kontoregister-person.okonomi" where "okonomi" is a namespace).
-//   - 3+ parts: external (e.g., "graph.microsoft.com", "pdl-api.prod-fss-pub.nais.io")
+//     If yes → external (e.g., "auth.example.com"). If no → internal K8s (e.g.,
+//     "ledger-person.finance" where "finance" is a namespace).
+//   - 3+ parts: external (e.g., "graph.microsoft.com", "checkout-api.prod.example.com")
 func isExternalHostname(name string) bool {
 	// host:port with dots in the host part → check the host
 	if strings.Contains(name, ":") {
@@ -151,7 +151,7 @@ func isExternalHostname(name string) bool {
 }
 
 // isKnownTLD returns true if the suffix matches a recognized top-level domain.
-// This distinguishes "idporten.no" (external) from "norg2.org-namespace" (K8s).
+// This distinguishes "auth.example.com" (external) from "mysvc.org-namespace" (K8s).
 func isKnownTLD(suffix string) bool {
 	switch strings.ToLower(suffix) {
 	case "com", "org", "net", "io", "no", "se", "dk", "fi", "uk", "de", "fr",
@@ -182,12 +182,12 @@ func isKnownBrokerName(name string) bool {
 // normalizeServiceName strips K8s FQDN suffixes to produce a short service name.
 // Examples:
 //
-//	"pdl-tilgangsstyring.pdl.svc.nais.local" → "pdl-tilgangsstyring"
-//	"pdl-tilgangsstyring.pdl.svc.cluster.local" → "pdl-tilgangsstyring"
-//	"pdl-tilgangsstyring.pdl.svc" → "pdl-tilgangsstyring"
-//	"pdl-tilgangsstyring.pdl" → "pdl-tilgangsstyring" (namespace-qualified)
+//	"access-api.checkout.svc.cluster.local" → "access-api"
+//	"access-api.checkout.svc.cluster.local" → "access-api"
+//	"access-api.checkout.svc" → "access-api"
+//	"access-api.checkout" → "access-api" (namespace-qualified)
 //	"vault.adeo.no" → "vault.adeo.no" (external, unchanged)
-//	"pdl-tilgangsstyring" → "pdl-tilgangsstyring" (already short)
+//	"access-api" → "access-api" (already short)
 func normalizeServiceName(name string) string {
 	// Strip port if present
 	host := name

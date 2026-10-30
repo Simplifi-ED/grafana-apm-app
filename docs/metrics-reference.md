@@ -89,12 +89,10 @@ converts traces into RED (Rate, Error, Duration) metrics.
 ```yaml
 connectors:
   spanmetrics:
-    namespace: traces.span.metrics        # → metric prefix "traces_span_metrics_"
+    namespace: traces.span.metrics # → metric prefix "traces_span_metrics_"
     histogram:
       explicit:
-        buckets:
-          [2ms, 4ms, 6ms, 8ms, 10ms, 50ms, 100ms, 200ms,
-           400ms, 800ms, 1s, 1.4s, 2s, 5s, 10s, 15s]
+        buckets: [2ms, 4ms, 6ms, 8ms, 10ms, 50ms, 100ms, 200ms, 400ms, 800ms, 1s, 1.4s, 2s, 5s, 10s, 15s]
     dimensions:
       - name: service.namespace
       - name: deployment.environment
@@ -133,10 +131,8 @@ produces topology metrics showing which services call which.
 ```yaml
 connectors:
   service_graph:
-  # "servicegraph:: in older versions of otel-collector"
-    latency_histogram_buckets:
-      [2ms, 4ms, 6ms, 8ms, 10ms, 50ms, 100ms, 200ms,
-       400ms, 800ms, 1s, 1.4s, 2s, 5s, 10s, 15s]
+    # "servicegraph:: in older versions of otel-collector"
+    latency_histogram_buckets: [2ms, 4ms, 6ms, 8ms, 10ms, 50ms, 100ms, 200ms, 400ms, 800ms, 1s, 1.4s, 2s, 5s, 10s, 15s]
     dimensions:
       - db.system
       - messaging.system
@@ -193,27 +189,27 @@ exist. This determines which features are enabled.
 
 The app probes the following metric names in order. **First match wins:**
 
-| Candidate | Namespace |
-|-----------|-----------|
+| Candidate                         | Namespace             |
+| --------------------------------- | --------------------- |
 | `traces_span_metrics_calls_total` | `traces_span_metrics` |
-| `traces_spanmetrics_calls_total` | `traces_spanmetrics` |
-| `spanmetrics_calls_total` | `spanmetrics` |
-| `calls_total` | *(bare)* |
+| `traces_spanmetrics_calls_total`  | `traces_spanmetrics`  |
+| `spanmetrics_calls_total`         | `spanmetrics`         |
+| `calls_total`                     | _(bare)_              |
 
 For each namespace, it then probes for the duration metric variant:
 
-| Candidate | Duration Unit |
-|-----------|--------------|
-| `{ns}_duration_milliseconds_bucket` | `ms` |
-| `{ns}_duration_seconds_bucket` | `s` |
-| `{ns}_latency_bucket` | `s` |
+| Candidate                           | Duration Unit |
+| ----------------------------------- | ------------- |
+| `{ns}_duration_milliseconds_bucket` | `ms`          |
+| `{ns}_duration_seconds_bucket`      | `s`           |
+| `{ns}_latency_bucket`               | `s`           |
 
 ### Service Graph Detection
 
-| Candidate | Prefix |
-|-----------|--------|
+| Candidate                            | Prefix                 |
+| ------------------------------------ | ---------------------- |
 | `traces_service_graph_request_total` | `traces_service_graph` |
-| `service_graph_request_total` | `service_graph` |
+| `service_graph_request_total`        | `service_graph`        |
 
 ### Manual Override
 
@@ -228,52 +224,52 @@ namespace and duration unit manually in the plugin configuration page.
 
 Given a detected namespace `{ns}` (e.g. `traces_span_metrics`):
 
-| Metric | Type | Description |
-|--------|------|-------------|
-| `{ns}_calls_total` | Counter | Total span count per service/operation |
-| `{ns}_duration_milliseconds_bucket` | Histogram | Span duration in milliseconds |
-| `{ns}_duration_seconds_bucket` | Histogram | Span duration in seconds (alternative) |
+| Metric                              | Type      | Description                            |
+| ----------------------------------- | --------- | -------------------------------------- |
+| `{ns}_calls_total`                  | Counter   | Total span count per service/operation |
+| `{ns}_duration_milliseconds_bucket` | Histogram | Span duration in milliseconds          |
+| `{ns}_duration_seconds_bucket`      | Histogram | Span duration in seconds (alternative) |
 
 ### Labels
 
 These are the Prometheus label names on span metrics after
 `resource_to_telemetry_conversion`:
 
-| Label | OTel Attribute | Description |
-|-------|---------------|-------------|
-| `service_name` | `service.name` | Service name |
-| `service_namespace` | `service.namespace` | Namespace / team |
-| `span_name` | — | Operation name (e.g. `GET /api/users`) |
-| `span_kind` | — | Span classification (see below) |
-| `status_code` | — | Span status (see below) |
-| `http_method` | `http.method` | HTTP method |
-| `http_route` | `http.route` | HTTP route pattern |
-| `http_response_status_code` | `http.status_code` | HTTP response code |
-| `rpc_service` | `rpc.service` | gRPC service name |
-| `rpc_method` | `rpc.method` | gRPC method name |
-| `db_system` | `db.system` | Database system (postgres, redis, etc.) |
-| `messaging_system` | `messaging.system` | Messaging system (kafka, etc.) |
-| `telemetry_sdk_language` | `telemetry.sdk.language` | SDK language (java, go, nodejs, etc.) |
-| `k8s_cluster_name` | `deployment.environment` | Deployment environment |
-| `le` | — | Histogram bucket boundary |
+| Label                       | OTel Attribute           | Description                             |
+| --------------------------- | ------------------------ | --------------------------------------- |
+| `service_name`              | `service.name`           | Service name                            |
+| `service_namespace`         | `service.namespace`      | Namespace / team                        |
+| `span_name`                 | —                        | Operation name (e.g. `GET /api/users`)  |
+| `span_kind`                 | —                        | Span classification (see below)         |
+| `status_code`               | —                        | Span status (see below)                 |
+| `http_method`               | `http.method`            | HTTP method                             |
+| `http_route`                | `http.route`             | HTTP route pattern                      |
+| `http_response_status_code` | `http.status_code`       | HTTP response code                      |
+| `rpc_service`               | `rpc.service`            | gRPC service name                       |
+| `rpc_method`                | `rpc.method`             | gRPC method name                        |
+| `db_system`                 | `db.system`              | Database system (postgres, redis, etc.) |
+| `messaging_system`          | `messaging.system`       | Messaging system (kafka, etc.)          |
+| `telemetry_sdk_language`    | `telemetry.sdk.language` | SDK language (java, go, nodejs, etc.)   |
+| `k8s_cluster_name`          | `deployment.environment` | Deployment environment                  |
+| `le`                        | —                        | Histogram bucket boundary               |
 
 ### Span Kind Values
 
-| Value | Meaning |
-|-------|---------|
-| `SPAN_KIND_SERVER` | Inbound request handler (HTTP server, gRPC server) |
-| `SPAN_KIND_CLIENT` | Outbound request (HTTP client, DB call, gRPC client) |
-| `SPAN_KIND_PRODUCER` | Message producer (Kafka, RabbitMQ) |
-| `SPAN_KIND_CONSUMER` | Message consumer |
-| `SPAN_KIND_INTERNAL` | Internal operation (no network) |
+| Value                | Meaning                                              |
+| -------------------- | ---------------------------------------------------- |
+| `SPAN_KIND_SERVER`   | Inbound request handler (HTTP server, gRPC server)   |
+| `SPAN_KIND_CLIENT`   | Outbound request (HTTP client, DB call, gRPC client) |
+| `SPAN_KIND_PRODUCER` | Message producer (Kafka, RabbitMQ)                   |
+| `SPAN_KIND_CONSUMER` | Message consumer                                     |
+| `SPAN_KIND_INTERNAL` | Internal operation (no network)                      |
 
 ### Status Code Values
 
-| Value | Meaning |
-|-------|---------|
-| `STATUS_CODE_ERROR` | Span completed with an error |
-| `STATUS_CODE_OK` | Span completed successfully (explicitly set) |
-| `STATUS_CODE_UNSET` | Status not set by instrumentation |
+| Value               | Meaning                                      |
+| ------------------- | -------------------------------------------- |
+| `STATUS_CODE_ERROR` | Span completed with an error                 |
+| `STATUS_CODE_OK`    | Span completed successfully (explicitly set) |
+| `STATUS_CODE_UNSET` | Status not set by instrumentation            |
 
 ### Dimensions (Collector)
 
@@ -282,15 +278,15 @@ become metric labels. The APM app needs **all** of the dimensions listed in
 the [collector configuration](#span-metrics-connector) to fully classify
 endpoints by protocol. Removing a dimension disables the corresponding feature:
 
-| Dimension | Required For |
-|-----------|-------------|
-| `http.method`, `http.route`, `http.status_code` | Backend tab (HTTP endpoints) |
-| `rpc.service`, `rpc.method` | Backend tab (gRPC endpoints) |
-| `db.system`, `db.operation` | Database tab |
-| `messaging.system`, `messaging.operation` | Backend tab (messaging endpoints) |
-| `peer.service` | Dependency detection |
-| `service.namespace` | Namespace filtering |
-| `deployment.environment` | Environment filtering |
+| Dimension                                       | Required For                      |
+| ----------------------------------------------- | --------------------------------- |
+| `http.method`, `http.route`, `http.status_code` | Backend tab (HTTP endpoints)      |
+| `rpc.service`, `rpc.method`                     | Backend tab (gRPC endpoints)      |
+| `db.system`, `db.operation`                     | Database tab                      |
+| `messaging.system`, `messaging.operation`       | Backend tab (messaging endpoints) |
+| `peer.service`                                  | Dependency detection              |
+| `service.namespace`                             | Namespace filtering               |
+| `deployment.environment`                        | Environment filtering             |
 
 ---
 
@@ -298,18 +294,18 @@ endpoints by protocol. Removing a dimension disables the corresponding feature:
 
 Given a detected prefix `{pfx}` (e.g. `traces_service_graph`):
 
-| Metric | Type | Description |
-|--------|------|-------------|
-| `{pfx}_request_total` | Counter | Requests between services |
-| `{pfx}_request_failed_total` | Counter | Failed requests between services |
-| `{pfx}_request_server_seconds_bucket` | Histogram | Server-side latency |
+| Metric                                | Type      | Description                      |
+| ------------------------------------- | --------- | -------------------------------- |
+| `{pfx}_request_total`                 | Counter   | Requests between services        |
+| `{pfx}_request_failed_total`          | Counter   | Failed requests between services |
+| `{pfx}_request_server_seconds_bucket` | Histogram | Server-side latency              |
 
 ### Labels
 
-| Label | Description |
-|-------|-------------|
-| `client` | Calling service name |
-| `server` | Called service name |
+| Label             | Description                            |
+| ----------------- | -------------------------------------- |
+| `client`          | Calling service name                   |
+| `server`          | Called service name                    |
 | `connection_type` | Connection type (e.g. database system) |
 
 These metrics power the **Service Map** page, **Callers** panel on the Overview tab,
@@ -321,13 +317,13 @@ and the **Dependencies** pages.
 
 The app classifies span metrics into protocol groups based on label presence:
 
-| Protocol | Detection Logic | Labels Used |
-|----------|----------------|-------------|
-| **HTTP** | `span_kind=SPAN_KIND_SERVER` (default) | `span_name`, `http_method`, `http_route` |
-| **gRPC** | `rpc_service!=""` | `rpc_service`, `rpc_method` |
-| **Database** | `db_system!=""` | `db_system`, `span_name` |
-| **Messaging** | `span_kind=~CONSUMER\|PRODUCER` | `messaging_system`, `span_name`, `span_kind` |
-| **Internal** | `span_kind=SPAN_KIND_INTERNAL` | `span_name` |
+| Protocol      | Detection Logic                        | Labels Used                                  |
+| ------------- | -------------------------------------- | -------------------------------------------- |
+| **HTTP**      | `span_kind=SPAN_KIND_SERVER` (default) | `span_name`, `http_method`, `http_route`     |
+| **gRPC**      | `rpc_service!=""`                      | `rpc_service`, `rpc_method`                  |
+| **Database**  | `db_system!=""`                        | `db_system`, `span_name`                     |
+| **Messaging** | `span_kind=~CONSUMER\|PRODUCER`        | `messaging_system`, `span_name`, `span_kind` |
+| **Internal**  | `span_kind=SPAN_KIND_INTERNAL`         | `span_name`                                  |
 
 Each group shows rate, error rate, and p50/p95/p99 duration per operation.
 
@@ -335,39 +331,39 @@ Each group shows rate, error rate, and p50/p95/p99 duration per operation.
 
 ## Resource Attributes
 
-| Attribute | Purpose | Required |
-|-----------|---------|----------|
-| `service.name` | Identifies each service | **Yes** |
-| `service.namespace` | Groups services by team/domain (maps to k8s namespace) | Recommended |
-| `deployment.environment` | Enables environment filtering | Recommended |
-| `telemetry.sdk.language` | Shows SDK language icon next to service names | Optional |
-| `http.route` | Produces clean operation names instead of raw URLs | Optional |
+| Attribute                | Purpose                                                | Required    |
+| ------------------------ | ------------------------------------------------------ | ----------- |
+| `service.name`           | Identifies each service                                | **Yes**     |
+| `service.namespace`      | Groups services by team/domain (maps to k8s namespace) | Recommended |
+| `deployment.environment` | Enables environment filtering                          | Recommended |
+| `telemetry.sdk.language` | Shows SDK language icon next to service names          | Optional    |
+| `http.route`             | Produces clean operation names instead of raw URLs     | Optional    |
 
 ### Span Metric Dimensions
 
 For full functionality, span metrics need these dimensions configured
 (applies to both Tempo metrics-generator and OTel Collector spanmetrics connector):
 
-| Dimension | Required For |
-|-----------|-------------|
-| `service.name` | Service identification |
-| `service.namespace` | Namespace/team grouping |
-| `deployment.environment` | Environment filtering |
-| `server.address` | External dependency detection (databases, APIs) |
-| `http.status_code` or `http.response.status_code` | Error breakdown |
-| `db.system` | Database type detection (postgres, redis, etc.) |
-| `db.name` | Database name in dependency view |
-| `messaging.system` | Messaging system detection (kafka, rabbitmq) |
-| `messaging.destination.name` | Topic/queue names |
+| Dimension                                         | Required For                                    |
+| ------------------------------------------------- | ----------------------------------------------- |
+| `service.name`                                    | Service identification                          |
+| `service.namespace`                               | Namespace/team grouping                         |
+| `deployment.environment`                          | Environment filtering                           |
+| `server.address`                                  | External dependency detection (databases, APIs) |
+| `http.status_code` or `http.response.status_code` | Error breakdown                                 |
+| `db.system`                                       | Database type detection (postgres, redis, etc.) |
+| `db.name`                                         | Database name in dependency view                |
+| `messaging.system`                                | Messaging system detection (kafka, rabbitmq)    |
+| `messaging.destination.name`                      | Topic/queue names                               |
 
 ### Service Graph Peer Attributes
 
-| Peer Attribute | Purpose |
-|----------------|---------|
-| `peer.service` | Identifies called service |
-| `db.name` | Database dependency naming |
-| `db.system` | Database type classification |
-| `messaging.destination.name` | Messaging dependency naming |
+| Peer Attribute               | Purpose                      |
+| ---------------------------- | ---------------------------- |
+| `peer.service`               | Identifies called service    |
+| `db.name`                    | Database dependency naming   |
+| `db.system`                  | Database type classification |
+| `messaging.destination.name` | Messaging dependency naming  |
 
 ---
 
@@ -380,16 +376,16 @@ The app supports two sources for browser telemetry, depending on your
 
 If Faro metrics are written to Mimir/Prometheus:
 
-| Metric | Type | Description |
-|--------|------|-------------|
-| `browser_web_vitals_lcp_milliseconds` | Gauge | Largest Contentful Paint |
-| `browser_web_vitals_fcp_milliseconds` | Gauge | First Contentful Paint |
-| `browser_web_vitals_cls` | Gauge | Cumulative Layout Shift |
-| `browser_web_vitals_inp_milliseconds` | Gauge | Interaction to Next Paint |
-| `browser_web_vitals_ttfb_milliseconds` | Gauge | Time to First Byte |
-| `browser_page_loads_total` | Counter | Total page loads |
-| `browser_errors_total` | Counter | Total browser errors |
-| `browser_page_load_duration_milliseconds_bucket` | Histogram | Page load duration |
+| Metric                                           | Type      | Description               |
+| ------------------------------------------------ | --------- | ------------------------- |
+| `browser_web_vitals_lcp_milliseconds`            | Gauge     | Largest Contentful Paint  |
+| `browser_web_vitals_fcp_milliseconds`            | Gauge     | First Contentful Paint    |
+| `browser_web_vitals_cls`                         | Gauge     | Cumulative Layout Shift   |
+| `browser_web_vitals_inp_milliseconds`            | Gauge     | Interaction to Next Paint |
+| `browser_web_vitals_ttfb_milliseconds`           | Gauge     | Time to First Byte        |
+| `browser_page_loads_total`                       | Counter   | Total page loads          |
+| `browser_errors_total`                           | Counter   | Total browser errors      |
+| `browser_page_load_duration_milliseconds_bucket` | Histogram | Page load duration        |
 
 **Labels:** `service_name`, `page_route`, `browser_name`
 
@@ -400,17 +396,17 @@ Grafana Alloy/Agent Faro receiver):
 
 **Stream selector:** `{service_name="X", kind="measurement"}`
 
-| Logfmt Field | Description |
-|-------------|-------------|
-| `type` | Entry type — `web-vitals` for Core Web Vitals |
-| `fcp` | First Contentful Paint value |
-| `lcp` | Largest Contentful Paint value |
-| `cls` | Cumulative Layout Shift value |
-| `inp` | Interaction to Next Paint value |
-| `ttfb` | Time to First Byte value |
+| Logfmt Field     | Description                                      |
+| ---------------- | ------------------------------------------------ |
+| `type`           | Entry type — `web-vitals` for Core Web Vitals    |
+| `fcp`            | First Contentful Paint value                     |
+| `lcp`            | Largest Contentful Paint value                   |
+| `cls`            | Cumulative Layout Shift value                    |
+| `inp`            | Interaction to Next Paint value                  |
+| `ttfb`           | Time to First Byte value                         |
 | `context_rating` | Performance rating (good/needs-improvement/poor) |
-| `browser_name` | Browser name |
-| `page_url` | Page URL |
+| `browser_name`   | Browser name                                     |
+| `page_url`       | Page URL                                         |
 
 **Stream kinds:** `measurement`, `exception`, `event`, `log`
 
@@ -424,88 +420,88 @@ for the `app_name` label in Loki.
 Runtime metrics come from **Prometheus scraping** of application metric
 endpoints, not from OTel span metrics. They use different labels:
 
-| Label | Description |
-|-------|-------------|
-| `app` | Application name (from Kubernetes pod label) |
-| `namespace` | Kubernetes namespace |
+| Label       | Description                                  |
+| ----------- | -------------------------------------------- |
+| `app`       | Application name (from Kubernetes pod label) |
+| `namespace` | Kubernetes namespace                         |
 
 > **Note:** These are `app`/`namespace` (scrape labels), not
 > `service_name`/`service_namespace` (OTel resource attributes).
 
 ### JVM (Java / Kotlin)
 
-| Metric | Type | Description |
-|--------|------|-------------|
-| `jvm_memory_used_bytes` | Gauge | Memory used (by `area`: heap, nonheap) |
-| `jvm_memory_max_bytes` | Gauge | Maximum memory |
-| `jvm_memory_committed_bytes` | Gauge | Committed memory |
-| `jvm_gc_duration_seconds` | Histogram | GC pause duration |
-| `jvm_gc_overhead` | Gauge | GC overhead ratio (0–1) |
-| `jvm_threads_live_threads` | Gauge | Live thread count |
-| `jvm_threads_daemon_threads` | Gauge | Daemon thread count |
-| `jvm_threads_peak_threads` | Gauge | Peak thread count |
-| `jvm_threads_states_threads` | Gauge | Thread count by `state` |
-| `jvm_classes_loaded_classes` | Gauge | Loaded class count |
-| `jvm_cpu_recent_utilization_ratio` | Gauge | CPU utilization (0–1) |
-| `jvm_cpu_count` | Gauge | Available CPU cores |
-| `process_uptime_seconds` | Gauge | Process uptime |
-| `jvm_buffer_memory_used_bytes` | Gauge | Buffer pool memory used |
-| `jvm_buffer_total_capacity_bytes` | Gauge | Buffer pool capacity |
-| `jvm_info` | Info | Runtime version (labels: `runtime`, `version`) |
+| Metric                             | Type      | Description                                    |
+| ---------------------------------- | --------- | ---------------------------------------------- |
+| `jvm_memory_used_bytes`            | Gauge     | Memory used (by `area`: heap, nonheap)         |
+| `jvm_memory_max_bytes`             | Gauge     | Maximum memory                                 |
+| `jvm_memory_committed_bytes`       | Gauge     | Committed memory                               |
+| `jvm_gc_duration_seconds`          | Histogram | GC pause duration                              |
+| `jvm_gc_overhead`                  | Gauge     | GC overhead ratio (0–1)                        |
+| `jvm_threads_live_threads`         | Gauge     | Live thread count                              |
+| `jvm_threads_daemon_threads`       | Gauge     | Daemon thread count                            |
+| `jvm_threads_peak_threads`         | Gauge     | Peak thread count                              |
+| `jvm_threads_states_threads`       | Gauge     | Thread count by `state`                        |
+| `jvm_classes_loaded_classes`       | Gauge     | Loaded class count                             |
+| `jvm_cpu_recent_utilization_ratio` | Gauge     | CPU utilization (0–1)                          |
+| `jvm_cpu_count`                    | Gauge     | Available CPU cores                            |
+| `process_uptime_seconds`           | Gauge     | Process uptime                                 |
+| `jvm_buffer_memory_used_bytes`     | Gauge     | Buffer pool memory used                        |
+| `jvm_buffer_total_capacity_bytes`  | Gauge     | Buffer pool capacity                           |
+| `jvm_info`                         | Info      | Runtime version (labels: `runtime`, `version`) |
 
 **Additional labels:** `area` (heap/nonheap), `gc` (collector name), `id`
 (memory pool), `state` (thread state: runnable, blocked, waiting, etc.)
 
 ### Node.js
 
-| Metric | Type | Description |
-|--------|------|-------------|
-| `nodejs_eventloop_delay_p99_seconds` | Gauge | Event loop delay P99 |
-| `nodejs_eventloop_delay_p90_seconds` | Gauge | Event loop delay P90 |
-| `nodejs_eventloop_delay_p50_seconds` | Gauge | Event loop delay P50 |
-| `nodejs_eventloop_delay_mean_seconds` | Gauge | Event loop mean delay |
-| `nodejs_eventloop_utilization_ratio` | Gauge | Event loop utilization (0–1) |
-| `nodejs_heap_size_used_bytes` | Gauge | V8 heap used |
-| `nodejs_heap_size_total_bytes` | Gauge | V8 heap total |
-| `nodejs_external_memory_bytes` | Gauge | External (C++) memory |
-| `process_resident_memory_bytes` | Gauge | Resident set size (RSS) |
-| `nodejs_gc_duration_seconds` | Histogram | GC duration (by `kind`) |
-| `nodejs_active_handles` | Gauge | Active libuv handles |
-| `nodejs_active_requests` | Gauge | Active libuv requests |
-| `process_cpu_seconds_total` | Counter | CPU time consumed |
-| `process_open_fds` | Gauge | Open file descriptors |
-| `process_max_fds` | Gauge | Max file descriptors |
-| `nodejs_version_info` | Info | Node.js version (label: `version`) |
+| Metric                                | Type      | Description                        |
+| ------------------------------------- | --------- | ---------------------------------- |
+| `nodejs_eventloop_delay_p99_seconds`  | Gauge     | Event loop delay P99               |
+| `nodejs_eventloop_delay_p90_seconds`  | Gauge     | Event loop delay P90               |
+| `nodejs_eventloop_delay_p50_seconds`  | Gauge     | Event loop delay P50               |
+| `nodejs_eventloop_delay_mean_seconds` | Gauge     | Event loop mean delay              |
+| `nodejs_eventloop_utilization_ratio`  | Gauge     | Event loop utilization (0–1)       |
+| `nodejs_heap_size_used_bytes`         | Gauge     | V8 heap used                       |
+| `nodejs_heap_size_total_bytes`        | Gauge     | V8 heap total                      |
+| `nodejs_external_memory_bytes`        | Gauge     | External (C++) memory              |
+| `process_resident_memory_bytes`       | Gauge     | Resident set size (RSS)            |
+| `nodejs_gc_duration_seconds`          | Histogram | GC duration (by `kind`)            |
+| `nodejs_active_handles`               | Gauge     | Active libuv handles               |
+| `nodejs_active_requests`              | Gauge     | Active libuv requests              |
+| `process_cpu_seconds_total`           | Counter   | CPU time consumed                  |
+| `process_open_fds`                    | Gauge     | Open file descriptors              |
+| `process_max_fds`                     | Gauge     | Max file descriptors               |
+| `nodejs_version_info`                 | Info      | Node.js version (label: `version`) |
 
 **Additional labels:** `kind` (GC type: scavenge, mark_sweep_compact)
 
 ### Go
 
-| Metric | Type | Description |
-|--------|------|-------------|
-| `go_goroutines` | Gauge | Active goroutine count |
-| `go_threads` | Gauge | OS thread count |
-| `go_memstats_alloc_bytes` | Gauge | Allocated heap bytes |
-| `go_memstats_sys_bytes` | Gauge | Total memory from OS |
-| `go_gc_duration_seconds` | Summary | GC pause duration |
-| `go_info` | Info | Go version |
-| `process_cpu_seconds_total` | Counter | CPU time consumed |
-| `process_open_fds` | Gauge | Open file descriptors |
-| `process_max_fds` | Gauge | Max file descriptors |
+| Metric                      | Type    | Description            |
+| --------------------------- | ------- | ---------------------- |
+| `go_goroutines`             | Gauge   | Active goroutine count |
+| `go_threads`                | Gauge   | OS thread count        |
+| `go_memstats_alloc_bytes`   | Gauge   | Allocated heap bytes   |
+| `go_memstats_sys_bytes`     | Gauge   | Total memory from OS   |
+| `go_gc_duration_seconds`    | Summary | GC pause duration      |
+| `go_info`                   | Info    | Go version             |
+| `process_cpu_seconds_total` | Counter | CPU time consumed      |
+| `process_open_fds`          | Gauge   | Open file descriptors  |
+| `process_max_fds`           | Gauge   | Max file descriptors   |
 
 ### Container / Kubernetes
 
 Source: kubelet cAdvisor / kube-state-metrics
 
-| Metric | Type | Description |
-|--------|------|-------------|
-| `container_cpu_usage_seconds_total` | Counter | CPU time consumed |
-| `container_cpu_cfs_throttled_seconds_total` | Counter | CPU throttling |
-| `container_memory_usage_bytes` | Gauge | Memory usage |
-| `kube_pod_container_resource_requests` | Gauge | Resource requests (label: `resource`) |
-| `kube_pod_container_resource_limits` | Gauge | Resource limits (label: `resource`) |
-| `kube_pod_container_status_restarts_total` | Counter | Container restarts |
-| `kube_deployment_spec_replicas` | Gauge | Desired replica count |
+| Metric                                      | Type    | Description                           |
+| ------------------------------------------- | ------- | ------------------------------------- |
+| `container_cpu_usage_seconds_total`         | Counter | CPU time consumed                     |
+| `container_cpu_cfs_throttled_seconds_total` | Counter | CPU throttling                        |
+| `container_memory_usage_bytes`              | Gauge   | Memory usage                          |
+| `kube_pod_container_resource_requests`      | Gauge   | Resource requests (label: `resource`) |
+| `kube_pod_container_resource_limits`        | Gauge   | Resource limits (label: `resource`)   |
+| `kube_pod_container_status_restarts_total`  | Counter | Container restarts                    |
+| `kube_deployment_spec_replicas`             | Gauge   | Desired replica count                 |
 
 **Additional labels:** `container`, `namespace`, `pod`, `resource`
 
@@ -513,32 +509,32 @@ Source: kubelet cAdvisor / kube-state-metrics
 
 **HikariCP** (Spring Boot / Ktor):
 
-| Metric | Type | Description |
-|--------|------|-------------|
-| `hikaricp_connections_active` | Gauge | Active connections |
-| `hikaricp_connections_idle` | Gauge | Idle connections |
-| `hikaricp_connections_max` | Gauge | Maximum pool size |
-| `hikaricp_connections_pending` | Gauge | Threads waiting for a connection |
-| `hikaricp_connections_timeout_total` | Counter | Connection timeout count |
-| `hikaricp_connections_usage_seconds` | Histogram | Connection usage duration |
+| Metric                               | Type      | Description                      |
+| ------------------------------------ | --------- | -------------------------------- |
+| `hikaricp_connections_active`        | Gauge     | Active connections               |
+| `hikaricp_connections_idle`          | Gauge     | Idle connections                 |
+| `hikaricp_connections_max`           | Gauge     | Maximum pool size                |
+| `hikaricp_connections_pending`       | Gauge     | Threads waiting for a connection |
+| `hikaricp_connections_timeout_total` | Counter   | Connection timeout count         |
+| `hikaricp_connections_usage_seconds` | Histogram | Connection usage duration        |
 
 **OTel DB Client** (newer instrumentation):
 
-| Metric | Type | Description |
-|--------|------|-------------|
-| `db_client_connections_usage` | Gauge | Active connections |
+| Metric                           | Type  | Description              |
+| -------------------------------- | ----- | ------------------------ |
+| `db_client_connections_usage`    | Gauge | Active connections       |
 | `db_client_connections_idle_min` | Gauge | Minimum idle connections |
-| `db_client_connections_max` | Gauge | Maximum connections |
+| `db_client_connections_max`      | Gauge | Maximum connections      |
 
 **Additional labels:** `pool` (connection pool name)
 
 ### Kafka Client
 
-| Metric | Type | Description |
-|--------|------|-------------|
-| `kafka_consumer_records_lag_max` | Gauge | Maximum consumer lag |
-| `kafka_consumer_records_consumed_total` | Counter | Records consumed |
-| `kafka_producer_records_sent_total` | Counter | Records produced |
+| Metric                                  | Type    | Description          |
+| --------------------------------------- | ------- | -------------------- |
+| `kafka_consumer_records_lag_max`        | Gauge   | Maximum consumer lag |
+| `kafka_consumer_records_consumed_total` | Counter | Records consumed     |
+| `kafka_producer_records_sent_total`     | Counter | Records produced     |
 
 **Additional labels:** `topic`, `partition`, `client_id`, `consumer_group`
 
@@ -548,11 +544,11 @@ Source: kubelet cAdvisor / kube-state-metrics
 
 The app auto-detects GraphQL frameworks by probing for known metric patterns:
 
-| Framework | Count Metric | Duration Metric | Operation Label |
-|-----------|-------------|----------------|-----------------|
+| Framework         | Count Metric                    | Duration Metric               | Operation Label          |
+| ----------------- | ------------------------------- | ----------------------------- | ------------------------ |
 | **DGS** (Netflix) | `graphql_request_seconds_count` | `graphql_request_seconds_sum` | `graphql_operation_type` |
-| **MicroProfile** | `mp_graphql_seconds_count` | `mp_graphql_seconds_sum` | `name`, `type` |
-| Custom (varies) | `graphql_timer_seconds_count` | `graphql_timer_seconds_sum` | `queryName` |
+| **MicroProfile**  | `mp_graphql_seconds_count`      | `mp_graphql_seconds_sum`      | `name`, `type`           |
+| Custom (varies)   | `graphql_timer_seconds_count`   | `graphql_timer_seconds_sum`   | `queryName`              |
 
 DGS also exposes data-fetcher metrics: `graphql_datafetcher_seconds_count`
 and `graphql_datafetcher_seconds_sum`.
@@ -631,13 +627,13 @@ avg by (area) (
 
 The app detects application frameworks for display badges in the service inventory:
 
-| Framework | Badge | Detection Metric | When Present |
-|-----------|-------|-----------------|--------------|
-| **Ktor** | `Ktor` (purple) | `ktor_http_server_requests_seconds_count` | Ktor + Micrometer |
-| **Spring Boot** | `Spring` (green) | `application_started_time_seconds` | Spring Boot 3 + Micrometer |
-| | | `spring_security_filterchains_access_exceptions_after_total` | Spring Security |
-| **Node.js** | `Node.js` (orange) | `nodejs_version_info` | `prom-client` or OTel Node.js SDK |
-| **Go** | `Go` (blue) | `go_info` | Default Go Prometheus client |
+| Framework       | Badge              | Detection Metric                                             | When Present                      |
+| --------------- | ------------------ | ------------------------------------------------------------ | --------------------------------- |
+| **Ktor**        | `Ktor` (purple)    | `ktor_http_server_requests_seconds_count`                    | Ktor + Micrometer                 |
+| **Spring Boot** | `Spring` (green)   | `application_started_time_seconds`                           | Spring Boot 3 + Micrometer        |
+|                 |                    | `spring_security_filterchains_access_exceptions_after_total` | Spring Security                   |
+| **Node.js**     | `Node.js` (orange) | `nodejs_version_info`                                        | `prom-client` or OTel Node.js SDK |
+| **Go**          | `Go` (blue)        | `go_info`                                                    | Default Go Prometheus client      |
 
 **Fallback:** when no metric probe matches, the inventory Type badge is derived
 from `telemetry.sdk.language` (spanmetrics / ClickStack resource attrs), e.g.
@@ -663,19 +659,19 @@ browse traces scoped to a specific service.
 
 **Resource attributes used in TraceQL filters:**
 
-| Attribute Path | Purpose |
-|---------------|---------|
-| `resource.service.name` | Filter traces to a specific service |
-| `resource.service.namespace` | Filter traces to a namespace |
+| Attribute Path               | Purpose                             |
+| ---------------------------- | ----------------------------------- |
+| `resource.service.name`      | Filter traces to a specific service |
+| `resource.service.namespace` | Filter traces to a namespace        |
 
 **Span attributes used in TraceQL filters:**
 
-| Attribute | Purpose |
-|-----------|---------|
-| `name` | Span operation name |
-| `status` | Span status (`error`, `ok`) |
-| `duration` | Span duration |
-| `span.http.route` | HTTP route pattern |
+| Attribute         | Purpose                     |
+| ----------------- | --------------------------- |
+| `name`            | Span operation name         |
+| `status`          | Span status (`error`, `ok`) |
+| `duration`        | Span duration               |
+| `span.http.route` | HTTP route pattern          |
 
 Example generated TraceQL:
 
@@ -692,11 +688,11 @@ scoped to a service.
 
 **Stream selectors:**
 
-| Label | Purpose |
-|-------|---------|
-| `service_name` | Filter logs to a service |
-| `service_namespace` | Filter logs to a namespace |
-| `level` | Log severity (error, warn, info, debug) |
+| Label               | Purpose                                 |
+| ------------------- | --------------------------------------- |
+| `service_name`      | Filter logs to a service                |
+| `service_namespace` | Filter logs to a namespace              |
+| `level`             | Log severity (error, warn, info, debug) |
 
 **Log extraction pipeline:**
 

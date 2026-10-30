@@ -1,0 +1,18 @@
+# Optional LGTM dual-mode plugin config — use with cloud-lgmt.yaml.example datasources.
+
+apiVersion: 1
+
+apps:
+  - type: 'clickhouse-apm-app'
+    org_id: 1
+    disabled: false
+    jsonData:
+      metricsDataSource:
+        uid: mimir
+        type: prometheus
+      tracesDataSource:
+        uid: tempo-prod
+        type: tempo
+      logsDataSource:
+        uid: loki
+        type: loki

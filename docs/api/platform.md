@@ -8,6 +8,7 @@ readiness scorecard, jobs/cronjobs, and the service-map topology.
 Base: `{GRAFANA_URL}/api/plugins/clickhouse-apm-app/resources`.
 
 Contents:
+
 - [`GET /capabilities`](#get-capabilities) — stable
 - [`GET /scorecard`](#get-scorecard)
 - [`GET /jobs`](#get-jobs)
@@ -16,7 +17,7 @@ Contents:
 
 ---
 
-## `GET /capabilities`  (stable)
+## `GET /capabilities` (stable)
 
 `GET /capabilities`
 
@@ -36,17 +37,17 @@ org-scoped, and it does **not** emit an `X-Cache` header.
 
 ### Response — `Capabilities`
 
-| Field | Type | Description |
-| --- | --- | --- |
-| `spanMetrics` | object | `{ detected, namespace?, callsMetric?, durationMetric?, durationUnit? }`. |
-| `serviceGraph` | object | `{ detected, prefix? }`. |
-| `tempo` | object | `{ available, error? }`. |
-| `loki` | object | `{ available, error? }`. |
-| `pyroscope` | object | `{ available, uid? }`. Prefers `jsonData.pyroscopeDataSource.uid` when set; else first Pyroscope/Phlare DS. Profiling tab always visible — empty hint when `available` is false. |
-| `services` | array&lt;string&gt; | Discovered service names. |
-| `environments` | array&lt;string&gt;? | Discovered environment values. |
-| `tempoByEnv` | object? | Per-environment Tempo status. |
-| `lokiByEnv` | object? | Per-environment Loki status. |
+| Field          | Type                 | Description                                                                                                                                                                      |
+| -------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `spanMetrics`  | object               | `{ detected, namespace?, callsMetric?, durationMetric?, durationUnit? }`.                                                                                                        |
+| `serviceGraph` | object               | `{ detected, prefix? }`.                                                                                                                                                         |
+| `tempo`        | object               | `{ available, error? }`.                                                                                                                                                         |
+| `loki`         | object               | `{ available, error? }`.                                                                                                                                                         |
+| `pyroscope`    | object               | `{ available, uid? }`. Prefers `jsonData.pyroscopeDataSource.uid` when set; else first Pyroscope/Phlare DS. Profiling tab always visible — empty hint when `available` is false. |
+| `services`     | array&lt;string&gt;  | Discovered service names.                                                                                                                                                        |
+| `environments` | array&lt;string&gt;? | Discovered environment values.                                                                                                                                                   |
+| `tempoByEnv`   | object?              | Per-environment Tempo status.                                                                                                                                                    |
+| `lokiByEnv`    | object?              | Per-environment Loki status.                                                                                                                                                     |
 
 ### Example
 
@@ -66,7 +67,7 @@ curl -s ".../capabilities"
   "serviceGraph": { "detected": true, "prefix": "traces_service_graph" },
   "tempo": { "available": true },
   "loki": { "available": true },
-  "services": ["aareg-behandling", "abac-arena", "min-side-arbeidsgiver"]
+  "services": ["checkout-api", "billing-api", "storefront"]
 }
 ```
 
@@ -86,8 +87,8 @@ An observability-readiness scorecard for a service. Score is
 
 ### Response — `ScorecardResponse`
 
-| Field | Type | Description |
-| --- | --- | --- |
+| Field       | Type   | Description                                           |
+| ----------- | ------ | ----------------------------------------------------- |
 | `readiness` | object | `{ score int, total int, checks: [ScorecardCheck] }`. |
 
 **ScorecardCheck**: `key`, `label`, `ok`, `hint`, optional `notApplicable`.
@@ -117,7 +118,7 @@ Namespace rollup: `GET /namespaces/{namespace}/scorecard` sums per-service
 ### Example
 
 ```bash
-curl -s ".../services/fager/min-side-arbeidsgiver/scorecard"
+curl -s ".../services/team-a/storefront/scorecard"
 ```
 
 ```json
@@ -128,7 +129,13 @@ curl -s ".../services/fager/min-side-arbeidsgiver/scorecard"
     "checks": [
       { "key": "spanMetrics", "label": "Span metrics (RED)", "ok": true, "hint": "Enable auto-instrumentation..." },
       { "key": "traces", "label": "Traces", "ok": true, "hint": "Export OTLP traces..." },
-      { "key": "database", "label": "Database usage", "ok": false, "hint": "Not applicable — no db.system client spans.", "notApplicable": true }
+      {
+        "key": "database",
+        "label": "Database usage",
+        "ok": false,
+        "hint": "Not applicable — no db.system client spans.",
+        "notApplicable": true
+      }
     ]
   }
 }
@@ -144,21 +151,21 @@ Kubernetes Job/CronJob status across the fleet, derived from kube-state-metrics.
 
 ### Parameters
 
-| Name | Sanitization / default | Meaning |
-| --- | --- | --- |
-| `namespace` | `MustSanitizeLabel`; empty = all namespaces | Scope to a namespace. |
-| `from` / `to` | epoch seconds, standard defaults | Only `to` (the snapshot instant) is used; the range scopes the cache key. |
+| Name          | Sanitization / default                      | Meaning                                                                   |
+| ------------- | ------------------------------------------- | ------------------------------------------------------------------------- |
+| `namespace`   | `MustSanitizeLabel`; empty = all namespaces | Scope to a namespace.                                                     |
+| `from` / `to` | epoch seconds, standard defaults            | Only `to` (the snapshot instant) is used; the range scopes the cache key. |
 
 Cached 30 s. Returns `503 metrics datasource not configured` if no metrics
 datasource is set.
 
 ### Response — `JobsResponse`
 
-| Field | Type | Description |
-| --- | --- | --- |
-| `available` | bool | `false` when KSM job metrics are absent. |
-| `jobs` | array&lt;JobEntry&gt; | Job/cronjob rows. |
-| `note` | string? | Explanation when unavailable. |
+| Field       | Type                  | Description                              |
+| ----------- | --------------------- | ---------------------------------------- |
+| `available` | bool                  | `false` when KSM job metrics are absent. |
+| `jobs`      | array&lt;JobEntry&gt; | Job/cronjob rows.                        |
+| `note`      | string?               | Explanation when unavailable.            |
 
 **JobEntry**: `name`, `namespace`, `cluster`, `kind` (`CronJob`/`Job`),
 `schedule?`, `timezone?`, `lastRun?` (`{outcome, startMs?, completionMs?,
@@ -202,14 +209,14 @@ A node/edge topology graph, either for the whole fleet or focused on one service
 
 ### Parameters
 
-| Name | Sanitization / default | Meaning |
-| --- | --- | --- |
-| `service` | `MustSanitizeLabel` | Focus node. |
-| `namespace` | `MustSanitizeLabel` | Focus namespace. |
-| `environment` | `parseEnvironment` | Environment filter. |
-| `from` / `to` | epoch seconds, standard defaults | Range. |
-| `depth` | int clamped to `[1,3]`, default 1 | BFS hops (only when `depth>1` and `service` set). |
-| `debug` | `=="1"` bypasses cache | Returns multi-hop debug output when combined with `depth>1` + `service`. |
+| Name          | Sanitization / default            | Meaning                                                                  |
+| ------------- | --------------------------------- | ------------------------------------------------------------------------ |
+| `service`     | `MustSanitizeLabel`               | Focus node.                                                              |
+| `namespace`   | `MustSanitizeLabel`               | Focus namespace.                                                         |
+| `environment` | `parseEnvironment`                | Environment filter.                                                      |
+| `from` / `to` | epoch seconds, standard defaults  | Range.                                                                   |
+| `depth`       | int clamped to `[1,3]`, default 1 | BFS hops (only when `depth>1` and `service` set).                        |
+| `debug`       | `=="1"` bypasses cache            | Returns multi-hop debug output when combined with `depth>1` + `service`. |
 
 Cached 30 s (except `debug`).
 
@@ -228,16 +235,31 @@ Grafana's node-graph panel contract.
 ### Example
 
 ```bash
-curl -s ".../service-map?service=min-side-arbeidsgiver&namespace=fager&from=1783176000&to=1783180000"
+curl -s ".../service-map?service=storefront&namespace=team-a&from=1783176000&to=1783180000"
 ```
 
 ```json
 {
   "nodes": [
-    { "id": "tiltaksgjennomforing-api.prod-fss-pub.nais.io", "title": "tiltaksgjennomforing-api.prod-fss-pub.nais.io", "mainStat": "0.0 req/s", "secondaryStat": "0.0% errors", "arc__errors": 0, "arc__ok": 1, "nodeType": "service", "callerCount": 1, "errorRate": 0 }
+    {
+      "id": "orders-api.example.com",
+      "title": "orders-api.example.com",
+      "mainStat": "0.0 req/s",
+      "secondaryStat": "0.0% errors",
+      "arc__errors": 0,
+      "arc__ok": 1,
+      "nodeType": "service",
+      "callerCount": 1,
+      "errorRate": 0
+    }
   ],
   "edges": [
-    { "id": "min-side-arbeidsgiver->idporten.no", "source": "min-side-arbeidsgiver", "target": "idporten.no", "mainStat": "0.0 req/s" }
+    {
+      "id": "storefront->auth.example.com",
+      "source": "storefront",
+      "target": "auth.example.com",
+      "mainStat": "0.0 req/s"
+    }
   ]
 }
 ```
@@ -261,7 +283,19 @@ curl -s ".../service-map/clustered?from=1783176000&to=1783180000"
 ```json
 {
   "nodes": [
-    { "id": "teamarenanais", "title": "teamarenanais", "subtitle": "58 services", "mainStat": "0.1 req/s", "secondaryStat": "0.0% errors", "arc__errors": 0, "arc__ok": 1, "nodeType": "service", "callerCount": 2, "errorRate": 0, "serviceCount": 58 }
+    {
+      "id": "team-platform",
+      "title": "team-platform",
+      "subtitle": "58 services",
+      "mainStat": "0.1 req/s",
+      "secondaryStat": "0.0% errors",
+      "arc__errors": 0,
+      "arc__ok": 1,
+      "nodeType": "service",
+      "callerCount": 2,
+      "errorRate": 0,
+      "serviceCount": 58
+    }
   ],
   "edges": []
 }

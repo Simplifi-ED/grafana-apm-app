@@ -164,7 +164,7 @@ func TestHandleCustomMetrics(t *testing.T) {
 	t.Run("falls back to suffix heuristics when metadata is absent", func(t *testing.T) {
 		srv, _ := customMetricsMockServer(t, map[string][]queries.PromResult{
 			"group by (__name__)": nameResults(
-				"soknad_innsendt_total",
+				"orders_submitted_total",
 				"batch_duration_seconds_bucket",
 				"batch_duration_seconds_sum",
 				"batch_duration_seconds_count",
@@ -187,7 +187,7 @@ func TestHandleCustomMetrics(t *testing.T) {
 		if len(resp.Metrics) != 4 {
 			t.Fatalf("expected 4 families, got %d: %+v", len(resp.Metrics), resp.Metrics)
 		}
-		if m := byName["soknad_innsendt_total"]; m.Type != "counter" || m.Chart != "rate" {
+		if m := byName["orders_submitted_total"]; m.Type != "counter" || m.Chart != "rate" {
 			t.Errorf("_total heuristic failed: %+v", m)
 		}
 		if m := byName["batch_duration_seconds"]; m.Type != "histogram" || m.Chart != "p95" || m.Unit != "seconds" {

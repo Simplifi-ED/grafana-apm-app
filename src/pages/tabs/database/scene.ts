@@ -76,9 +76,9 @@ export function buildDbTracesExploreUrl(tracesUid: string, service: string, name
  *
  * Every expression here was executed against production Mimir (2026-07-04,
  * via POST /api/ds/query) for three reference services covering the three
- * major db systems: pdl/pdl-api (mongodb, ~112 calls/s), pensjon-person/
- * pensjon-representasjon (oracle, ~2 calls/s), teamforeldrepenger/
- * fpinntektsmelding (postgresql, ~8.6 calls/s). Rate, duration P95,
+ * major db systems: team-a/checkout-api (mongodb, ~112 calls/s), billing/
+ * billing-db-client (oracle, ~2 calls/s), hr/
+ * payroll-api (postgresql, ~8.6 calls/s). Rate, duration P95,
  * and (zero-filled) error panels all return data for all three.
  *
  * Queries-per-request-or-message ratio (per Database-tab redesign PRD, issue
@@ -95,7 +95,7 @@ export function buildDbTracesExploreUrl(tracesUid: string, service: string, name
  * panels. An absolute floor on the denominator (#132, INBOUND_FLOOR_RPS) drops
  * the series unless the inbound rate is above it — covering both services with
  * genuinely no inbound work (pure batch jobs, e.g.
- * aareg-mottak-opptjeningsgrunnlag/arbeidsforhold: no SERVER and no CONSUMER
+ * batch/ingest-job: no SERVER and no CONSUMER
  * spans, ~9/s db calls) and scheduler-driven ones whose trickle of inbound
  * traffic would otherwise inflate the ratio. A high value flags an N+1 pattern.
  *
@@ -194,7 +194,7 @@ export function buildDatabaseScene(params: BuildDatabaseSceneParams): EmbeddedSc
         // Zero-fill: services with no error samples in the window would
         // otherwise produce an empty result set and the panel would render
         // "No data" instead of a calm 0% line. Verified against production
-        // (pdl-api, pensjon-representasjon, fpinntektsmelding — all with real
+        // (checkout-api, billing-db-client, payroll-api — all with real
         // db traffic and zero errors): the plain ratio was empty for all
         // three, the `or ... * 0` form returns 0 per db_system.
         expr:
@@ -239,10 +239,10 @@ export function buildDatabaseScene(params: BuildDatabaseSceneParams): EmbeddedSc
   // current 0.1/s floor — ratios recomputed from the rounded rates shown, so
   // they differ slightly from the unrounded ones quoted in #132:
   //
-  //   pdl-api            60.8 db/s ÷ 34.6 inbound/s  = 1.76   → shown (genuine)
+  //   checkout-api            60.8 db/s ÷ 34.6 inbound/s  = 1.76   → shown (genuine)
   //   spenn              0.07 db/s ÷ 62 inbound/s    = 0.0011 → shown (Kafka)
   //   syfosmregister     0.56 db/s ÷ 0.058 inbound/s = 9.7    → no value
-  //   fpinntektsmelding  9.1 db/s ÷ 0.004 inbound/s  = 2275   → no value
+  //   payroll-api  9.1 db/s ÷ 0.004 inbound/s  = 2275   → no value
   //
   // The rejected alternative was a relative guard (`inbound > db_rate / N`,
   // #132 option 2): it is algebraically a ceiling on the displayed ratio, so it

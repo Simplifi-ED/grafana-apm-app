@@ -875,7 +875,7 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
               <Input
                 width={40}
                 value={alias.hostname}
-                placeholder="tilgangsmaskin.intern.nav.no"
+                placeholder="auth.internal.example.com"
                 onChange={onAliasChange(idx, 'hostname')}
               />
             </Field>
@@ -883,7 +883,7 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
               <Input
                 width={30}
                 value={alias.service}
-                placeholder="populasjonstilgangskontroll"
+                placeholder="access-control"
                 onChange={onAliasChange(idx, 'service')}
               />
             </Field>

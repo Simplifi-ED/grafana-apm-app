@@ -169,7 +169,7 @@ func TestFilterNoisyEndpoints(t *testing.T) {
 		},
 		{
 			name:     "filters _next nested under base path",
-			input:    []string{"GET /syk/sykepengesoknad/_next/data/abc123/page.json", "GET /api/real"},
+			input:    []string{"GET /app/claims/_next/data/abc123/page.json", "GET /api/real"},
 			expected: []string{"GET /api/real"},
 		},
 		{

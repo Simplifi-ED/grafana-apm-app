@@ -266,7 +266,7 @@ func promLabelFilterToCH(filter string) string {
 	return fmt.Sprintf("Attributes[%s] = %s", q(key), q(val))
 }
 
-// GraphQLPDLOpSQL rates a single pdl-style count/sum MetricName pair
+// GraphQLPDLOpSQL rates a single per-query-name count/sum MetricName pair
 // (graphql_{QueryName}_seconds_{count,sum}) with no operation label.
 func GraphQLPDLOpSQL(service, namespace, opName, countMetric, sumMetric string, from, to time.Time) string {
 	svc := ScrapeServiceFilter(service, namespace)

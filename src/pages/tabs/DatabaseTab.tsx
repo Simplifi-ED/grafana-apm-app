@@ -35,7 +35,7 @@ interface DatabaseTabProps {
  * runtime instrumentation, and connection-acquisition timing.
  *
  * Verified directly against production Mimir/Tempo (2026-07-04, via the local
- * Grafana instance proxying nav.cloud.nais.io datasources) rather than built
+ * Grafana instance proxying grafana.example.com datasources) rather than built
  * from the PRD's aspirational metric list in isolation:
  *  - `traces_spanmetrics_calls_total{db_system!=""}` carries real db_system,
  *    db_operation, server_address, span_kind=SPAN_KIND_CLIENT samples for
@@ -52,11 +52,11 @@ interface DatabaseTabProps {
  *
  * Reference services (every section exercised live via POST /api/ds/query and
  * the plugin's own /endpoints + /runtime resources):
- *  - pdl/pdl-api (mongodb): spans + 19 operations, NO pool metrics → variant 2.
- *  - pensjon-person/pensjon-representasjon (oracle): spans + 2 operations;
+ *  - team-a/checkout-api (mongodb): spans + 19 operations, NO pool metrics → variant 2.
+ *  - billing/billing-db-client (oracle): spans + 2 operations;
  *    Oracle UCP emits db_client_connections_max gauges but no HikariCP gauges
  *    and no wait/create histograms, so runtime.dbPool is null → variant 2.
- *  - teamforeldrepenger/fpinntektsmelding (postgresql): spans + HikariCP pool
+ *  - hr/payroll-api (postgresql): spans + HikariCP pool
  *    + wait/create histograms → all sections render.
  */
 export function DatabaseTab({
@@ -254,8 +254,8 @@ export function DatabaseTab({
 // so each variant only lists what is actually missing:
 //   1. Nothing detected      → full checklist (EmptyStateBody)
 //   2. Spans, no pool metrics → pool-specific note (MissingPoolMetricsNote)
-//      — e.g. pdl-api (MongoDB driver pools not instrumented) or
-//        pensjon-representasjon (Oracle UCP: db_client_connections_max gauges
+//      — e.g. checkout-api (MongoDB driver pools not instrumented) or
+//        billing-db-client (Oracle UCP: db_client_connections_max gauges
 //        exist but no HikariCP gauges and no wait/create-time histograms, so
 //        the backend's pool detection reports nothing).
 //   3. Pool metrics, no spans → span-specific note (MissingSpansNote)
@@ -264,8 +264,8 @@ export function DatabaseTab({
 /**
  * Full checklist shown when neither database spans nor pool metrics were
  * found. Each item corresponds 1:1 to what this tab queries; verified against
- * production 2026-07-04 (pdl-api/mongodb, pensjon-representasjon/oracle,
- * fpinntektsmelding/postgresql).
+ * production 2026-07-04 (checkout-api/mongodb, billing-db-client/oracle,
+ * payroll-api/postgresql).
  */
 function EmptyStateBody() {
   const styles = useStyles2(getStyles);

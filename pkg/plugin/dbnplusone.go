@@ -442,7 +442,7 @@ func parseNPlusOneResponse(body []byte) []nplusTrace {
 }
 
 // rootEndpointName labels the request a trace belongs to. Tempo's root span name
-// (e.g. "GET /oppgaveliste.jsf") is the endpoint; the root service name is only
+// (e.g. "GET /tasklist.jsf") is the endpoint; the root service name is only
 // prefixed when it differs from this service (a downstream-owned root). Falls
 // back gracefully when Tempo omitted the root metadata.
 func rootEndpointName(rootService, rootTrace string) string {

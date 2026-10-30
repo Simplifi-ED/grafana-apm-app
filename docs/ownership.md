@@ -8,12 +8,12 @@ Emit these on the workload (SDK `OTEL_RESOURCE_ATTRIBUTES`, collector `resource`
 k8s attributes processor). The plugin reads the latest non-empty values from
 ClickHouse `otel_traces.ResourceAttributes`.
 
-| Field   | Attribute              | Required for “owned” |
-|---------|------------------------|----------------------|
-| Team    | `owner.team`           | **Yes**              |
-| Contact | `owner.contact`        | No (Slack URL, `#channel`, or email) |
-| Repo    | `vcs.repository.url`   | No                   |
-| Runbook | `owner.runbook.url`    | No                   |
+| Field   | Attribute            | Required for “owned”                 |
+| ------- | -------------------- | ------------------------------------ |
+| Team    | `owner.team`         | **Yes**                              |
+| Contact | `owner.contact`      | No (Slack URL, `#channel`, or email) |
+| Repo    | `vcs.repository.url` | No                                   |
+| Runbook | `owner.runbook.url`  | No                                   |
 
 Ownership is **service-level** (not per environment).
 
@@ -27,7 +27,7 @@ processors:
         value: platform
         action: upsert
       - key: owner.contact
-        value: "https://slack.com/app_redirect?channel=platform"
+        value: 'https://slack.com/app_redirect?channel=platform'
         action: upsert
       - key: vcs.repository.url
         value: https://github.com/org/payments
@@ -47,10 +47,10 @@ export OTEL_RESOURCE_ATTRIBUTES="owner.team=platform,owner.contact=#platform,vcs
 
 When telemetry is not tagged yet, publish a Grafana annotation:
 
-| Tag | Value |
-|-----|--------|
-| `clickhouse-apm:owner` | (marker) |
-| `service:<name>` | inventory service name |
+| Tag                    | Value                  |
+| ---------------------- | ---------------------- |
+| `clickhouse-apm:owner` | (marker)               |
+| `service:<name>`       | inventory service name |
 
 Put the same keys in the annotation **text** as `key=value` lines (or tags
 `team:…`, `contact:…`, `repo:…`, `runbook:…`).
@@ -79,10 +79,10 @@ list still displays but is flagged `teamKnown: false`. Empty list = free text on
 
 ## States
 
-| State | Meaning |
-|-------|---------|
-| Owned | `owner.team` present from a winning source |
-| Unowned | no team — add `owner.team` (snippet above) |
-| Stale | owned, but telemetry last-seen past threshold |
-| Conflict | sources disagree; winner shown |
+| State      | Meaning                                         |
+| ---------- | ----------------------------------------------- |
+| Owned      | `owner.team` present from a winning source      |
+| Unowned    | no team — add `owner.team` (snippet above)      |
+| Stale      | owned, but telemetry last-seen past threshold   |
+| Conflict   | sources disagree; winner shown                  |
 | Unverified | claimed in UI with no telemetry match (post-v1) |

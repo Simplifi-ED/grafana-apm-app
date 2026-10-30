@@ -47,10 +47,10 @@ const exceptionLine =
   'stacktrace="at foo (bar.js:1:1)" session_id=sess-1 browser_name=Firefox browser_version=140 app_name=my-app';
 
 // Same shape as exceptionLine but with a minified frame (deep column offset on
-// a hashed cdn.nav.no bundle) — trips the #60 heuristic.
+// a hashed cdn.example.com bundle) — trips the #60 heuristic.
 const minifiedExceptionLine =
   'timestamp=2026-07-03T10:00:00Z kind=exception type=TypeError value="boom" hash=abc123 ' +
-  'stacktrace="at n (https://cdn.nav.no/team/app/1.2.3/assets/index-Bq7Za1.js:1:99213)" ' +
+  'stacktrace="at n (https://cdn.example.com/team/app/1.2.3/assets/index-Bq7Za1.js:1:99213)" ' +
   'session_id=sess-1 browser_name=Firefox browser_version=140 app_name=my-app';
 
 function minifiedFetchImpl(options: any) {

@@ -550,7 +550,7 @@ export function ExceptionDrawer({
                           icon="sync"
                           disabled={diagnosing || !scriptUrl}
                           onClick={runDiagnosis}
-                          tooltip={scriptUrl ? undefined : 'No cdn.nav.no bundle URL found in this stack'}
+                          tooltip={scriptUrl ? undefined : 'No cdn.example.com bundle URL found in this stack'}
                         >
                           {diagnosing ? 'Running diagnosis…' : 'Run diagnosis'}
                         </Button>
