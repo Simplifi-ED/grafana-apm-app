@@ -107,6 +107,8 @@ func inferFromName(name string) string {
 	switch {
 	case lower == "redis" || lower == "valkey":
 		return "redis"
+	case lower == "postgres" || lower == "postgresql":
+		return "postgresql"
 	case lower == "kafka":
 		return "kafka"
 	case strings.Contains(lower, "redis") || strings.Contains(lower, "valkey") ||

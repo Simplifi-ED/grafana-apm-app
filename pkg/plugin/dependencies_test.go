@@ -50,6 +50,8 @@ func TestClassifyDependency(t *testing.T) {
 		// no connection type — name inference
 		{"no conntype redis name", "redis", "", nil, nil, "redis"},
 		{"no conntype valkey name", "valkey", "", nil, nil, "redis"},
+		{"no conntype postgres name", "postgres", "", nil, nil, "postgresql"},
+		{"no conntype postgresql name", "postgresql", "", nil, nil, "postgresql"},
 		{"no conntype kafka name", "kafka", "", nil, nil, "kafka"},
 		{"no conntype aiven redis", "my-app-redis-01.aivencloud.com", "", nil, nil, "redis"},
 		{"no conntype unknown name", "some-service", "", nil, nil, "service"},
