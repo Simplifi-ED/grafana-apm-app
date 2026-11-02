@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.34.0](https://github.com/Simplifi-ED/omnivya-apm-app/compare/omnivya-apm-app-v0.33.0...omnivya-apm-app-v0.34.0) (2026-11-02)
+
+
+### Features
+
+* update ability to see postgres peers ([1154c23](https://github.com/Simplifi-ED/omnivya-apm-app/commit/1154c236007db86892ca8586ee63547780b828e5))
+
 ## [0.33.0](https://github.com/Simplifi-ED/omnivya-apm-app/compare/omnivya-apm-app-v0.32.0...omnivya-apm-app-v0.33.0) (2026-11-02)
 
 
