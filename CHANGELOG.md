@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.33.0](https://github.com/Simplifi-ED/omnivya-apm-app/compare/omnivya-apm-app-v0.32.0...omnivya-apm-app-v0.33.0) (2026-11-02)
+
+
+### Features
+
+* enhance ClickHouse datasource configuration and Explore integration ([5433635](https://github.com/Simplifi-ED/omnivya-apm-app/commit/5433635b97d0b42c01273861ca404b86ee81f8b9))
+* implement banner dismissal functionality for ownership coverage ([ac96618](https://github.com/Simplifi-ED/omnivya-apm-app/commit/ac9661874ebaee3f56ec59f4ecccd3dab6ea4395))
+
+
+### Bug Fixes
+
+* **deps:** bump minimatch for Dependabot alert [#40](https://github.com/Simplifi-ED/omnivya-apm-app/issues/40) ([00784f8](https://github.com/Simplifi-ED/omnivya-apm-app/commit/00784f8568c17afc047862f85c684d26fa9982c3))
+* **deps:** override minimatch 10.x to 11.0.4 for CVE-2026-118764 ([96d800c](https://github.com/Simplifi-ED/omnivya-apm-app/commit/96d800c021413b2d4e4e2e181d0bf2085276568a))
+* harden ClickStack sqlWhere, triage authz, and hot-path perf ([4f9eb4e](https://github.com/Simplifi-ED/omnivya-apm-app/commit/4f9eb4e0fbffa08b76fb374a9aa4d4a661765e3c))
+* port nais [#211](https://github.com/Simplifi-ED/omnivya-apm-app/issues/211) alert routing and severity labels ([dd04af8](https://github.com/Simplifi-ED/omnivya-apm-app/commit/dd04af8d7842c25d6f6223b5deef9b1f3e83eb6d))
+* port nais [#216](https://github.com/Simplifi-ED/omnivya-apm-app/issues/216) preselect team folder for alert rules ([c7fcae6](https://github.com/Simplifi-ED/omnivya-apm-app/commit/c7fcae6922ea5a1620aa43c26197f213913ae381))
+* split alert template builders to satisfy gocyclo ([d280ae2](https://github.com/Simplifi-ED/omnivya-apm-app/commit/d280ae26a5f80aaefd589f50b1a9c162dc07e10a))
+* **ui:** make logs/traces/feedback copy product-agnostic ([dd73dae](https://github.com/Simplifi-ED/omnivya-apm-app/commit/dd73daec35a2e8c843c6ae9daae48370162d2416))
+* **ui:** shorten Logs Drilldown tooltip ([5d1db9c](https://github.com/Simplifi-ED/omnivya-apm-app/commit/5d1db9c244110db658291c06344bf6e930fe3fa6))
+
+
+### Documentation
+
+* clarify faro.feedback is an app-emitted contract ([4f00d01](https://github.com/Simplifi-ED/omnivya-apm-app/commit/4f00d01d8086ed12c6a80b4d61686e5027c76286))
+* update security model and API documentation for triage and ops-watchlist writes ([11cdb1c](https://github.com/Simplifi-ED/omnivya-apm-app/commit/11cdb1ca60481bb9b9563e4b48b4c5b9a1483fa6))
+
 ## [0.32.0](https://github.com/Simplifi-ED/omnivya-apm-app/compare/omnivya-apm-app-v0.31.0...omnivya-apm-app-v0.32.0) (2026-11-02)
 
 
