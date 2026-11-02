@@ -35,52 +35,76 @@ func classifyDependency(name, connType string, dbSystemMap, messagingSystemMap m
 		return "external"
 	}
 
-	// No connection_type — check if we can still classify by name patterns
+	// No connection_type: prefer db_system label, else exact enum / peer-alias fallback.
 	if dbSys, ok := dbSystemMap[name]; ok {
 		return normalizeDBSystem(dbSys)
 	}
 	return inferFromName(name)
 }
 
-// normalizeDBSystem maps OTel db.system values to our display types.
+// normalizeDBSystem maps OTel db.system / db.system.name values to display types.
+// Unknown values become "database" (generic) — use knownDBSystemAlias when you need
+// to distinguish "recognized enum" from "unknown string".
 func normalizeDBSystem(dbSys string) string {
-	switch dbSys {
+	if typ, ok := knownDBSystemAlias(dbSys); ok {
+		return typ
+	}
+	return "database"
+}
+
+// knownDBSystemAlias reports whether name is an OTel db.system (or peer alias we
+// emit as peer.service for a DB). Exact match only — no hostname substrings.
+func knownDBSystemAlias(name string) (string, bool) {
+	switch strings.ToLower(strings.TrimSpace(name)) {
 	case "postgresql", "postgres":
-		return "postgresql"
+		return "postgresql", true
 	case "oracle":
-		return "oracle"
+		return "oracle", true
 	case "mongodb", "mongo":
-		return "mongodb"
-	case "redis":
-		return "redis"
+		return "mongodb", true
+	case "redis", "valkey": // valkey is a peer.service alias, not a db.system enum
+		return "redis", true
 	case "mysql", "mariadb":
-		return "mysql"
+		return "mysql", true
 	case "db2":
-		return "db2"
+		return "db2", true
 	case "opensearch", "elasticsearch":
-		return "opensearch"
+		return "opensearch", true
 	case "h2":
-		return "h2"
+		return "h2", true
 	case "other_sql":
-		return "database"
+		return "database", true
 	default:
-		return "database"
+		return "", false
 	}
 }
 
-// normalizeMessagingSystem maps OTel messaging.system values to our display types.
+// normalizeMessagingSystem maps OTel messaging.system values to display types.
 func normalizeMessagingSystem(msgSys string) string {
-	switch strings.ToLower(msgSys) {
+	if typ, ok := knownMessagingSystemAlias(msgSys); ok {
+		return typ
+	}
+	return "messaging"
+}
+
+// knownMessagingSystemAlias reports whether name is an OTel messaging.system enum
+// (or a well-known broker peer.service). Exact match only.
+func knownMessagingSystemAlias(name string) (string, bool) {
+	switch strings.ToLower(strings.TrimSpace(name)) {
 	case "kafka":
-		return "kafka"
+		return "kafka", true
 	case "rabbitmq":
-		return "rabbitmq"
+		return "rabbitmq", true
+	case "nats", "pulsar", "activemq", "jms":
+		return "messaging", true
 	default:
-		return "messaging"
+		return "", false
 	}
 }
 
-// inferDBFromHostname uses hostname patterns common at Nav.
+// inferDBFromHostname uses hostname patterns when connection_type is already
+// "database" but the db_system metric label is missing. Fleet-specific heuristics
+// (Nav RAC / a01db*) stay here — not in the no-connection_type path.
 func inferDBFromHostname(name string) string {
 	lower := strings.ToLower(name)
 	if strings.HasPrefix(lower, "dmv") && strings.Contains(lower, "-scan") {
@@ -101,24 +125,25 @@ func inferDBFromHostname(name string) string {
 	return "database"
 }
 
-// inferFromName classifies by name when no connection_type is available.
+// inferFromName is the last-resort classifier when connection_type is empty and
+// no db_system / messaging_system label is available for this peer.
+//
+// Prefer Tempo/OTel labels (connection_type, db_system, messaging_system) over
+// this path. Here we only accept exact OTel enum / peer aliases — never
+// substrings or hostname guesses (those belong in inferDBFromHostname when
+// connection_type is already "database").
 func inferFromName(name string) string {
 	lower := strings.ToLower(name)
-	switch {
-	case lower == "redis" || lower == "valkey":
-		return "redis"
-	case lower == "postgres" || lower == "postgresql":
-		return "postgresql"
-	case lower == "kafka":
-		return "kafka"
-	case strings.Contains(lower, "redis") || strings.Contains(lower, "valkey") ||
-		strings.HasSuffix(lower, ".aivencloud.com"):
-		return "redis"
-	case isExternalHostname(lower):
-		return "external"
-	default:
-		return "service"
+	if typ, ok := knownDBSystemAlias(lower); ok {
+		return typ
 	}
+	if typ, ok := knownMessagingSystemAlias(lower); ok {
+		return typ
+	}
+	if isExternalHostname(lower) {
+		return "external"
+	}
+	return "service"
 }
 
 // isExternalHostname returns true if the name looks like an external hostname
@@ -170,15 +195,15 @@ func looksLikeHostname(name string) bool {
 	return strings.Contains(name, ".") || strings.Contains(name, ":")
 }
 
-// isKnownBrokerName returns true if the name matches a well-known message broker
-// name that should appear as a dependency (e.g., "kafka", "rabbitmq").
+// isKnownBrokerName reports whether name is a bare broker peer that should stay
+// in the dependencies list under connection_type=messaging_system.
 func isKnownBrokerName(name string) bool {
-	lower := strings.ToLower(name)
-	switch lower {
-	case "kafka", "rabbitmq", "nats", "pulsar", "activemq", "redis":
+	switch strings.ToLower(strings.TrimSpace(name)) {
+	case "kafka", "rabbitmq", "nats", "pulsar", "activemq", "redis", "valkey":
 		return true
+	default:
+		return false
 	}
-	return false
 }
 
 // normalizeServiceName strips K8s FQDN suffixes to produce a short service name.

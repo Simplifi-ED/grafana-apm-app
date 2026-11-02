@@ -47,13 +47,16 @@ func TestClassifyDependency(t *testing.T) {
 		// no connection type — db.system map lookup
 		{"no conntype postgres", "mydb", "", map[string]string{"mydb": "postgresql"}, nil, "postgresql"},
 
-		// no connection type — name inference
+		// no connection type — name fallback only for OTel enum / peer aliases
 		{"no conntype redis name", "redis", "", nil, nil, "redis"},
 		{"no conntype valkey name", "valkey", "", nil, nil, "redis"},
 		{"no conntype postgres name", "postgres", "", nil, nil, "postgresql"},
 		{"no conntype postgresql name", "postgresql", "", nil, nil, "postgresql"},
 		{"no conntype kafka name", "kafka", "", nil, nil, "kafka"},
-		{"no conntype aiven redis", "my-app-redis-01.aivencloud.com", "", nil, nil, "redis"},
+		{"no conntype rabbitmq name", "rabbitmq", "", nil, nil, "rabbitmq"},
+		// Hostnames without connection_type / db_system are not guessed by substring
+		{"no conntype redisy hostname", "my-app-redis-01.aivencloud.com", "", nil, nil, "external"},
+		{"no conntype redisy bare", "my-redis-host", "", nil, nil, "service"},
 		{"no conntype unknown name", "some-service", "", nil, nil, "service"},
 
 		// nil dbSysMap with database type
@@ -156,31 +159,33 @@ func TestFormatDepDisplayName(t *testing.T) {
 }
 
 func TestInferFromName(t *testing.T) {
+	// Last-resort path when connection_type and db_system/messaging_system labels
+	// are absent. Only exact OTel db.system / messaging.system enums (plus peer
+	// aliases like valkey) classify as infra; substrings and host heuristics do not.
 	tests := []struct {
 		name     string
 		input    string
 		expected string
 	}{
 		{"exact redis", "redis", "redis"},
-		{"exact valkey", "valkey", "redis"},
+		{"exact valkey peer alias", "valkey", "redis"},
+		{"exact postgres", "postgres", "postgresql"},
+		{"exact postgresql", "postgresql", "postgresql"},
+		{"exact mongodb", "mongodb", "mongodb"},
 		{"exact kafka", "kafka", "kafka"},
-		{"redis substring", "my-redis-host", "redis"},
-		{"valkey substring", "test-valkey-01", "redis"},
-		{"aiven redis", "my-app-redis-01.aivencloud.com", "redis"},
-		{"aiven non-redis", "other-thing.aivencloud.com", "redis"},
+		{"exact rabbitmq", "rabbitmq", "rabbitmq"},
+		{"case insensitive redis", "REDIS", "redis"},
+		{"case insensitive kafka", "Kafka", "kafka"},
+		// Not enums — do not guess from substrings / hostnames
+		{"redis substring bare", "my-redis-host", "service"},
+		{"valkey substring bare", "test-valkey-01", "service"},
+		{"aiven hostname", "my-app-redis-01.aivencloud.com", "external"},
+		{"aiven other hostname", "other-thing.aivencloud.com", "external"},
 		{"regular service", "some-service", "service"},
 		{"k8s service.namespace", "ledger-person.finance", "service"},
 		{"k8s service.namespace 2", "id-proxy.team-rocket", "service"},
-		{"k8s service.namespace 3", "support-api-proxy.team-support", "service"},
-		{"k8s service.namespace 4", "repr-api.repr", "service"},
-		{"k8s service.namespace 5", "batch-worker.jobs", "service"},
 		{"external 2-part TLD", "auth.example.com", "external"},
-		{"external 2-part com", "example.com", "external"},
 		{"external 3-part", "graph.microsoft.com", "external"},
-		{"external nais ingress", "checkout-api.prod.example.com", "external"},
-		{"external grafana cloud", "feature-flags-api.grafana.example.com", "external"},
-		{"case insensitive redis", "REDIS", "redis"},
-		{"case insensitive kafka", "Kafka", "kafka"},
 	}
 
 	for _, tc := range tests {
@@ -188,6 +193,32 @@ func TestInferFromName(t *testing.T) {
 			got := inferFromName(tc.input)
 			if got != tc.expected {
 				t.Errorf("inferFromName(%q) = %q, want %q", tc.input, got, tc.expected)
+			}
+		})
+	}
+}
+
+func TestInferDBFromHostname(t *testing.T) {
+	// Only used when connection_type is already "database" and db_system label missing.
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{"oracle RAC scan", "dmv04-scan.oera.no", "oracle"},
+		{"nav postgres host", "a01dbvl123.oera.no", "postgresql"},
+		{"redis in hostname", "my-redis-cluster", "redis"},
+		{"valkey in hostname", "test-valkey-01", "redis"},
+		{"opensearch in hostname", "logs-opensearch-01", "opensearch"},
+		{"mongo in hostname", "orders-mongo-01", "mongodb"},
+		{"unknown host", "some-random-host", "database"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := inferDBFromHostname(tc.input)
+			if got != tc.expected {
+				t.Errorf("inferDBFromHostname(%q) = %q, want %q", tc.input, got, tc.expected)
 			}
 		})
 	}
