@@ -84,22 +84,21 @@ test.describe('smoke: app navigation', () => {
 
   test('Jobs and Service Map nav entries are reachable', async ({ gotoPage, page }) => {
     // Both are registered as plugin pages (plugin.json includes, addToNav:true).
-    // Depending on Grafana version they surface as sidebar links, nav tabs, or
-    // behind an "Expand section" toggle — assert each is reachable in some form.
+    // Grafana 12+ may collapse the plugin section — expand it first, then assert
+    // each entry by its own link/tab name (not the generic plugin heading).
     await gotoPage(`/${ROUTES.Services}`);
 
-    const jobsNav = page
-      .getByRole('link', { name: /Jobs/i })
-      .or(page.getByRole('tab', { name: /Jobs/i }))
-      .or(page.getByRole('button', { name: /Expand section.*Application Observability/i }))
-      .or(page.getByRole('heading', { name: /Application Observability/i }));
+    const expandSection = page.getByRole('button', { name: /Expand section.*Application Observability/i });
+    if (await expandSection.isVisible().catch(() => false)) {
+      await expandSection.click();
+    }
+
+    const jobsNav = page.getByRole('link', { name: /^Jobs$/i }).or(page.getByRole('tab', { name: /^Jobs$/i }));
     await expect(jobsNav.first()).toBeVisible({ timeout: 15_000 });
 
     const serviceMapNav = page
-      .getByRole('link', { name: /Service Map/i })
-      .or(page.getByRole('tab', { name: /Service Map/i }))
-      .or(page.getByRole('button', { name: /Expand section.*Application Observability/i }))
-      .or(page.getByRole('heading', { name: /Application Observability/i }));
+      .getByRole('link', { name: /^Service Map$/i })
+      .or(page.getByRole('tab', { name: /^Service Map$/i }));
     await expect(serviceMapNav.first()).toBeVisible({ timeout: 15_000 });
   });
 });

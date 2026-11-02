@@ -81,12 +81,16 @@ runs:
         #   curl -sf -X POST "$GRAFANA_URL/api/annotations" \
         #     -H "Authorization: Bearer $GRAFANA_SA_TOKEN" -H "Content-Type: application/json" \
         #     -d "{\"time\": $(date +%s000), \
-        #          \"tags\": [\"omnivya-apm:deploy\",\"service:myapp\",\"namespace:myteam\",\"env:prod\",\"version:${GITHUB_SHA}\"], \
+        #          \"tags\": [\"omnivya-apm:deploy\",\"clickhouse-apm:deploy\",\"service:myapp\",\"namespace:myteam\",\"env:prod\",\"version:${GITHUB_SHA}\"], \
         #          \"text\": \"Deployed myapp ${GITHUB_SHA:0:7} — ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}\"}"
         #
         # Same shape below, parameterized on the action's inputs and built
         # with jq so service/namespace/environment values are safely
         # JSON-escaped instead of hand-interpolated into a string.
+        #
+        # Dual-write omnivya-apm:deploy + clickhouse-apm:deploy during the
+        # plugin-id rename so old plugin replicas still match new markers.
+        # Remove tag_legacy_kind once no clickhouse-apm-app replicas remain.
 
         SHORT_SHA="${VERSION:0:7}"
         TIME_MS=$(( $(date +%s%N) / 1000000 ))
@@ -94,6 +98,7 @@ runs:
         BODY=$(jq -n \
           --argjson time "${TIME_MS}" \
           --arg tag_kind "omnivya-apm:deploy" \
+          --arg tag_legacy_kind "clickhouse-apm:deploy" \
           --arg tag_service "service:${SERVICE}" \
           --arg tag_namespace "namespace:${NAMESPACE}" \
           --arg tag_env "env:${ENVIRONMENT}" \
@@ -101,7 +106,7 @@ runs:
           --arg text "Deployed ${SERVICE} ${SHORT_SHA} — ${RUN_URL}" \
           '{
             time: $time,
-            tags: [$tag_kind, $tag_service, $tag_namespace, $tag_env, $tag_version],
+            tags: [$tag_kind, $tag_legacy_kind, $tag_service, $tag_namespace, $tag_env, $tag_version],
             text: $text
           }')
 

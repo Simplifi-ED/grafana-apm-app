@@ -63,22 +63,19 @@ export interface DeployAnnotationTarget {
 }
 
 export function buildDeployAnnotationsLayer(service: string, environment?: string): SceneDataLayerSet {
+  // Panel overlay queries the current tag only. CI dual-writes
+  // clickhouse-apm:deploy alongside omnivya-apm:deploy during rollout so new
+  // markers match this layer for both plugin generations. Pre-rename
+  // clickhouse-only markers are still read by the backend / alert drawer
+  // dual-query path — a second panel layer would duplicate dual-tagged
+  // annotations from the action.
   const tags = ['omnivya-apm:deploy', `service:${service}`];
   if (environment) {
     tags.push(`env:${environment}`);
   }
 
-  // Markers written before the plugin-id rename carry clickhouse-apm:deploy.
-  // Separate layer (AND tags) — do not dual-write both tags from CI or these
-  // two layers would show duplicate markers for the same annotation.
-  const legacyTags = ['clickhouse-apm:deploy', `service:${service}`];
-  if (environment) {
-    legacyTags.push(`env:${environment}`);
-  }
-
   // type `tags` fetches organization annotations matching ALL tags.
   const target: DeployAnnotationTarget = { type: 'tags', matchAny: false, tags, limit: 100 };
-  const legacyTarget: DeployAnnotationTarget = { type: 'tags', matchAny: false, tags: legacyTags, limit: 100 };
 
   return new SceneDataLayerSet({
     layers: [
@@ -90,16 +87,6 @@ export function buildDeployAnnotationsLayer(service: string, environment?: strin
           iconColor: 'green',
           datasource: { type: 'grafana', uid: '-- Grafana --' },
           target: target as unknown as DataQuery,
-        },
-      }),
-      new dataLayers.AnnotationsDataLayer({
-        name: 'Deploys (legacy)',
-        query: {
-          name: 'Deploys (legacy)',
-          enable: true,
-          iconColor: 'green',
-          datasource: { type: 'grafana', uid: '-- Grafana --' },
-          target: legacyTarget as unknown as DataQuery,
         },
       }),
     ],
