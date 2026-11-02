@@ -232,6 +232,9 @@ const getStyles = (theme: GrafanaTheme2) => ({
     display: flex;
     flex-direction: column;
     gap: ${theme.spacing(0.5)};
+    max-height: min(50vh, 320px);
+    overflow-y: auto;
+    padding-right: ${theme.spacing(0.5)};
   `,
   check: css`
     display: flex;

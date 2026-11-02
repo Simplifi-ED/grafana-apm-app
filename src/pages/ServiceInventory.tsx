@@ -103,6 +103,7 @@ function ServiceInventory() {
     [fromMs, toMs],
     { skip: !fetchResult }
   );
+  const [ownershipDismissed, setOwnershipDismissed] = useState(false);
 
   const services = useMemo(() => fetchResult?.services ?? [], [fetchResult]);
   const caps = fetchResult?.caps ?? null;
@@ -352,10 +353,11 @@ function ServiceInventory() {
           </Alert>
         )}
 
-        {fleetOwnership && fleetOwnership.total > 0 && (
+        {fleetOwnership && fleetOwnership.total > 0 && !ownershipDismissed && (
           <Alert
             severity={fleetOwnership.coverage < 1 ? 'info' : 'success'}
             title={`Ownership coverage ${Math.round(fleetOwnership.coverage * 100)}%`}
+            onRemove={() => setOwnershipDismissed(true)}
           >
             {fleetOwnership.owned}/{fleetOwnership.total} services have <code>owner.team</code>.
             {fleetOwnership.unowned.length > 0 && (
