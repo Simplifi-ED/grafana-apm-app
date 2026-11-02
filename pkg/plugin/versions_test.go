@@ -118,21 +118,33 @@ func TestQueryFrontendVersionsNoSessionsAtAll(t *testing.T) {
 }
 
 func TestQueryFrontendVersionsDeployEnrichment(t *testing.T) {
-	var gotQuery url.Values
+	var annQueries []url.Values
 	annSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api/annotations" {
 			http.NotFound(w, r)
 			return
 		}
-		gotQuery = r.URL.Query()
-		_ = json.NewEncoder(w).Encode([]grafanaAnnotation{
-			{Time: 2_000_000, Tags: []string{"omnivya-apm:deploy", "service:my-app", "version:bbbb222"}},
-			{Time: 1_000_000, Tags: []string{"omnivya-apm:deploy", "service:my-app", "version:aaaa111"}},
-			// Re-deploy of aaaa111: earliest marker wins for deployedAtMs.
-			{Time: 1_500_000, Tags: []string{"omnivya-apm:deploy", "service:my-app", "version:aaaa111"}},
-			// Annotation without a version tag is ignored.
-			{Time: 3_000_000, Tags: []string{"omnivya-apm:deploy", "service:my-app"}},
-		})
+		q := r.URL.Query()
+		annQueries = append(annQueries, q)
+		kind := ""
+		for _, tag := range q["tags"] {
+			if tag == "omnivya-apm:deploy" || tag == "clickhouse-apm:deploy" {
+				kind = tag
+				break
+			}
+		}
+		var anns []grafanaAnnotation
+		if kind == "omnivya-apm:deploy" {
+			anns = []grafanaAnnotation{
+				{Time: 2_000_000, Tags: []string{"omnivya-apm:deploy", "service:my-app", "version:bbbb222"}},
+				{Time: 1_000_000, Tags: []string{"omnivya-apm:deploy", "service:my-app", "version:aaaa111"}},
+				// Re-deploy of aaaa111: earliest marker wins for deployedAtMs.
+				{Time: 1_500_000, Tags: []string{"omnivya-apm:deploy", "service:my-app", "version:aaaa111"}},
+				// Annotation without a version tag is ignored.
+				{Time: 3_000_000, Tags: []string{"omnivya-apm:deploy", "service:my-app"}},
+			}
+		}
+		_ = json.NewEncoder(w).Encode(anns)
 	}))
 	t.Cleanup(annSrv.Close)
 
@@ -161,13 +173,19 @@ func TestQueryFrontendVersionsDeployEnrichment(t *testing.T) {
 		t.Errorf("bbbb222 deployedAtMs = %d, want 2000000", resp.Versions[1].DeployedAtMs)
 	}
 
-	// Contract tags: omnivya-apm:deploy + service + env (single env selected).
-	wantTags := []string{"omnivya-apm:deploy", "service:my-app", "env:dev"}
-	if got := gotQuery["tags"]; len(got) != 3 || got[0] != wantTags[0] || got[1] != wantTags[1] || got[2] != wantTags[2] {
-		t.Errorf("annotation tags = %v, want %v", got, wantTags)
+	if len(annQueries) != 2 {
+		t.Fatalf("expected 2 annotation queries (current + legacy), got %d", len(annQueries))
 	}
-	if gotQuery.Get("from") != "1000000" || gotQuery.Get("to") != "4600000" {
-		t.Errorf("annotation range = %s..%s, want ms range", gotQuery.Get("from"), gotQuery.Get("to"))
+	wantKinds := []string{"omnivya-apm:deploy", "clickhouse-apm:deploy"}
+	for i, wantKind := range wantKinds {
+		got := annQueries[i]["tags"]
+		wantTags := []string{wantKind, "service:my-app", "env:dev"}
+		if len(got) != 3 || got[0] != wantTags[0] || got[1] != wantTags[1] || got[2] != wantTags[2] {
+			t.Errorf("annotation tags[%d] = %v, want %v", i, got, wantTags)
+		}
+		if annQueries[i].Get("from") != "1000000" || annQueries[i].Get("to") != "4600000" {
+			t.Errorf("annotation range[%d] = %s..%s, want ms range", i, annQueries[i].Get("from"), annQueries[i].Get("to"))
+		}
 	}
 }
 

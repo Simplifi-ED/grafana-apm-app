@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased]
+
+### Breaking Changes
+
+* **plugin id:** rename `clickhouse-apm-app` → `omnivya-apm-app` (display name: Application Observability).
+  - `/a/clickhouse-apm-app/…` URLs no longer resolve; update bookmarks and alert links (see `docs/url-contract.md`). Settings under the old ID are not migrated — re-enter datasource UIDs and `serviceAccountToken` (see `docs/configuration.md`).
+  - Annotation **reads** still accept legacy `clickhouse-apm:deploy|triage|owner` tags; new writes use `omnivya-apm:*`. Favorites migrate from `clickhouse-apm-favorites` localStorage once.
+
 ## [0.31.0](https://github.com/Simplifi-ED/grafana-apm-app/compare/clickhouse-apm-app-v0.30.1...clickhouse-apm-app-v0.31.0) (2026-11-02)
 
 

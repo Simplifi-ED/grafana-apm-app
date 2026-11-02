@@ -29,6 +29,7 @@ import (
 
 const (
 	triageTag       = "omnivya-apm:triage"
+	legacyTriageTag = "clickhouse-apm:triage" // read-only during plugin-id rename
 	maxTriageEvents = 1000
 	// minAnnotationFromMs is the lower time bound sent on every page. It must
 	// be positive: Grafana's annotation store only applies the epoch window
@@ -143,7 +144,7 @@ func (s *annotationTriageStore) do(ctx context.Context, method, path string, bod
 func (s *annotationTriageStore) fetch(ctx context.Context, tags []string) ([]grafanaAnnotation, error) {
 	queryTags := make([]string, 0, len(tags))
 	for _, tg := range tags {
-		if tg != triageTag {
+		if tg != triageTag && tg != legacyTriageTag {
 			queryTags = append(queryTags, tg)
 		}
 	}
@@ -177,7 +178,7 @@ func (s *annotationTriageStore) fetch(ctx context.Context, tags []string) ([]gra
 			return nil, fmt.Errorf("unmarshaling annotations: %w", err)
 		}
 		for _, ann := range anns {
-			if hasTag(ann.Tags, triageTag) && !seen[ann.ID] {
+			if (hasTag(ann.Tags, triageTag) || hasTag(ann.Tags, legacyTriageTag)) && !seen[ann.ID] {
 				seen[ann.ID] = true
 				out = append(out, ann)
 			}

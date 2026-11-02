@@ -111,6 +111,7 @@ describe('buildServiceScene', () => {
     const layerSet = scene!.state.$data as SceneDataLayerSet;
     expect(layerSet).toBeInstanceOf(SceneDataLayerSet);
 
+    expect(layerSet.state.layers).toHaveLength(2);
     const layer = layerSet.state.layers[0] as InstanceType<typeof dataLayers.AnnotationsDataLayer>;
     expect(layer).toBeInstanceOf(dataLayers.AnnotationsDataLayer);
     expect(layer.state.query.datasource).toEqual({ type: 'grafana', uid: '-- Grafana --' });
@@ -118,6 +119,13 @@ describe('buildServiceScene', () => {
       type: 'tags',
       matchAny: false,
       tags: ['omnivya-apm:deploy', 'service:frontend', 'env:production'],
+      limit: 100,
+    });
+    const legacy = layerSet.state.layers[1] as InstanceType<typeof dataLayers.AnnotationsDataLayer>;
+    expect(legacy.state.query.target).toEqual({
+      type: 'tags',
+      matchAny: false,
+      tags: ['clickhouse-apm:deploy', 'service:frontend', 'env:production'],
       limit: 100,
     });
   });
@@ -128,12 +136,18 @@ describe('buildServiceScene', () => {
     const layer = layerSet.state.layers[0] as InstanceType<typeof dataLayers.AnnotationsDataLayer>;
     const target = layer.state.query.target as unknown as DeployAnnotationTarget;
     expect(target.tags).toEqual(['omnivya-apm:deploy', 'service:frontend']);
+    const legacy = layerSet.state.layers[1] as InstanceType<typeof dataLayers.AnnotationsDataLayer>;
+    expect((legacy.state.query.target as unknown as DeployAnnotationTarget).tags).toEqual([
+      'clickhouse-apm:deploy',
+      'service:frontend',
+    ]);
   });
 });
 
 describe('buildDeployAnnotationsLayer', () => {
   it('queries the built-in grafana annotations datasource by tags', () => {
     const layerSet = buildDeployAnnotationsLayer('myapp', 'prod-gcp');
+    expect(layerSet.state.layers).toHaveLength(2);
     const layer = layerSet.state.layers[0] as InstanceType<typeof dataLayers.AnnotationsDataLayer>;
     expect(layer.state.query).toMatchObject({
       enable: true,
@@ -144,6 +158,10 @@ describe('buildDeployAnnotationsLayer', () => {
         tags: ['omnivya-apm:deploy', 'service:myapp', 'env:prod-gcp'],
         limit: 100,
       },
+    });
+    const legacy = layerSet.state.layers[1] as InstanceType<typeof dataLayers.AnnotationsDataLayer>;
+    expect(legacy.state.query.target).toMatchObject({
+      tags: ['clickhouse-apm:deploy', 'service:myapp', 'env:prod-gcp'],
     });
   });
 

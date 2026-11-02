@@ -4,10 +4,24 @@
  */
 
 const STORAGE_KEY = 'omnivya-apm-favorites';
+/** Pre-rename key; migrated once into STORAGE_KEY when the new key is absent. */
+const LEGACY_STORAGE_KEY = 'clickhouse-apm-favorites';
 
 interface StorageSchema {
   version: 1;
   services: string[];
+}
+
+function parseFavoritesRaw(raw: string): string[] | null {
+  try {
+    const data: StorageSchema = JSON.parse(raw);
+    if (data.version !== 1 || !Array.isArray(data.services)) {
+      return null;
+    }
+    return data.services.filter((s) => typeof s === 'string' && s.includes('/'));
+  } catch {
+    return null;
+  }
 }
 
 // --- Storage Interface ---
@@ -23,14 +37,25 @@ export class LocalStorageFavoritesStorage implements FavoritesStorage {
   load(): string[] {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) {
+      if (raw !== null) {
+        return parseFavoritesRaw(raw) ?? [];
+      }
+
+      const legacyRaw = localStorage.getItem(LEGACY_STORAGE_KEY);
+      if (legacyRaw === null) {
         return [];
       }
-      const data: StorageSchema = JSON.parse(raw);
-      if (data.version !== 1 || !Array.isArray(data.services)) {
+      const services = parseFavoritesRaw(legacyRaw);
+      if (services === null) {
         return [];
       }
-      return data.services.filter((s) => typeof s === 'string' && s.includes('/'));
+      this.save(services);
+      try {
+        localStorage.removeItem(LEGACY_STORAGE_KEY);
+      } catch {
+        // ignore quota / private-mode failures on cleanup
+      }
+      return services;
     } catch {
       return [];
     }
@@ -128,4 +153,4 @@ export function serviceKey(namespace: string, name: string): string {
 // Singleton instance for the app
 export const favoritesStore = new FavoritesStore();
 
-export { STORAGE_KEY };
+export { STORAGE_KEY, LEGACY_STORAGE_KEY };

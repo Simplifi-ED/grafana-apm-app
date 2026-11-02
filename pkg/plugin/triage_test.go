@@ -170,6 +170,24 @@ func TestTriageWritePayloadShape(t *testing.T) {
 	}
 }
 
+func TestTriageStatesReadsLegacyTag(t *testing.T) {
+	s, mock := triageTestStore(t)
+	mock.anns = append(mock.anns, grafanaAnnotation{
+		ID:   1,
+		Time: 1_000,
+		Text: `{"schema":1,"action":"resolve","actor":"legacy"}`,
+		Tags: []string{"clickhouse-apm:triage", "app:team/app", "fp:v1-legacy"},
+	})
+	states, err := s.States(context.Background(), "team", "app")
+	if err != nil {
+		t.Fatalf("states: %v", err)
+	}
+	got, ok := states["v1:legacy"]
+	if !ok || got.Status != "resolved" || got.UpdatedBy != "legacy" {
+		t.Fatalf("legacy triage not folded: ok=%v got=%+v", ok, got)
+	}
+}
+
 func TestTriageHistoryOldestFirst(t *testing.T) {
 	s, _ := triageTestStore(t)
 	record(t, s, "v1:ccc", TriageEvent{Action: "resolve", Actor: "a"})

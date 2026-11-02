@@ -16,10 +16,11 @@ import (
 )
 
 const (
-	ownerAnnotationTag     = "omnivya-apm:owner"
-	ownershipStaleAfter    = 7 * 24 * time.Hour
-	ownershipTelemetryLook = 30 * 24 * time.Hour
-	ownershipDocPath       = "docs/ownership.md"
+	ownerAnnotationTag       = "omnivya-apm:owner"
+	legacyOwnerAnnotationTag = "clickhouse-apm:owner" // read-only during plugin-id rename
+	ownershipStaleAfter      = 7 * 24 * time.Hour
+	ownershipTelemetryLook   = 30 * 24 * time.Hour
+	ownershipDocPath         = "docs/ownership.md"
 )
 
 // OwnershipSource identifies which directory source won.
@@ -234,29 +235,13 @@ func (a *App) fetchOwnershipAnnotation(ctx context.Context, headers http.Header,
 	if a.healthClient == nil || a.grafanaURL == "" {
 		return OwnershipFields{}, true
 	}
-	params := url.Values{}
-	params.Add("tags", ownerAnnotationTag)
-	params.Add("tags", "service:"+service)
-	params.Set("limit", "20")
-	apiReq, err := http.NewRequestWithContext(ctx, http.MethodGet,
-		fmt.Sprintf("%s/api/annotations?%s", a.grafanaURL, params.Encode()), nil)
-	if err != nil {
-		return OwnershipFields{}, false
-	}
-	applyServiceAuth(apiReq, headers, a.resolveServiceToken(ctx))
-	resp, err := a.healthClient.Do(apiReq)
-	if err != nil {
-		log.DefaultLogger.Debug("ownership annotation request failed", "error", err, "service", service)
-		return OwnershipFields{}, false
-	}
-	defer resp.Body.Close() //nolint:errcheck
-	if resp.StatusCode != http.StatusOK {
-		log.DefaultLogger.Debug("ownership annotation request failed", "status", resp.StatusCode, "service", service)
-		return OwnershipFields{}, false
-	}
 	var anns []grafanaAnnotation
-	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&anns); err != nil {
-		return OwnershipFields{}, false
+	for _, tag := range []string{ownerAnnotationTag, legacyOwnerAnnotationTag} {
+		batch, ok := a.queryOwnershipAnnotations(ctx, headers, tag, service)
+		if !ok {
+			return OwnershipFields{}, false
+		}
+		anns = append(anns, batch...)
 	}
 	if len(anns) == 0 {
 		return OwnershipFields{}, true
@@ -272,6 +257,34 @@ func (a *App) fetchOwnershipAnnotation(ctx context.Context, headers http.Header,
 		}
 	}
 	return best, true
+}
+
+func (a *App) queryOwnershipAnnotations(ctx context.Context, headers http.Header, tag, service string) ([]grafanaAnnotation, bool) {
+	params := url.Values{}
+	params.Add("tags", tag)
+	params.Add("tags", "service:"+service)
+	params.Set("limit", "20")
+	apiReq, err := http.NewRequestWithContext(ctx, http.MethodGet,
+		fmt.Sprintf("%s/api/annotations?%s", a.grafanaURL, params.Encode()), nil)
+	if err != nil {
+		return nil, false
+	}
+	applyServiceAuth(apiReq, headers, a.resolveServiceToken(ctx))
+	resp, err := a.healthClient.Do(apiReq)
+	if err != nil {
+		log.DefaultLogger.Debug("ownership annotation request failed", "error", err, "service", service)
+		return nil, false
+	}
+	defer resp.Body.Close() //nolint:errcheck
+	if resp.StatusCode != http.StatusOK {
+		log.DefaultLogger.Debug("ownership annotation request failed", "status", resp.StatusCode, "service", service)
+		return nil, false
+	}
+	var anns []grafanaAnnotation
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&anns); err != nil {
+		return nil, false
+	}
+	return anns, true
 }
 
 func parseOwnerAnnotation(ann grafanaAnnotation) OwnershipFields {

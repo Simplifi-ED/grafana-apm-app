@@ -5,6 +5,16 @@ annotations, Slack notifications, runbooks, and shared links depend on them —
 treat renames as breaking changes: keep the old parameter resolving as an
 alias for at least two minor releases and note the change in the CHANGELOG.
 
+### Breaking: plugin ID path prefix (0.32+)
+
+The app plugin ID changed from `clickhouse-apm-app` to `omnivya-apm-app`.
+Grafana mounts app routes under `/a/<plugin-id>/…`, so **`/a/clickhouse-apm-app/…`
+no longer resolves** to this plugin. A plugin cannot register routes under
+another plugin ID. Operators who need the old prefix must add a reverse-proxy
+or Grafana ingress rewrite for at least two minor releases; otherwise update
+bookmarks, alert `dashboard_url` annotations, and shared links to
+`/a/omnivya-apm-app/…`.
+
 ## Service pages
 
 ```

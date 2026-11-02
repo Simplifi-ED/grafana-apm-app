@@ -283,22 +283,27 @@ async function fetchLastDeployBefore(
   environment: string | undefined,
   beforeMs: number
 ): Promise<{ version: string; timeMs: number } | null> {
-  const tags = ['omnivya-apm:deploy', `service:${service}`];
-  // A multi-env selection can't be AND-ed via repeated tags — only scope to a
-  // single environment (matches the backend's fetchDeployAnnotations).
-  if (environment && !environment.includes(',')) {
-    tags.push(`env:${environment}`);
-  }
-  const annotations: Array<{ time: number; text: string; tags: string[] }> = await getBackendSrv().get(
-    '/api/annotations',
-    {
-      tags,
-      // Look back 7d before the alert started for the landing deploy.
-      from: beforeMs - 7 * 24 * 3600_000,
-      to: beforeMs,
-      limit: 100,
-    }
+  // Grafana ANDs repeated tags — query each deploy kind separately (current +
+  // pre-rename), then pick the latest before the firing time.
+  const deployKinds = ['omnivya-apm:deploy', 'clickhouse-apm:deploy'];
+  const batches = await Promise.all(
+    deployKinds.map((kind) => {
+      const tags = [kind, `service:${service}`];
+      // A multi-env selection can't be AND-ed via repeated tags — only scope to a
+      // single environment (matches the backend's fetchDeployAnnotations).
+      if (environment && !environment.includes(',')) {
+        tags.push(`env:${environment}`);
+      }
+      return getBackendSrv().get('/api/annotations', {
+        tags,
+        // Look back 7d before the alert started for the landing deploy.
+        from: beforeMs - 7 * 24 * 3600_000,
+        to: beforeMs,
+        limit: 100,
+      }) as Promise<Array<{ time: number; text: string; tags: string[] }>>;
+    })
   );
+  const annotations = batches.flat();
   let best: { version: string; timeMs: number } | null = null;
   for (const ann of annotations ?? []) {
     if (ann.time >= beforeMs) {
