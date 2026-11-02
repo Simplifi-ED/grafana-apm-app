@@ -170,9 +170,8 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
         setChExploreConfigMissing(!tracesOk || !logsOk);
       })
       .catch(() => {
-        if (!cancelled) {
-          setChExploreConfigMissing(false);
-        }
+        // Leave prior warning state alone — a transient GET failure must not
+        // hide a real "Explore tables not configured" warning.
       });
     return () => {
       cancelled = true;

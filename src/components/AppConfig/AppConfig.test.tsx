@@ -304,6 +304,44 @@ describe('Components/AppConfig', () => {
     expect(await screen.findByText(/ClickHouse Explore Traces\/Logs not configured/i)).toBeInTheDocument();
   });
 
+  test('keeps Explore warning when a later datasource GET fails', async () => {
+    let uidCalls = 0;
+    mockGet.mockImplementation(async (url: string) => {
+      if (String(url).includes('/api/datasources/uid/')) {
+        uidCalls += 1;
+        if (uidCalls === 1) {
+          return { uid: 'clickhouse', type: 'grafana-clickhouse-datasource', jsonData: {} };
+        }
+        throw new Error('transient');
+      }
+      // Empty list → Input path (easier to change UID than Combobox).
+      return [];
+    });
+    const plugin = {
+      meta: {
+        ...props.plugin.meta,
+        enabled: true,
+        jsonData: {
+          clickHouseDataSource: { uid: 'clickhouse', type: 'grafana-clickhouse-datasource' },
+        },
+      },
+    };
+
+    await act(async () => {
+      // @ts-ignore
+      render(<AppConfig plugin={plugin} query={props.query} />);
+    });
+
+    expect(await screen.findByText(/ClickHouse Explore Traces\/Logs not configured/i)).toBeInTheDocument();
+
+    const input = await screen.findByPlaceholderText(/e\.g\., clickhouse/i);
+    await act(async () => {
+      fireEvent.change(input, { target: { value: 'clickhouse-b' } });
+    });
+
+    expect(screen.getByText(/ClickHouse Explore Traces\/Logs not configured/i)).toBeInTheDocument();
+  });
+
   test('persists optional pyroscopeDataSource.uid on save', async () => {
     const plugin = {
       meta: {

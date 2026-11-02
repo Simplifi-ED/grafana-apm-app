@@ -201,6 +201,10 @@ function ServiceOverviewInner({ namespace, service }: { namespace: string; servi
   const databaseTo = useFrozenWhileHidden(to, activeTab === 'database');
   const logsFrom = useFrozenWhileHidden(from, activeTab === 'logs');
   const logsTo = useFrozenWhileHidden(to, activeTab === 'logs');
+  // Overview + Dependencies tabs share useServiceData — freeze while neither is visible.
+  const serviceDataActive = activeTab === 'overview' || activeTab === 'dependencies';
+  const serviceDataFromMs = useFrozenWhileHidden(fromMs, serviceDataActive);
+  const serviceDataToMs = useFrozenWhileHidden(toMs, serviceDataActive);
 
   // All service data fetching is encapsulated in this hook
   const {
@@ -217,7 +221,7 @@ function ServiceOverviewInner({ namespace, service }: { namespace: string; servi
     depsError,
     health,
     healthLoading,
-  } = useServiceData({ service, namespace, envFilter, fromMs, toMs });
+  } = useServiceData({ service, namespace, envFilter, fromMs: serviceDataFromMs, toMs: serviceDataToMs });
   const { data: ownership, loading: ownershipLoading } = useFetch<Ownership>(
     () => getOwnership(namespace, service),
     [namespace, service]
