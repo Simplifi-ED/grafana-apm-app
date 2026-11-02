@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.32.0](https://github.com/Simplifi-ED/omnivya-apm-app/compare/omnivya-apm-app-v0.31.0...omnivya-apm-app-v0.32.0) (2026-11-02)
+
+
+### Features
+
+* add ClickStack environment configuration example and update error messages ([601f48c](https://github.com/Simplifi-ED/omnivya-apm-app/commit/601f48cea3181a1ccc8e844c9697005d6e81e4e6))
+* rename plugin ID and update related documentation ([c807463](https://github.com/Simplifi-ED/omnivya-apm-app/commit/c8074634112ac8059b175b37830826ad5ea3a2ec))
+
+
+### Bug Fixes
+
+* dual-write deploy tags and tighten Jobs/Service Map nav e2e ([ee69506](https://github.com/Simplifi-ED/omnivya-apm-app/commit/ee6950602de84d502f717bf4685e5647bf08d8c8))
+
 ## [Unreleased]
 
 ### Breaking Changes
