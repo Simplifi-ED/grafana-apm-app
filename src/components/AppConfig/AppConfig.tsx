@@ -722,8 +722,8 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
         </div>
 
         {caps?.clickHouse && !caps.clickHouse.available && (
-          <Alert severity="error" title="ClickHouse datasource unavailable" className={s.marginTop}>
-            {caps.clickHouse.error || 'Select a working ClickHouse datasource above, save, then run Auto-detect again.'}
+          <Alert severity="error" title="Data source unavailable" className={s.marginTop}>
+            {caps.clickHouse.error || 'Select a working data source above, save, then run Auto-detect again.'}
           </Alert>
         )}
 

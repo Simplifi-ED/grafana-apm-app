@@ -341,9 +341,8 @@ function ServiceInventory() {
           </Alert>
         )}
         {!loading && caps?.clickHouse && !caps.clickHouse.available && (
-          <Alert severity="error" title="ClickHouse datasource unavailable">
-            {caps.clickHouse.error ||
-              'Configure a ClickHouse datasource in Application Observability settings, then refresh this page.'}
+          <Alert severity="error" title="Data source unavailable">
+            {caps.clickHouse.error || 'Configure a data source in plugin settings, then refresh this page.'}
           </Alert>
         )}
 
