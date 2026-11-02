@@ -32,6 +32,7 @@ import {
 import { otel } from '../../../../otelconfig';
 import { PLUGIN_BASE_URL } from '../../../../constants';
 import { sanitizeLabelValue } from '../../../../utils/sanitize';
+import { canEditPlugin, EDITOR_ROLE_REQUIRED } from '../../../../utils/orgRole';
 import { hasAlertRoutingContext } from '../../../../utils/alertRouting';
 import { usePluginLabelOverrides, usePluginDatasources } from '../../../../utils/datasources';
 import { useTimeRange } from '../../../../utils/timeRange';
@@ -1030,22 +1031,31 @@ function TriageControls({
   };
 
   const status = state?.status ?? 'active';
+  const canTriage = canEditPlugin();
+  const triageDisabled = busy || !canTriage;
   return (
     <div className={styles.triageBar}>
       {status === 'resolved' && <Badge text="Resolved" color="green" />}
       {status === 'ignored' && <Badge text="Ignored" color="darkgrey" />}
       {status === 'active' && <Badge text="Unresolved" color="orange" />}
+      {!canTriage && <span className={styles.triageMeta}>{EDITOR_ROLE_REQUIRED}</span>}
       {status === 'active' ? (
         <>
-          <Button size="sm" variant="secondary" icon="check" disabled={busy} onClick={() => act('resolve')}>
+          <Button size="sm" variant="secondary" icon="check" disabled={triageDisabled} onClick={() => act('resolve')}>
             Resolve
           </Button>
-          <Button size="sm" variant="secondary" icon="eye-slash" disabled={busy} onClick={() => act('ignore')}>
+          <Button
+            size="sm"
+            variant="secondary"
+            icon="eye-slash"
+            disabled={triageDisabled}
+            onClick={() => act('ignore')}
+          >
             Ignore
           </Button>
         </>
       ) : (
-        <Button size="sm" variant="secondary" icon="history" disabled={busy} onClick={() => act('unresolve')}>
+        <Button size="sm" variant="secondary" icon="history" disabled={triageDisabled} onClick={() => act('unresolve')}>
           Reopen
         </Button>
       )}
@@ -1053,10 +1063,10 @@ function TriageControls({
         width={22}
         placeholder="Assignee…"
         value={assignee}
-        disabled={busy}
+        disabled={triageDisabled}
         onChange={(e) => setAssignee(e.currentTarget.value)}
-        onKeyDown={(e) => e.key === 'Enter' && act('assign', { assignee })}
-        onBlur={() => (state?.assignee ?? '') !== assignee && act('assign', { assignee })}
+        onKeyDown={(e) => e.key === 'Enter' && canTriage && act('assign', { assignee })}
+        onBlur={() => canTriage && (state?.assignee ?? '') !== assignee && act('assign', { assignee })}
         prefix={<Icon name="user" />}
       />
       {state?.updatedBy && <span className={styles.triageMeta}>last change by {state.updatedBy}</span>}

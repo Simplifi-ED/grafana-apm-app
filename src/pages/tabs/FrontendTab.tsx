@@ -17,6 +17,7 @@ import { DashboardCursorSync } from '@grafana/schema';
 import { getFrontendMetrics } from '../../api/client';
 import { usePluginDatasources, usePluginLabelOverrides, useServiceAlias } from '../../utils/datasources';
 import { useTimeRange } from '../../utils/timeRange';
+import { useFrozenWhileHidden } from '../../utils/useFrozenWhileHidden';
 import { useSceneTimeSync } from '../../utils/useSceneTimeSync';
 import { sanitizeLabelValue } from '../../utils/sanitize';
 import { otel } from '../../otelconfig';
@@ -44,16 +45,20 @@ interface FrontendTabProps {
   service: string;
   namespace: string;
   environment?: string;
+  /** When false, freeze the time range so hidden tabs do not re-query. */
+  active?: boolean;
 }
 
-export function FrontendTab({ service, namespace, environment }: FrontendTabProps) {
+export function FrontendTab({ service, namespace, environment, active = true }: FrontendTabProps) {
   const styles = useStyles2(getStyles);
   const [available, setAvailable] = useState<boolean | null>(null);
   const [hasLoki, setHasLoki] = useState<boolean>(false);
   const [vitals, setVitals] = useState<Record<string, number> | undefined>();
   const ds = usePluginDatasources(environment || undefined);
   const browserService = useServiceAlias(service);
-  const { from, to } = useTimeRange();
+  const liveRange = useTimeRange();
+  const from = useFrozenWhileHidden(liveRange.from, active);
+  const to = useFrozenWhileHidden(liveRange.to, active);
   // Shared with the Issues tab (#69 P1/P10) — an issueId deep link opens the
   // drawer identically on both tabs.
   const {
@@ -136,6 +141,7 @@ export function FrontendTab({ service, namespace, environment }: FrontendTabProp
           hasLoki={hasLoki}
           from={from}
           to={to}
+          active={active}
         />
       )}
       {(drawerLoading ||
@@ -218,12 +224,14 @@ function FrontendPanels({
   hasLoki,
   from,
   to,
+  active = true,
 }: {
   service: string;
   namespace: string;
   environment?: string;
   from: string;
   to: string;
+  active?: boolean;
   vitals?: Record<string, number>;
   hasLoki: boolean;
 }) {
@@ -310,7 +318,9 @@ function FrontendPanels({
   }, [ds, service, namespace, environment, svcFilter, ah, hasLoki, vitals, labelOverrides, from, to]);
   // Header refresh of a relative range re-resolves fromMs/toMs while the raw
   // strings stay put — re-query the live scene instead of rebuilding it.
-  const { fromMs, toMs } = useTimeRange();
+  const live = useTimeRange();
+  const fromMs = useFrozenWhileHidden(live.fromMs, active);
+  const toMs = useFrozenWhileHidden(live.toMs, active);
   useSceneTimeSync(scene, fromMs, toMs);
 
   return <scene.Component model={scene} />;

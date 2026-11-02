@@ -63,7 +63,7 @@ function ServiceInventory() {
   const sc = sparklineColors(theme);
   const appNavigate = useAppNavigate();
   const [{ from, to, fromMs, toMs }, setRange] = useState(() => resolveInventoryRange('now-5m', 'now'));
-  const { isFavorite, toggle: toggleFavorite, count: favCount } = useFavorites();
+  const { favorites, isFavorite, toggle: toggleFavorite, count: favCount } = useFavorites();
   const [searchParams, setSearchParams] = useSearchParams();
 
   useEffect(() => {
@@ -190,104 +190,121 @@ function ServiceInventory() {
     return rank;
   }, [searchResults]);
 
-  // Client-side filtering and sorting — computed every render to avoid
-  // stale-closure issues with React 18 batching.
-  let filtered = services;
-  if (hideSidecars) {
-    filtered = filtered.filter((s) => !s.isSidecar);
-  }
-  if (nsFilters.length > 0) {
-    filtered = filtered.filter((s) => nsFilters.includes(s.namespace));
-  }
-  if (envFilters.length > 0) {
-    filtered = filtered.filter((s) => s.environment != null && envFilters.includes(s.environment));
-  }
-  if (isSearching) {
-    const matched = new Set(searchResults);
-    filtered = filtered.filter((s) => matched.has(s));
-  }
-  if (showFavoritesOnly) {
-    filtered = filtered.filter((s) => isFavorite(serviceKey(s.namespace, s.name)));
-  }
-  if (showErrorsOnly) {
-    filtered = filtered.filter((s) => s.errorRate > 0);
-  }
-  if (sdkFilters.length > 0) {
-    filtered = filtered.filter((s) => s.sdkLanguage != null && sdkFilters.includes(s.sdkLanguage));
-  }
-  // NaN-safe numeric comparison — NaN/undefined/Infinity sort to bottom
-  const safeNum = (v: number) => (Number.isFinite(v) ? v : -Infinity);
-  const dir = sortDir === 'desc' ? -1 : 1;
-  const isDefaultSort = sortField === 'name' && sortDir === 'asc';
-  filtered = [...filtered].sort((a, b) => {
-    // While searching, relevance is the DEFAULT order — but an explicit
-    // column sort still wins, otherwise header clicks silently do nothing
-    // whenever a query is active.
-    if (isSearching && isDefaultSort) {
-      return (searchRank.get(a) ?? 0) - (searchRank.get(b) ?? 0);
-    }
-    // Sort boost: favorites float to top on default sort
-    if (isDefaultSort) {
-      const fa = isFavorite(serviceKey(a.namespace, a.name)) ? 0 : 1;
-      const fb = isFavorite(serviceKey(b.namespace, b.name)) ? 0 : 1;
-      if (fa !== fb) {
-        return fa - fb;
-      }
-    }
-    let cmp = 0;
-    switch (sortField) {
-      case 'name':
-        cmp = a.name.localeCompare(b.name);
-        break;
-      case 'namespace':
-        cmp = a.namespace.localeCompare(b.namespace);
-        break;
-      case 'environment':
-        cmp = (a.environment ?? '').localeCompare(b.environment ?? '');
-        break;
-      case 'p95Duration':
-        cmp = safeNum(a.p95Duration) - safeNum(b.p95Duration);
-        break;
-      case 'errorRate':
-        cmp = safeNum(a.errorRate) - safeNum(b.errorRate);
-        break;
-      case 'rate':
-        cmp = safeNum(a.rate) - safeNum(b.rate);
-        break;
-    }
-    if (cmp !== 0) {
-      return cmp * dir;
-    }
-    // When sidecars are visible, push them after team-owned services as a secondary tiebreaker
-    if (!hideSidecars) {
-      const sa = a.isSidecar ? 1 : 0;
-      const sb = b.isSidecar ? 1 : 0;
-      if (sa !== sb) {
-        return sa - sb;
-      }
-    }
-    // Stable tiebreaker: always sort by name ascending when primary values tie
-    return a.name.localeCompare(b.name);
-  });
-
   // When viewing a single namespace with multiple envs, group rows by environment
   // with section headers instead of showing a flat environment column.
   const groupByEnv = nsFilters.length === 1 && envFilters.length === 0 && envOptions.length > 1;
 
-  // When grouping by environment, ensure rows are grouped by env while
-  // preserving the user's chosen sort order within each group (stable sort).
-  // Order: prod, prod-*, dev, dev-* (production environments first).
-  if (groupByEnv) {
-    filtered = [...filtered].sort((a, b) => {
-      const ka = envSortKey(a.environment ?? '');
-      const kb = envSortKey(b.environment ?? '');
-      if (ka !== kb) {
-        return ka - kb;
+  // Client-side filtering and sorting — memoized; `favorites` invalidates when
+  // stars toggle so isFavorite lookups stay correct without re-running every render.
+  const filtered = useMemo(() => {
+    let next = services;
+    if (hideSidecars) {
+      next = next.filter((s) => !s.isSidecar);
+    }
+    if (nsFilters.length > 0) {
+      next = next.filter((s) => nsFilters.includes(s.namespace));
+    }
+    if (envFilters.length > 0) {
+      next = next.filter((s) => s.environment != null && envFilters.includes(s.environment));
+    }
+    if (isSearching) {
+      const matched = new Set(searchResults);
+      next = next.filter((s) => matched.has(s));
+    }
+    if (showFavoritesOnly) {
+      next = next.filter((s) => favorites.has(serviceKey(s.namespace, s.name)));
+    }
+    if (showErrorsOnly) {
+      next = next.filter((s) => s.errorRate > 0);
+    }
+    if (sdkFilters.length > 0) {
+      next = next.filter((s) => s.sdkLanguage != null && sdkFilters.includes(s.sdkLanguage));
+    }
+    // NaN-safe numeric comparison — NaN/undefined/Infinity sort to bottom
+    const safeNum = (v: number) => (Number.isFinite(v) ? v : -Infinity);
+    const dir = sortDir === 'desc' ? -1 : 1;
+    const isDefaultSort = sortField === 'name' && sortDir === 'asc';
+    next = [...next].sort((a, b) => {
+      // While searching, relevance is the DEFAULT order — but an explicit
+      // column sort still wins, otherwise header clicks silently do nothing
+      // whenever a query is active.
+      if (isSearching && isDefaultSort) {
+        return (searchRank.get(a) ?? 0) - (searchRank.get(b) ?? 0);
       }
-      // Within the same tier, sort alphabetically by environment name
-      return (a.environment ?? '').localeCompare(b.environment ?? '');
+      // Sort boost: favorites float to top on default sort
+      if (isDefaultSort) {
+        const fa = favorites.has(serviceKey(a.namespace, a.name)) ? 0 : 1;
+        const fb = favorites.has(serviceKey(b.namespace, b.name)) ? 0 : 1;
+        if (fa !== fb) {
+          return fa - fb;
+        }
+      }
+      let cmp = 0;
+      switch (sortField) {
+        case 'name':
+          cmp = a.name.localeCompare(b.name);
+          break;
+        case 'namespace':
+          cmp = a.namespace.localeCompare(b.namespace);
+          break;
+        case 'environment':
+          cmp = (a.environment ?? '').localeCompare(b.environment ?? '');
+          break;
+        case 'p95Duration':
+          cmp = safeNum(a.p95Duration) - safeNum(b.p95Duration);
+          break;
+        case 'errorRate':
+          cmp = safeNum(a.errorRate) - safeNum(b.errorRate);
+          break;
+        case 'rate':
+          cmp = safeNum(a.rate) - safeNum(b.rate);
+          break;
+      }
+      if (cmp !== 0) {
+        return cmp * dir;
+      }
+      // When sidecars are visible, push them after team-owned services as a secondary tiebreaker
+      if (!hideSidecars) {
+        const sa = a.isSidecar ? 1 : 0;
+        const sb = b.isSidecar ? 1 : 0;
+        if (sa !== sb) {
+          return sa - sb;
+        }
+      }
+      // Stable tiebreaker: always sort by name ascending when primary values tie
+      return a.name.localeCompare(b.name);
     });
-  }
+
+    // When grouping by environment, ensure rows are grouped by env while
+    // preserving the user's chosen sort order within each group (stable sort).
+    // Order: prod, prod-*, dev, dev-* (production environments first).
+    if (groupByEnv) {
+      next = [...next].sort((a, b) => {
+        const ka = envSortKey(a.environment ?? '');
+        const kb = envSortKey(b.environment ?? '');
+        if (ka !== kb) {
+          return ka - kb;
+        }
+        return (a.environment ?? '').localeCompare(b.environment ?? '');
+      });
+    }
+    return next;
+  }, [
+    services,
+    hideSidecars,
+    nsFilters,
+    envFilters,
+    isSearching,
+    searchResults,
+    showFavoritesOnly,
+    favorites,
+    showErrorsOnly,
+    sdkFilters,
+    sortField,
+    sortDir,
+    searchRank,
+    groupByEnv,
+  ]);
 
   // Hide namespace column when a single namespace is selected (redundant info)
   const showNsColumn = nsFilters.length !== 1;

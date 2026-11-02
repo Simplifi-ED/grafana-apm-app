@@ -36,6 +36,7 @@ import { FrontendTab } from './tabs/FrontendTab';
 import { DatabaseTab } from './tabs/DatabaseTab';
 import { ProfilingTab } from './tabs/ProfilingTab';
 import { typographyFontSize } from '../utils/themeTypography';
+import { useFrozenWhileHidden } from '../utils/useFrozenWhileHidden';
 
 // 'backend' merges the former Endpoints (RED) + Runtime (USE) tabs into one
 // tab (docs/ia-review-2.md). The legacy url values `tab=server` and
@@ -184,6 +185,23 @@ function ServiceOverviewInner({ namespace, service }: { namespace: string; servi
     setVisitedTabs(new Set(visitedTabs).add(activeTab));
   }
 
+  // Freeze time props for hidden visited tabs so their SceneQueryRunners do not
+  // rebuild/re-query on every global time-range change.
+  const overviewFrom = useFrozenWhileHidden(from, activeTab === 'overview');
+  const overviewTo = useFrozenWhileHidden(to, activeTab === 'overview');
+  const overviewFromMs = useFrozenWhileHidden(fromMs, activeTab === 'overview');
+  const overviewToMs = useFrozenWhileHidden(toMs, activeTab === 'overview');
+  const tracesFrom = useFrozenWhileHidden(from, activeTab === 'traces');
+  const tracesTo = useFrozenWhileHidden(to, activeTab === 'traces');
+  const backendFromMs = useFrozenWhileHidden(fromMs, activeTab === 'backend');
+  const backendToMs = useFrozenWhileHidden(toMs, activeTab === 'backend');
+  const databaseFromMs = useFrozenWhileHidden(fromMs, activeTab === 'database');
+  const databaseToMs = useFrozenWhileHidden(toMs, activeTab === 'database');
+  const databaseFrom = useFrozenWhileHidden(from, activeTab === 'database');
+  const databaseTo = useFrozenWhileHidden(to, activeTab === 'database');
+  const logsFrom = useFrozenWhileHidden(from, activeTab === 'logs');
+  const logsTo = useFrozenWhileHidden(to, activeTab === 'logs');
+
   // All service data fetching is encapsulated in this hook
   const {
     framework,
@@ -217,8 +235,8 @@ function ServiceOverviewInner({ namespace, service }: { namespace: string; servi
         envFilter,
         percentile,
         percentileLabel,
-        from,
-        to,
+        from: overviewFrom,
+        to: overviewTo,
         metricsUid,
         tracesUid,
         logsUid,
@@ -238,8 +256,8 @@ function ServiceOverviewInner({ namespace, service }: { namespace: string; servi
         envFilter,
         percentile,
         percentileLabel,
-        from,
-        to,
+        from: overviewFrom,
+        to: overviewTo,
         clickHouseUid,
         hasServerSpans,
         durationUnit,
@@ -252,8 +270,8 @@ function ServiceOverviewInner({ namespace, service }: { namespace: string; servi
     envFilter,
     percentile,
     percentileLabel,
-    from,
-    to,
+    overviewFrom,
+    overviewTo,
     metricsUid,
     tracesUid,
     logsUid,
@@ -273,7 +291,7 @@ function ServiceOverviewInner({ namespace, service }: { namespace: string; servi
 
   // Follow the global header time range: the scene rebuilds on from/to string
   // changes, this re-resolves relative ranges in place on a refresh tick.
-  useSceneTimeSync(scene, fromMs, toMs);
+  useSceneTimeSync(scene, overviewFromMs, overviewToMs);
 
   const onNavigateService = useCallback(
     (name: string) => {
@@ -500,8 +518,9 @@ function ServiceOverviewInner({ namespace, service }: { namespace: string; servi
                   namespace={namespace}
                   tracesUid={ds.tracesUid}
                   clickHouseUid={clickHouseUid}
-                  from={from}
-                  to={to}
+                  from={tracesFrom}
+                  to={tracesTo}
+                  active={activeTab === 'traces'}
                   initialSpan={traceSpan}
                   initialStatus={traceStatus}
                   initialSpanKind={traceSpanKind}
@@ -516,8 +535,8 @@ function ServiceOverviewInner({ namespace, service }: { namespace: string; servi
                 <BackendTab
                   service={service}
                   namespace={namespace}
-                  fromMs={fromMs}
-                  toMs={toMs}
+                  fromMs={backendFromMs}
+                  toMs={backendToMs}
                   environment={envFilter || undefined}
                   onViewTraces={onViewTraces}
                 />
@@ -528,7 +547,12 @@ function ServiceOverviewInner({ namespace, service }: { namespace: string; servi
           {visitedTabs.has('frontend') && (
             <div style={{ display: activeTab === 'frontend' ? undefined : 'none' }}>
               <ErrorBoundary label="Frontend tab" resetKeys={[namespace, service, activeTab]}>
-                <FrontendTab service={service} namespace={namespace} environment={envFilter} />
+                <FrontendTab
+                  service={service}
+                  namespace={namespace}
+                  environment={envFilter}
+                  active={activeTab === 'frontend'}
+                />
               </ErrorBoundary>
             </div>
           )}
@@ -540,10 +564,10 @@ function ServiceOverviewInner({ namespace, service }: { namespace: string; servi
                   service={service}
                   namespace={namespace}
                   environment={envFilter || undefined}
-                  fromMs={fromMs}
-                  toMs={toMs}
-                  from={from}
-                  to={to}
+                  fromMs={databaseFromMs}
+                  toMs={databaseToMs}
+                  from={databaseFrom}
+                  to={databaseTo}
                   onViewTraces={tracesAvailable ? onViewTraces : undefined}
                 />
               </ErrorBoundary>
@@ -584,8 +608,9 @@ function ServiceOverviewInner({ namespace, service }: { namespace: string; servi
                   namespace={namespace}
                   logsUid={ds.logsUid}
                   clickHouseUid={clickHouseUid}
-                  from={from}
-                  to={to}
+                  from={logsFrom}
+                  to={logsTo}
+                  active={activeTab === 'logs'}
                   serviceNameLabel={labelOverrides.serviceNameLabel}
                   clusterFilter={!ds.isLogsEnvSpecific ? envFilter || undefined : undefined}
                   clusterLabel={labelOverrides.deploymentEnvLabel}

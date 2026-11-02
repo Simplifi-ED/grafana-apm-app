@@ -936,7 +936,7 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
           <a href={`/a/${plugin.meta.id}/ops`} target="_blank" rel="noreferrer">
             Ops Status Board
           </a>
-          . This is a shared watchlist visible to all users — any user can also edit it via the board&apos;s API.
+          . This is a shared watchlist visible to all users — editing via the board API requires Editor or Admin.
         </p>
         {state.opsWatchlist.map((entry, idx) => (
           <div key={idx} className={s.envRow}>

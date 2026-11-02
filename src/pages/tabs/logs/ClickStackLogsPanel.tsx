@@ -54,7 +54,7 @@ export function ClickStackLogsPanel({
           onFieldsChange={setFields}
           sqlWhere={sqlWhere}
           onSqlWhereChange={setSqlWhere}
-          sqlHint="Optional AND predicate on otel_logs (service + time already scoped). Not LogQL."
+          sqlHint="Optional AND predicate on otel_logs (service + time already scoped). Not LogQL. Allowed functions: lower, upper, positionCaseInsensitiveUTF8, position, like, ilike, has, mapContains, startsWith, endsWith, toString, length, empty, notEmpty, toInt64, toFloat64."
         />
         {exploreLogsUid ? (
           <LinkButton

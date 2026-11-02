@@ -83,7 +83,7 @@ export function ClickStackTracesPanel({
           onFieldsChange={setFields}
           sqlWhere={sqlWhere}
           onSqlWhereChange={setSqlWhere}
-          sqlHint="Optional AND predicate on otel_traces spans (service + time already scoped). Not TraceQL."
+          sqlHint="Optional AND predicate on otel_traces spans (service + time already scoped). Not TraceQL. Allowed functions: lower, upper, positionCaseInsensitiveUTF8, position, like, ilike, has, mapContains, startsWith, endsWith, toString, length, empty, notEmpty, toInt64, toFloat64."
         />
         {exploreTracesUid ? (
           <LinkButton

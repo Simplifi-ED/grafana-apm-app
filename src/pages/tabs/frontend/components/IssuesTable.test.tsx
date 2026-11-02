@@ -13,6 +13,11 @@ jest.mock('../../../../api/client', () => ({
   postTriageAction: jest.fn(),
 }));
 
+jest.mock('../../../../utils/orgRole', () => ({
+  canEditPlugin: () => true,
+  EDITOR_ROLE_REQUIRED: 'Editor role required',
+}));
+
 // Grafana's Combobox needs canvas measurement + virtualization to open its
 // dropdown, which jsdom can't drive. Swap in a plain <select> so tests can
 // exercise the facet-selection wiring with fireEvent.change (same approach as

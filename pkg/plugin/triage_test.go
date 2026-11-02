@@ -209,24 +209,60 @@ func TestTriageActionValidation(t *testing.T) {
 	t.Cleanup(srv.Close)
 	app := &App{grafanaURL: srv.URL, healthClient: &http.Client{Timeout: 5 * time.Second}}
 
-	post := func(path, body string) int {
+	post := func(path, body, role string) int {
 		req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(body))
 		req.SetPathValue("namespace", "team")
 		req.SetPathValue("service", "app")
 		req.SetPathValue("fingerprint", strings.TrimPrefix(strings.Split(path, "/triage/")[1], ""))
+		if role != "" {
+			req.Header.Set("X-Grafana-Org-Role", role)
+		}
 		rec := httptest.NewRecorder()
 		app.handleTriageAction(rec, req)
 		return rec.Code
 	}
 
-	if code := post("/services/team/app/triage/v1:abc", `{"action":"resolve"}`); code != http.StatusOK {
+	if code := post("/services/team/app/triage/v1:abc", `{"action":"resolve"}`, "Editor"); code != http.StatusOK {
 		t.Errorf("valid resolve → %d", code)
 	}
-	if code := post("/services/team/app/triage/v1:abc", `{"action":"explode"}`); code != http.StatusBadRequest {
+	if code := post("/services/team/app/triage/v1:abc", `{"action":"explode"}`, "Editor"); code != http.StatusBadRequest {
 		t.Errorf("invalid action → %d", code)
 	}
-	if code := post("/services/team/app/triage/NOT..VALID..FP", `{"action":"resolve"}`); code != http.StatusBadRequest {
+	if code := post("/services/team/app/triage/NOT..VALID..FP", `{"action":"resolve"}`, "Editor"); code != http.StatusBadRequest {
 		t.Errorf("invalid fingerprint → %d", code)
+	}
+}
+
+func TestTriageActionRequiresEditor(t *testing.T) {
+	mock := &mockAnnotationsAPI{}
+	srv := mock.server(t)
+	t.Cleanup(srv.Close)
+	app := &App{grafanaURL: srv.URL, healthClient: &http.Client{Timeout: 5 * time.Second}}
+
+	post := func(role string) int {
+		req := httptest.NewRequest(http.MethodPost, "/services/team/app/triage/v1:abc", strings.NewReader(`{"action":"resolve"}`))
+		req.SetPathValue("namespace", "team")
+		req.SetPathValue("service", "app")
+		req.SetPathValue("fingerprint", "v1:abc")
+		if role != "" {
+			req.Header.Set("X-Grafana-Org-Role", role)
+		}
+		rec := httptest.NewRecorder()
+		app.handleTriageAction(rec, req)
+		return rec.Code
+	}
+
+	if code := post("Viewer"); code != http.StatusForbidden {
+		t.Errorf("viewer → %d, want 403", code)
+	}
+	if code := post(""); code != http.StatusForbidden {
+		t.Errorf("no role → %d, want 403", code)
+	}
+	if code := post("Editor"); code != http.StatusOK {
+		t.Errorf("editor → %d, want 200", code)
+	}
+	if code := post("Admin"); code != http.StatusOK {
+		t.Errorf("admin → %d, want 200", code)
 	}
 }
 

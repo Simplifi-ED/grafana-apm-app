@@ -24,6 +24,11 @@ jest.mock('../../../../utils/datasources', () => ({
   usePluginDatasources: () => ({ tracesUid: 'tempo-uid', logsUid: 'loki-uid' }),
 }));
 
+jest.mock('../../../../utils/orgRole', () => ({
+  canEditPlugin: () => true,
+  EDITOR_ROLE_REQUIRED: 'Editor role required',
+}));
+
 jest.mock('../../../../api/client', () => ({
   ...jest.requireActual('../../../../api/client'),
   getTriageStates: jest.fn().mockResolvedValue({}),

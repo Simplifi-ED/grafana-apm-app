@@ -354,6 +354,10 @@ func (a *App) handleTriageAction(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
 		return
 	}
+	// Writes org annotations via the plugin SA — Viewer must not drive that (confused deputy).
+	if !a.requireEditor(w, req) {
+		return
+	}
 	ctx := a.requestContext(req)
 	namespace, service := parseServiceRef(req)
 	if !requireServiceParam(w, service) {
