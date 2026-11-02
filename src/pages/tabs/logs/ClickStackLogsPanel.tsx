@@ -67,9 +67,7 @@ export function ClickStackLogsPanel({
           search: search || undefined,
         })
       : '';
-  const exploreTooltip = exploreLogsUid
-    ? 'Open this service in Grafana Explore (Loki)'
-    : 'Open this service in Grafana Explore (ClickHouse)';
+  const exploreTooltip = 'Open this query in Explore';
 
   const nsSegment = encodeURIComponent(namespace || '_');
   const envParam = environment ? `&env=${encodeURIComponent(environment)}` : '';
@@ -84,7 +82,7 @@ export function ClickStackLogsPanel({
           onFieldsChange={setFields}
           sqlWhere={sqlWhere}
           onSqlWhereChange={setSqlWhere}
-          sqlHint="Optional AND predicate on otel_logs (service + time already scoped). Not LogQL. Allowed functions: lower, upper, positionCaseInsensitiveUTF8, position, like, ilike, has, mapContains, startsWith, endsWith, toString, length, empty, notEmpty, toInt64, toFloat64."
+          sqlHint="Extra filter for this service’s logs (time already applied). Use simple comparisons; only a small set of functions is allowed."
         />
         {exploreHref ? (
           <LinkButton
@@ -101,10 +99,10 @@ export function ClickStackLogsPanel({
       </div>
       <DataState
         loading={loading}
-        error={error ? 'Failed to load ClickStack logs' : data?.mode === 'unavailable' ? data.note : null}
+        error={error ? 'Failed to load logs' : data?.mode === 'unavailable' ? data.note : null}
         empty={logs.length === 0}
         emptyTitle="No logs found"
-        emptyMessage="No ClickHouse log entries match the selected filters and time range."
+        emptyMessage="No log entries match the selected filters and time range."
       >
         <div className={styles.tableScroll}>
           <table className={styles.table} aria-label={`Logs for ${service}`}>

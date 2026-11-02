@@ -977,7 +977,7 @@ function FeedbackSection({ entries }: { entries: FeedbackEntry[] }) {
         <Badge
           text="Preview"
           color="orange"
-          tooltip="App-emitted faro.feedback events (not a built-in Faro API). Free-text may include personal data — warn users before capture."
+          tooltip="Feedback submitted by users in the app. Free-text may include personal data."
         />
       </h4>
       <div className={styles.feedbackList}>

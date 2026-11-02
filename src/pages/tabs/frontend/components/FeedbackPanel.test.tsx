@@ -63,21 +63,21 @@ describe('FeedbackPanel', () => {
     expect(screen.getByText('Configure service alias')).toBeInTheDocument();
   });
 
-  it('surfaces enablement hint when faro.feedback is absent', async () => {
+  it('surfaces enablement hint when feedback events are absent', async () => {
     getFeedback.mockResolvedValue({
       feedback: [],
-      hint: 'No faro.feedback events in ClickHouse for this service in range. Emit a custom HyperDX addAction…',
+      hint: 'No feedback events for this service in range. The app must emit them (event name faro.feedback — see docs/api/frontend.md).',
     });
     renderPanel(true);
 
-    await waitFor(() => expect(screen.getByText('No faro.feedback events yet')).toBeInTheDocument());
-    expect(screen.getByText(/Emit a custom HyperDX addAction/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('No feedback events yet')).toBeInTheDocument());
+    expect(screen.getByText(/app must emit them/i)).toBeInTheDocument();
   });
 
-  it('surfaces Loki unavailability on Faro path', async () => {
+  it('surfaces data-source unavailability', async () => {
     getFeedback.mockResolvedValue({ feedback: [], unavailable: true });
     renderPanel(false);
 
-    await waitFor(() => expect(screen.getByText('Loki is not available')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Feedback data source is not available')).toBeInTheDocument());
   });
 });

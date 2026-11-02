@@ -48,7 +48,7 @@ type FeedbackResponse struct {
 	Hint string `json:"hint,omitempty"`
 }
 
-const feedbackEnablementHint = "No faro.feedback events in ClickHouse for this service in range. Emit a custom HyperDX addAction('faro.feedback', …) from the app (not a built-in Faro API; see docs/api/frontend.md). Do not bind Feedback UI to product HTTP /api/feedback spans."
+const feedbackEnablementHint = "No feedback events for this service in range. The app must emit them (event name faro.feedback — see docs/api/frontend.md)."
 
 // handleFeedback returns recent custom faro.feedback events for a frontend app,
 // optionally scoped to a session or joined to an issue via fingerprint.

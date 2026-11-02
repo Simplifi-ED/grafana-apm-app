@@ -93,9 +93,7 @@ export function ClickStackTracesPanel({
           statusCode: status || undefined,
         })
       : '';
-  const serviceExploreTooltip = exploreTracesUid
-    ? 'Open this service in Grafana Explore (Tempo)'
-    : 'Open this service in Grafana Explore (ClickHouse)';
+  const serviceExploreTooltip = 'Open this query in Explore';
 
   // Prefer Tempo TraceQL bare-ID lookup; ClickHouse uses APM-owned Traces SQL.
   const traceExploreHref = selectedTraceId
@@ -147,7 +145,7 @@ export function ClickStackTracesPanel({
           onFieldsChange={setFields}
           sqlWhere={sqlWhere}
           onSqlWhereChange={setSqlWhere}
-          sqlHint="Optional AND predicate on otel_traces spans (service + time already scoped). Not TraceQL. Allowed functions: lower, upper, positionCaseInsensitiveUTF8, position, like, ilike, has, mapContains, startsWith, endsWith, toString, length, empty, notEmpty, toInt64, toFloat64."
+          sqlHint="Extra filter for this service’s spans (time already applied). Use simple comparisons; only a small set of functions is allowed."
         />
         {serviceExploreHref ? (
           <LinkButton
@@ -165,7 +163,7 @@ export function ClickStackTracesPanel({
 
       <DataState
         loading={loading}
-        error={error ? 'Failed to load ClickStack traces' : data?.mode === 'unavailable' ? data.note : null}
+        error={error ? 'Failed to load traces' : data?.mode === 'unavailable' ? data.note : null}
         empty={displayTraces.length === 0}
         emptyTitle="No traces found"
         emptyMessage="No ClickHouse traces match the selected filters and time range."
@@ -209,11 +207,7 @@ export function ClickStackTracesPanel({
                                     size="sm"
                                     icon="compass"
                                     href={traceExploreHref}
-                                    tooltip={
-                                      exploreTracesUid
-                                        ? 'Open this trace in Grafana Explore (Tempo)'
-                                        : 'Open this trace in Grafana Explore (ClickHouse)'
-                                    }
+                                    tooltip="Open this trace in Explore"
                                   >
                                     Open in Explore
                                   </LinkButton>

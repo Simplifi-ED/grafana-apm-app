@@ -62,7 +62,7 @@ func TestFetchFeedbackClickHouse_EnablementHintWhenProbeEmpty(t *testing.T) {
 	}
 	from, to := time.Unix(1, 0), time.Unix(2, 0)
 	resp := app.fetchFeedbackClickHouse(t.Context(), ch, "storefront", "", from, to, "", "")
-	if !strings.Contains(resp.Hint, "faro.feedback") || !strings.Contains(resp.Hint, "docs/api/frontend.md") {
+	if !strings.Contains(resp.Hint, "faro.feedback") || !strings.Contains(resp.Hint, "docs/api/frontend.md") || !strings.Contains(resp.Hint, "app must emit") {
 		t.Fatalf("hint=%q", resp.Hint)
 	}
 	if len(resp.Feedback) != 0 {

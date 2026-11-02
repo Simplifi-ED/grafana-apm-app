@@ -33,19 +33,15 @@ export function FeedbackPanel({ namespace, service, environment, clickStack = fa
 
   const emptyTitle = data?.hint?.includes('serviceAliases')
     ? 'Configure service alias'
-    : data?.hint?.includes('faro.feedback')
-      ? 'No faro.feedback events yet'
+    : data?.hint
+      ? 'No feedback events yet'
       : 'No feedback';
 
   return (
     <div className={styles.container}>
       <div className={styles.header}>
         <h6 className={styles.title}>Feedback</h6>
-        <span className={styles.subtitle}>
-          {clickStack
-            ? 'Custom faro.feedback actions from the browser (app must emit them)'
-            : 'Custom faro.feedback events from the browser (app must emit them)'}
-        </span>
+        <span className={styles.subtitle}>Feedback submitted from the app</span>
       </div>
       <DataState
         loading={loading}
@@ -53,9 +49,7 @@ export function FeedbackPanel({ namespace, service, environment, clickStack = fa
           error
             ? 'Failed to load feedback'
             : data?.unavailable && !data?.hint
-              ? clickStack
-                ? 'Feedback telemetry is not available'
-                : 'Loki is not available'
+              ? 'Feedback data source is not available'
               : null
         }
         empty={entries.length === 0}
