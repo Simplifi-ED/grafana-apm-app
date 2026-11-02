@@ -38,18 +38,44 @@ func TestFieldFiltersSQL_Escapes(t *testing.T) {
 }
 
 func TestValidateSQLWhere(t *testing.T) {
-	ok, err := ValidateSQLWhere("SeverityText = 'error'")
-	if err != nil || ok != "SeverityText = 'error'" {
-		t.Fatalf("ok=%q err=%v", ok, err)
+	tests := []struct {
+		name    string
+		in      string
+		want    string
+		wantErr bool
+	}{
+		{name: "simple eq", in: "SeverityText = 'error'", want: "SeverityText = 'error'"},
+		{name: "allowed function", in: "positionCaseInsensitiveUTF8(Body, 'x') > 0", want: "positionCaseInsensitiveUTF8(Body, 'x') > 0"},
+		{name: "parens in string literal", in: "Body = 'a) OR (1=1'", want: "Body = 'a) OR (1=1'"},
+		{name: "empty", in: "", want: ""},
+		{name: "semicolon", in: "1; DROP TABLE otel_logs", wantErr: true},
+		{name: "union", in: "1 UNION SELECT 1", wantErr: true},
+		{name: "comment", in: "Body LIKE '%x%' -- comment", wantErr: true},
+		{name: "scope breakout OR", in: "1=0) OR (ServiceName='other-svc'", wantErr: true},
+		{name: "unbalanced close", in: "SeverityText = 'error')", wantErr: true},
+		{name: "unbalanced open", in: "(SeverityText = 'error'", wantErr: true},
+		{name: "url table function", in: "1=1 OR (SELECT count() FROM url('http://169.254.169.254/','RawBLOB'))>0", wantErr: true},
+		{name: "file table function", in: "file('/etc/passwd') = 'x'", wantErr: true},
+		{name: "remote table function", in: "remote('h', 'db', 't') = 1", wantErr: true},
+		{name: "select subquery", in: "(SELECT count() FROM otel_logs) > 0", wantErr: true},
+		{name: "bare select keyword", in: "select 1", wantErr: true},
 	}
-	if _, err := ValidateSQLWhere("1; DROP TABLE otel_logs"); err == nil {
-		t.Fatal("expected reject semicolon")
-	}
-	if _, err := ValidateSQLWhere("1 UNION SELECT 1"); err == nil {
-		t.Fatal("expected reject union")
-	}
-	if _, err := ValidateSQLWhere("Body LIKE '%x%' -- comment"); err == nil {
-		t.Fatal("expected reject comment")
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := ValidateSQLWhere(tc.in)
+			if tc.wantErr {
+				if err == nil {
+					t.Fatalf("expected error, got %q", got)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected err: %v", err)
+			}
+			if got != tc.want {
+				t.Fatalf("got %q want %q", got, tc.want)
+			}
+		})
 	}
 }
 

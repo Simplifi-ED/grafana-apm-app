@@ -45,6 +45,17 @@ var sqlWhereBanned = []string{
 	" truncate ", " grant ", " system ", " union ", " into ",
 	" format ", " outfile ", " infile ", " attach ", " detach ",
 	" kill ", " optimize ", " rename ", " exchange ",
+	" select ",
+}
+
+// sqlWhereAllowedFuncs are the only callables permitted in Advanced SQL fragments.
+// Identifiers are matched case-insensitively. Anything else followed by "(" is rejected
+// (blocks ClickHouse table functions like url/file/remote/s3).
+var sqlWhereAllowedFuncs = map[string]struct{}{
+	"lower": {}, "upper": {}, "positioncaseinsensitiveutf8": {},
+	"position": {}, "like": {}, "ilike": {}, "has": {}, "mapcontains": {},
+	"startswith": {}, "endswith": {}, "tostring": {}, "length": {},
+	"empty": {}, "notempty": {}, "toint64": {}, "tofloat64": {},
 }
 
 // LogFieldKeys returns curated keys for the logs filter-chip picker.
@@ -117,7 +128,8 @@ func FieldFiltersSQL(fields []FieldFilter, kind string) string {
 }
 
 // ValidateSQLWhere accepts a power-user WHERE fragment for the Advanced SQL hatch.
-// Empty input is OK. Rejects multi-statement / DDL-ish input; returns sanitized fragment.
+// Empty input is OK. Rejects multi-statement / DDL-ish input, unbalanced parentheses,
+// disallowed function calls, and SELECT; returns the original fragment when valid.
 func ValidateSQLWhere(fragment string) (string, error) {
 	fragment = strings.TrimSpace(fragment)
 	if fragment == "" {
@@ -141,5 +153,72 @@ func ValidateSQLWhere(fragment string) (string, error) {
 			return "", fmt.Errorf("sql where contains disallowed token")
 		}
 	}
+	if err := validateSQLWhereStructure(fragment); err != nil {
+		return "", err
+	}
 	return fragment, nil
+}
+
+func isSQLWhereIdentByte(b byte) bool {
+	return (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || (b >= '0' && b <= '9') || b == '_'
+}
+
+// validateSQLWhereStructure enforces balanced parentheses outside string literals and
+// restricts callables to sqlWhereAllowedFuncs.
+func validateSQLWhereStructure(fragment string) error {
+	depth := 0
+	for i := 0; i < len(fragment); {
+		c := fragment[i]
+		if c == '\'' {
+			i++
+			for i < len(fragment) {
+				if fragment[i] == '\\' && i+1 < len(fragment) {
+					i += 2
+					continue
+				}
+				if fragment[i] == '\'' {
+					if i+1 < len(fragment) && fragment[i+1] == '\'' {
+						i += 2
+						continue
+					}
+					i++
+					break
+				}
+				i++
+			}
+			continue
+		}
+		if c == '(' {
+			j := i - 1
+			for j >= 0 && (fragment[j] == ' ' || fragment[j] == '\t' || fragment[j] == '\n' || fragment[j] == '\r') {
+				j--
+			}
+			end := j + 1
+			for j >= 0 && isSQLWhereIdentByte(fragment[j]) {
+				j--
+			}
+			ident := fragment[j+1 : end]
+			if ident != "" {
+				if _, ok := sqlWhereAllowedFuncs[strings.ToLower(ident)]; !ok {
+					return fmt.Errorf("sql where contains disallowed function")
+				}
+			}
+			depth++
+			i++
+			continue
+		}
+		if c == ')' {
+			depth--
+			if depth < 0 {
+				return fmt.Errorf("sql where has unbalanced parentheses")
+			}
+			i++
+			continue
+		}
+		i++
+	}
+	if depth != 0 {
+		return fmt.Errorf("sql where has unbalanced parentheses")
+	}
+	return nil
 }

@@ -35,8 +35,10 @@ POST /services/{ns}/{svc}/triage/{fingerprint}           ← { action, assignee?
 GET  /services/{ns}/{svc}/triage/{fingerprint}/history   → { events: [...] } oldest-first
 ```
 
-The actor is resolved server-side from the signed-in Grafana user — anyone
-with plugin access may triage (Sentry model), but always attributably.
+The actor is resolved server-side from the signed-in Grafana user. Writes
+require Editor or Admin (annotations are created with the plugin service-account
+token — Viewers must not drive that confused-deputy path). Reads remain
+available to any authenticated plugin user.
 Reads are deliberately uncached: read-after-write matters more than saving
 one indexed Grafana DB query.
 

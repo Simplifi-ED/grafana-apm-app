@@ -236,7 +236,8 @@ curl -s ".../services/team-a/storefront/triage"
 
 Record a triage action. Appends an event to the Grafana-annotation log and
 returns the newly folded state. **The only write endpoint in the API.** Requires
-a credential with annotation-write (Editor). **Never cached.**
+the caller to be Editor/Admin (`requireEditor`; Viewers get `403`) and a plugin
+service account with annotation-write. **Never cached.**
 
 ### Parameters
 

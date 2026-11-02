@@ -7,15 +7,17 @@ import (
 	"github.com/nais/grafana-otel-plugin/pkg/plugin/queries"
 )
 
-// Faro-shaped feedback contract (ticket 21) — HyperDX addAction('faro.feedback', …).
+// Custom browser feedback contract (not a Faro built-in). ClickStack apps emit
+// HyperDX addAction("faro.feedback", { "feedback.message": …, … }); Loki/Faro
+// apps emit faro.api.pushEvent("faro.feedback", { message, category, … }).
 const (
-	SpanNameFaroFeedback     = "faro.feedback"
-	AttrFeedbackMessage      = "feedback.message"
-	AttrFeedbackCategory     = "feedback.category"
-	AttrFeedbackEmail        = "feedback.email"
-	AttrFeedbackFingerprint  = "feedback.fingerprint"
-	AttrEventName            = "event_name"
-	maxFeedbackRows          = 200
+	SpanNameFaroFeedback    = "faro.feedback"
+	AttrFeedbackMessage     = "feedback.message"
+	AttrFeedbackCategory    = "feedback.category"
+	AttrFeedbackEmail       = "feedback.email"
+	AttrFeedbackFingerprint = "feedback.fingerprint"
+	AttrEventName           = "event_name"
+	maxFeedbackRows         = 200
 )
 
 // BrowserFeedbackProbeSQL is true when SpanName=faro.feedback exists for the
@@ -32,7 +34,7 @@ WHERE %s
 LIMIT 1`, table(queries.CHTableTraces), where)
 }
 
-// FaroFeedbackFilter matches Faro-shaped feedback action spans (ticket 21).
+// FaroFeedbackFilter matches custom faro.feedback action spans.
 func FaroFeedbackFilter() string {
 	return fmt.Sprintf(
 		`(SpanName = %s OR SpanAttributes[%s] = %s)`,

@@ -249,18 +249,19 @@ func (a *App) probeServiceIssuesAttention(
 	namespace, service, env string,
 	from, to time.Time,
 ) (IssuesAttention, error) {
-	var resp IssuesResponse
-	if a.clickStackMode() {
-		ch := a.chForRequest(req)
-		resp = a.fetchIssuesClickHouse(ctx, ch, service, env, namespace, from, to)
-	} else {
-		lokiUID := a.settings.LogsDataSource.Resolve(env).UID
-		if lokiUID == "" {
-			return IssuesAttention{}, fmt.Errorf("no Loki datasource for environment %q", env)
-		}
-		dsClient := queries.NewDsQueryClient(a.grafanaURL, a.resolveServiceToken(ctx)).WithAuthHeaders(req.Header)
-		resp = a.queryIssues(ctx, dsClient, lokiUID, service, env, namespace, from, to, browserFacets{})
+	span := to.Sub(from)
+	var resp, baseline IssuesResponse
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		resp = a.fetchIssuesWindow(ctx, req, namespace, service, env, from, to)
+	})
+	if span > 0 {
+		wg.Go(func() {
+			baseline = a.fetchIssuesWindow(ctx, req, namespace, service, env, from.Add(-span), from)
+		})
 	}
+	wg.Wait()
+
 	if resp.Unavailable {
 		return IssuesAttention{}, fmt.Errorf("issues unavailable for service %q", service)
 	}
@@ -268,22 +269,29 @@ func (a *App) probeServiceIssuesAttention(
 		return IssuesAttention{}, nil
 	}
 	var prev map[string]bool
-	if span := to.Sub(from); span > 0 {
-		var baseline IssuesResponse
-		if a.clickStackMode() {
-			baseline = a.fetchIssuesClickHouse(ctx, a.chForRequest(req), service, env, namespace, from.Add(-span), from)
-		} else {
-			lokiUID := a.settings.LogsDataSource.Resolve(env).UID
-			dsClient := queries.NewDsQueryClient(a.grafanaURL, a.resolveServiceToken(ctx)).WithAuthHeaders(req.Header)
-			baseline = a.queryIssues(ctx, dsClient, lokiUID, service, env, namespace, from.Add(-span), from, browserFacets{})
-		}
-		if len(baseline.Issues) > 0 {
-			prev = issueFingerprintSet(baseline.Issues)
-		}
+	if len(baseline.Issues) > 0 {
+		prev = issueFingerprintSet(baseline.Issues)
 	}
 	a.attachIssuesNotifyFlags(ctx, namespace, service, env, from, to, &resp, prev)
 	if resp.Attention == nil {
 		return IssuesAttention{}, nil
 	}
 	return *resp.Attention, nil
+}
+
+func (a *App) fetchIssuesWindow(
+	ctx context.Context,
+	req *http.Request,
+	namespace, service, env string,
+	from, to time.Time,
+) IssuesResponse {
+	if a.clickStackMode() {
+		return a.fetchIssuesClickHouse(ctx, a.chForRequest(req), service, env, namespace, from, to)
+	}
+	lokiUID := a.settings.LogsDataSource.Resolve(env).UID
+	if lokiUID == "" {
+		return IssuesResponse{Unavailable: true}
+	}
+	dsClient := queries.NewDsQueryClient(a.grafanaURL, a.resolveServiceToken(ctx)).WithAuthHeaders(req.Header)
+	return a.queryIssues(ctx, dsClient, lokiUID, service, env, namespace, from, to, browserFacets{})
 }

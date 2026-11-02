@@ -33,6 +33,7 @@ import { usePluginDatasources } from '../../../../utils/datasources';
 import { buildExceptionTracesExploreUrl } from '../../../../utils/explore';
 import { DataState } from '../../../../components/DataState';
 import { typographyFontSize } from '../../../../utils/themeTypography';
+import { canEditPlugin, EDITOR_ROLE_REQUIRED } from '../../../../utils/orgRole';
 
 interface IssuesTableProps {
   namespace: string;
@@ -427,6 +428,8 @@ function IssueRow({
   const styles = useStyles2(getStyles);
   const share = totalCount > 0 ? group.count / totalCount : 0;
   const status = state?.status ?? 'active';
+  const canTriage = canEditPlugin();
+  const triageTooltip = canTriage ? undefined : EDITOR_ROLE_REQUIRED;
   return (
     <tr
       className={styles.row}
@@ -485,11 +488,29 @@ function IssueRow({
         <span className={styles.actions}>
           {status === 'active' ? (
             <>
-              <IconButton name="check" size="sm" tooltip="Resolve" onClick={() => onAct('resolve')} />
-              <IconButton name="eye-slash" size="sm" tooltip="Ignore" onClick={() => onAct('ignore')} />
+              <IconButton
+                name="check"
+                size="sm"
+                tooltip={triageTooltip ?? 'Resolve'}
+                disabled={!canTriage}
+                onClick={() => onAct('resolve')}
+              />
+              <IconButton
+                name="eye-slash"
+                size="sm"
+                tooltip={triageTooltip ?? 'Ignore'}
+                disabled={!canTriage}
+                onClick={() => onAct('ignore')}
+              />
             </>
           ) : (
-            <IconButton name="history" size="sm" tooltip="Reopen (unresolve)" onClick={() => onAct('unresolve')} />
+            <IconButton
+              name="history"
+              size="sm"
+              tooltip={triageTooltip ?? 'Reopen (unresolve)'}
+              disabled={!canTriage}
+              onClick={() => onAct('unresolve')}
+            />
           )}
           {tracesUrl && (
             <a href={tracesUrl} target="_blank" rel="noopener noreferrer" aria-label="View example traces">

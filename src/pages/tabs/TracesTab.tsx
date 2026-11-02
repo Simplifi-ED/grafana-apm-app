@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useStyles2, Combobox, Input, Icon, Alert } from '@grafana/ui';
 import { GrafanaTheme2 } from '@grafana/data';
 import { css } from '@emotion/css';
@@ -13,6 +14,7 @@ import {
 import { useDebouncedValue, escapeRegex } from '../../utils/debounce';
 import { escapeQueryString } from '../../utils/sanitize';
 import { useTimeRange } from '../../utils/timeRange';
+import { useFrozenWhileHidden } from '../../utils/useFrozenWhileHidden';
 import { TraceBreakdowns } from './traces/TraceBreakdowns';
 import { ClickStackTracesPanel } from './traces/ClickStackTracesPanel';
 import { typographyFontSize } from '../../utils/themeTypography';
@@ -42,6 +44,8 @@ interface TracesTabProps {
   clickHouseUid?: string;
   from?: string;
   to?: string;
+  /** When false, freeze the resolved time range so hidden tabs do not re-query. */
+  active?: boolean;
   initialSpan?: string;
   initialStatus?: string;
   initialSpanKind?: string;
@@ -54,6 +58,7 @@ export function TracesTab({
   clickHouseUid = '',
   from = 'now-1h',
   to = 'now',
+  active = true,
   initialSpan,
   initialStatus,
   initialSpanKind,
@@ -64,10 +69,14 @@ export function TracesTab({
   const [spanSearch, setSpanSearch] = useState<string>(initialSpan ?? '');
   const debouncedSearch = useDebouncedValue(spanSearch, 500);
   const styles = useStyles2(getStyles);
+  const [searchParams] = useSearchParams();
+  const initialTraceId = searchParams.get('traceId') ?? '';
   // Resolved timestamps drive the breakdown fetch AND bust the scene memo on a
   // global time-picker refresh (from/to strings stay relative but fromMs/toMs
   // re-resolve), so the trace scene rebuilds and re-queries the fresh window.
-  const { fromMs, toMs } = useTimeRange();
+  const live = useTimeRange();
+  const fromMs = useFrozenWhileHidden(live.fromMs, active);
+  const toMs = useFrozenWhileHidden(live.toMs, active);
 
   const scene = useMemo(() => {
     if (!tracesUid) {
@@ -198,6 +207,8 @@ export function TracesTab({
           from={from}
           to={to}
           exploreTracesUid={tracesUid}
+          clickHouseUid={clickHouseUid}
+          initialTraceId={initialTraceId}
         />
       ) : scene != null ? (
         <div className={styles.sceneWrapper}>

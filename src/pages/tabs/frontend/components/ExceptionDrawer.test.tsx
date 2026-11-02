@@ -19,9 +19,23 @@ jest.mock('@grafana/runtime', () => ({
   locationService: { push: jest.fn() },
 }));
 
+const mockDatasources = {
+  tracesUid: 'tempo-uid',
+  logsUid: 'loki-uid',
+  clickHouseUid: '',
+  metricsUid: '',
+  isEnvSpecific: false,
+  isLogsEnvSpecific: false,
+};
+
 jest.mock('../../../../utils/datasources', () => ({
   usePluginLabelOverrides: () => ({}),
-  usePluginDatasources: () => ({ tracesUid: 'tempo-uid', logsUid: 'loki-uid' }),
+  usePluginDatasources: () => mockDatasources,
+}));
+
+jest.mock('../../../../utils/orgRole', () => ({
+  canEditPlugin: () => true,
+  EDITOR_ROLE_REQUIRED: 'Editor role required',
 }));
 
 jest.mock('../../../../api/client', () => ({
@@ -95,6 +109,10 @@ beforeEach(() => {
   getFeedback.mockReset().mockResolvedValue({ feedback: [] });
   getIssueOccurrences.mockReset();
   probeReplay.mockReset().mockResolvedValue({ hasChunks: false, mode: null, chunkCount: 0 });
+  mockDatasources.tracesUid = 'tempo-uid';
+  mockDatasources.logsUid = 'loki-uid';
+  mockDatasources.clickHouseUid = '';
+  mockDatasources.metricsUid = '';
 });
 
 describe('opening effect (fetch-once regression)', () => {
@@ -418,6 +436,21 @@ describe('server issues (#84)', () => {
     // The same trace is linked from the occurrence-context meta list.
     fireEvent.click(screen.getByRole('button', { name: /Occurrence context/ }));
     expect(await screen.findByText(/Trace:/)).toBeInTheDocument();
+  });
+
+  it('ClickStack-only: View this trace opens ClickHouse Explore SQL', async () => {
+    mockDatasources.tracesUid = '';
+    mockDatasources.logsUid = '';
+    mockDatasources.clickHouseUid = 'clickhouse';
+    getIssueOccurrences.mockResolvedValue(serverResponse);
+    renderServerDrawer();
+    await screen.findByText(/^2 occurrences$/);
+
+    const traceLink = screen.getByRole('link', { name: /View this trace/ });
+    const left = JSON.parse(new URL(traceLink.getAttribute('href')!, 'http://grafana.local').searchParams.get('left')!);
+    expect(left.datasource).toBe('clickhouse');
+    expect(left.queries[0].queryType).toBe('traces');
+    expect(left.queries[0].rawSql).toContain('abc123def456trace');
   });
 
   it('renders the structured-metadata attributes in the occurrence context', async () => {

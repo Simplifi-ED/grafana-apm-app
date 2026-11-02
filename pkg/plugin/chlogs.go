@@ -79,14 +79,15 @@ func (a *App) handleLogSearch(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	logs := make([]ClickStackLogEntry, 0, res.RowCount())
-	for _, row := range res.Maps() {
+	parsed := chquery.ParseLogSearchMaps(res.Maps())
+	logs := make([]ClickStackLogEntry, 0, len(parsed))
+	for _, e := range parsed {
 		logs = append(logs, ClickStackLogEntry{
-			TimestampMs: chquery.ParseInt64(row["ts_ms"]),
-			Severity:    chquery.ParseString(row["severity"]),
-			Body:        chquery.ParseString(row["body"]),
-			TraceID:     chquery.ParseString(row["trace_id"]),
-			SpanID:      chquery.ParseString(row["span_id"]),
+			TimestampMs: e.TimestampMs,
+			Severity:    e.Severity,
+			Body:        e.Body,
+			TraceID:     e.TraceID,
+			SpanID:      e.SpanID,
 		})
 	}
 	writeJSON(w, ClickStackLogsResponse{Mode: "clickhouse", Logs: logs})

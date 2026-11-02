@@ -136,6 +136,8 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
   >([]);
   const [dsLoaded, setDsLoaded] = useState(false);
   const [envOptions, setEnvOptions] = useState<Array<{ label: string; value: string }>>([]);
+  /** True when selected CH DS is missing Explore traces/logs table defaults. */
+  const [chExploreConfigMissing, setChExploreConfigMissing] = useState(false);
 
   // Fetch environment options from capabilities on mount
   useEffect(() => {
@@ -148,6 +150,33 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
       })
       .catch(() => {});
   }, []);
+
+  // Warn when ClickHouse Explore Traces/Logs defaults are missing (empty-table SQL).
+  useEffect(() => {
+    const uid = state.clickHouseUid;
+    if (!uid) {
+      setChExploreConfigMissing(false);
+      return;
+    }
+    let cancelled = false;
+    getBackendSrv()
+      .get(`/api/datasources/uid/${encodeURIComponent(uid)}`)
+      .then((ds: { jsonData?: { traces?: { defaultTable?: string }; logs?: { defaultTable?: string } } }) => {
+        if (cancelled) {
+          return;
+        }
+        const tracesOk = Boolean(ds?.jsonData?.traces?.defaultTable);
+        const logsOk = Boolean(ds?.jsonData?.logs?.defaultTable);
+        setChExploreConfigMissing(!tracesOk || !logsOk);
+      })
+      .catch(() => {
+        // Leave prior warning state alone — a transient GET failure must not
+        // hide a real "Explore tables not configured" warning.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [state.clickHouseUid]);
 
   useEffect(() => {
     getBackendSrv()
@@ -512,6 +541,14 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
             />
           )}
         </Field>
+        {chExploreConfigMissing && (
+          <Alert severity="warning" title="ClickHouse Explore Traces/Logs not configured">
+            This datasource is missing <code>jsonData.traces.defaultTable</code> and/or{' '}
+            <code>jsonData.logs.defaultTable</code>. Grafana Explore&apos;s Traces/Logs builders will emit empty-table
+            SQL. Set OTel defaults on the datasource (see docs/configuration.md) or use APM&apos;s Open in Explore links
+            (APM-owned rawSql).
+          </Alert>
+        )}
         <Field
           label="Metrics (Prometheus/Mimir)"
           description="LGTM path only — span metrics and service graph when ClickHouse is not used."
@@ -936,7 +973,7 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
           <a href={`/a/${plugin.meta.id}/ops`} target="_blank" rel="noreferrer">
             Ops Status Board
           </a>
-          . This is a shared watchlist visible to all users — any user can also edit it via the board&apos;s API.
+          . This is a shared watchlist visible to all users — editing via the board API requires Editor or Admin.
         </p>
         {state.opsWatchlist.map((entry, idx) => (
           <div key={idx} className={s.envRow}>

@@ -12,6 +12,8 @@ import (
 	"github.com/grafana/grafana-plugin-sdk-go/backend"
 	"github.com/grafana/grafana-plugin-sdk-go/backend/log"
 	"github.com/grafana/grafana-plugin-sdk-go/config"
+
+	"github.com/nais/grafana-otel-plugin/pkg/plugin/queries"
 )
 
 // OpsWatchlistEntry is a single watched service in the ops watchlist. An entry
@@ -73,12 +75,27 @@ func (a *App) setOpsWatchlist(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Filter out incomplete entries
+	// Filter out incomplete entries; reject unsafe labels before they land in jsonData.
 	valid := make([]OpsWatchlistEntry, 0, len(entries))
 	for _, e := range entries {
-		if e.Namespace != "" && e.Service != "" {
-			valid = append(valid, e)
+		if e.Namespace == "" || e.Service == "" {
+			continue
 		}
+		if _, err := queries.SanitizeLabel(e.Namespace); err != nil {
+			http.Error(w, "invalid watchlist namespace", http.StatusBadRequest)
+			return
+		}
+		if _, err := queries.SanitizeLabel(e.Service); err != nil {
+			http.Error(w, "invalid watchlist service", http.StatusBadRequest)
+			return
+		}
+		if e.Environment != "" {
+			if _, err := queries.SanitizeLabel(e.Environment); err != nil {
+				http.Error(w, "invalid watchlist environment", http.StatusBadRequest)
+				return
+			}
+		}
+		valid = append(valid, e)
 	}
 
 	// Serialize writes to prevent concurrent read-modify-write races

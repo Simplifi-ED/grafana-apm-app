@@ -32,10 +32,16 @@ import {
 import { otel } from '../../../../otelconfig';
 import { PLUGIN_BASE_URL } from '../../../../constants';
 import { sanitizeLabelValue } from '../../../../utils/sanitize';
+import { canEditPlugin, EDITOR_ROLE_REQUIRED } from '../../../../utils/orgRole';
 import { hasAlertRoutingContext } from '../../../../utils/alertRouting';
 import { usePluginLabelOverrides, usePluginDatasources } from '../../../../utils/datasources';
 import { useTimeRange } from '../../../../utils/timeRange';
-import { buildExceptionTracesExploreUrl, buildTraceExploreUrl } from '../../../../utils/explore';
+import {
+  buildClickHouseTraceExploreUrl,
+  buildClickHouseTraceSearchExploreUrl,
+  buildExceptionTracesExploreUrl,
+  buildTraceExploreUrl,
+} from '../../../../utils/explore';
 import { StackTraceView, isConsoleCaptureValue } from './StackTraceView';
 import { stackLooksMinified, firstScriptUrl } from '../frames';
 import { useIssueOccurrences, msToNs, ParsedException } from '../useIssueOccurrences';
@@ -349,11 +355,9 @@ export function ExceptionDrawer({
     };
   }, [selectedSessionId, service, namespace, environment, logsUid, clusterLabel, fromMs, toMs]);
 
-  // User feedback (M6): scoped to this issue's fingerprint, not the selected
-  // session — feedback is rare, so we show everything tied to the issue
-  // rather than narrowing to whichever occurrence happens to be selected.
-  // No fingerprint (legacy exceptionHash-only links) means no reliable join
-  // key, so skip the fetch entirely rather than showing unrelated feedback.
+  // Custom faro.feedback events scoped to this issue's fingerprint (not the
+  // selected session). No fingerprint (legacy exceptionHash-only links) means
+  // no reliable join key — skip the fetch rather than showing unrelated rows.
   const feedbackRequest = useMemo(
     () => [issueId, isServer, namespace, service, environment, fromMs, toMs],
     [issueId, isServer, namespace, service, environment, fromMs, toMs]
@@ -366,8 +370,7 @@ export function ExceptionDrawer({
     }
   }
   useEffect(() => {
-    // Feedback is browser-captured (browser SDK) and joined by fingerprint;
-    // server feedback is deferred (#84), so skip the fetch for server issues.
+    // Feedback is browser-emitted only; skip for server issues.
     if (!issueId || isServer) {
       return;
     }
@@ -432,21 +435,35 @@ export function ExceptionDrawer({
   // available — the traces carrying this exception type (#84).
   const serverLogSearch = (exception?.value ?? title ?? '').slice(0, 60);
   const serverLogsUrl = `${PLUGIN_BASE_URL}/services/${nsSegment}/${encodeURIComponent(service)}?tab=logs&from=now-6h&to=now${envParam}&logSearch=${encodeURIComponent(serverLogSearch)}`;
-  const serverTracesUrl =
-    isServer && ds.tracesUid
+  const serverTracesUrl = isServer
+    ? ds.tracesUid
       ? buildExceptionTracesExploreUrl(ds.tracesUid, service, {
           exceptionType: exception?.type || undefined,
           from: 'now-6h',
           to: 'now',
         })
-      : undefined;
+      : ds.clickHouseUid
+        ? buildClickHouseTraceSearchExploreUrl(ds.clickHouseUid, service, {
+            from: 'now-6h',
+            to: 'now',
+            statusCode: 'error',
+          })
+        : undefined
+    : undefined;
   // Deep-link to the *exact* trace this occurrence correlates to (#84 follow-up):
   // the thin log line lacks spans / http / db / timing — the trace carries them.
   // The selected time range is guaranteed to contain the occurrence, so it's the
-  // safe lookup window for the trace ID.
+  // safe lookup window for the trace ID. Prefer Tempo; ClickHouse when CH-only.
   const occurrenceTraceUrl =
-    isServer && ds.tracesUid && exception?.traceId
-      ? buildTraceExploreUrl(ds.tracesUid, exception.traceId, { from: String(fromMs), to: String(toMs) })
+    isServer && exception?.traceId
+      ? ds.tracesUid
+        ? buildTraceExploreUrl(ds.tracesUid, exception.traceId, { from: String(fromMs), to: String(toMs) })
+        : ds.clickHouseUid
+          ? buildClickHouseTraceExploreUrl(ds.clickHouseUid, exception.traceId, {
+              from: String(fromMs),
+              to: String(toMs),
+            })
+          : undefined
       : undefined;
   // Shape (b)/(c) lines were logged as a message, not a throwable — no stack or
   // type. Surface a non-alarming hint pointing at the backend-exceptions guide.
@@ -942,10 +959,8 @@ function feedbackBadgeColor(category: string): 'red' | 'blue' | 'darkgrey' {
 }
 
 /**
- * User feedback (M6): entries captured via browser SDK's captureFeedback(),
- * joined to this issue by fingerprint. Rendered only when non-empty — the
- * caller (ExceptionDrawer) hides this section entirely otherwise, since
- * feedback is rare and an empty shell wastes drawer space.
+ * Custom faro.feedback entries joined to this issue by fingerprint. Hidden
+ * when empty (caller only mounts this section if there is data).
  */
 function FeedbackSection({ entries }: { entries: FeedbackEntry[] }) {
   const styles = useStyles2(getStyles);
@@ -962,7 +977,7 @@ function FeedbackSection({ entries }: { entries: FeedbackEntry[] }) {
         <Badge
           text="Preview"
           color="orange"
-          tooltip="Internal pilot only — free-text feedback goes to a shared log store, so this is gated on the personvernombud process and apps must warn users not to enter personal information."
+          tooltip="Feedback submitted by users in the app. Free-text may include personal data."
         />
       </h4>
       <div className={styles.feedbackList}>
@@ -1030,22 +1045,31 @@ function TriageControls({
   };
 
   const status = state?.status ?? 'active';
+  const canTriage = canEditPlugin();
+  const triageDisabled = busy || !canTriage;
   return (
     <div className={styles.triageBar}>
       {status === 'resolved' && <Badge text="Resolved" color="green" />}
       {status === 'ignored' && <Badge text="Ignored" color="darkgrey" />}
       {status === 'active' && <Badge text="Unresolved" color="orange" />}
+      {!canTriage && <span className={styles.triageMeta}>{EDITOR_ROLE_REQUIRED}</span>}
       {status === 'active' ? (
         <>
-          <Button size="sm" variant="secondary" icon="check" disabled={busy} onClick={() => act('resolve')}>
+          <Button size="sm" variant="secondary" icon="check" disabled={triageDisabled} onClick={() => act('resolve')}>
             Resolve
           </Button>
-          <Button size="sm" variant="secondary" icon="eye-slash" disabled={busy} onClick={() => act('ignore')}>
+          <Button
+            size="sm"
+            variant="secondary"
+            icon="eye-slash"
+            disabled={triageDisabled}
+            onClick={() => act('ignore')}
+          >
             Ignore
           </Button>
         </>
       ) : (
-        <Button size="sm" variant="secondary" icon="history" disabled={busy} onClick={() => act('unresolve')}>
+        <Button size="sm" variant="secondary" icon="history" disabled={triageDisabled} onClick={() => act('unresolve')}>
           Reopen
         </Button>
       )}
@@ -1053,10 +1077,10 @@ function TriageControls({
         width={22}
         placeholder="Assignee…"
         value={assignee}
-        disabled={busy}
+        disabled={triageDisabled}
         onChange={(e) => setAssignee(e.currentTarget.value)}
-        onKeyDown={(e) => e.key === 'Enter' && act('assign', { assignee })}
-        onBlur={() => (state?.assignee ?? '') !== assignee && act('assign', { assignee })}
+        onKeyDown={(e) => e.key === 'Enter' && canTriage && act('assign', { assignee })}
+        onBlur={() => canTriage && (state?.assignee ?? '') !== assignee && act('assign', { assignee })}
         prefix={<Icon name="user" />}
       />
       {state?.updatedBy && <span className={styles.triageMeta}>last change by {state.updatedBy}</span>}

@@ -183,6 +183,31 @@ func TestSetOpsWatchlist_UsesPluginIDFromContext(t *testing.T) {
 	}
 }
 
+func TestSetOpsWatchlist_RejectsUnsafeLabels(t *testing.T) {
+	api := &settingsAPI{
+		t:        t,
+		pluginID: "omnivya-apm-app",
+		allowed:  map[string]bool{"Bearer managed-token": true},
+		settings: map[string]any{"enabled": true, "jsonData": map[string]any{}},
+	}
+	srv := httptest.NewServer(http.HandlerFunc(api.handler))
+	defer srv.Close()
+
+	app := newWatchlistApp(srv.URL, "")
+	body := `[{"namespace":"ns\"evil","service":"api"}]`
+	req := httptest.NewRequest(http.MethodPost, "/ops-watchlist", strings.NewReader(body)).WithContext(
+		watchlistCtx("omnivya-apm-app", `{}`, "managed-token"))
+	rec := httptest.NewRecorder()
+	app.handleOpsWatchlist(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s, want 400", rec.Code, rec.Body.String())
+	}
+	if api.saved != nil {
+		t.Errorf("must not save invalid watchlist: %+v", api.saved)
+	}
+}
+
 func TestSetOpsWatchlist_ReportsUpstreamStatusWhenAllCredentialsRejected(t *testing.T) {
 	api := &settingsAPI{t: t, pluginID: "omnivya-apm-app", allowed: map[string]bool{}}
 	srv := httptest.NewServer(http.HandlerFunc(api.handler))

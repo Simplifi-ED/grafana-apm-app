@@ -61,8 +61,9 @@ credential Grafana itself accepts:
   `Authorization: Bearer <token>`. Create the service account in Grafana
   (Administration → Service accounts) with at least **Viewer** on the org. That
   is sufficient for every read endpoint. Writing triage state
-  (`POST /triage/{fingerprint}`) additionally creates a Grafana annotation, so
-  the service account needs annotation-write (Editor role, or a fine-grained
+  (`POST /triage/{fingerprint}`) requires the **caller** to be Editor/Admin
+  (`requireEditor`) and creates a Grafana annotation via the plugin SA, so the
+  service account also needs annotation-write (Editor role, or a fine-grained
   annotations:write permission).
 
 There are no plugin-specific API keys — Grafana service accounts are the only

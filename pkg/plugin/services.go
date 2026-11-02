@@ -3,7 +3,9 @@ package plugin
 import (
 	"context"
 	"fmt"
+	"maps"
 	"net/http"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -164,25 +166,6 @@ func (a *App) fetchServiceSummaries(
 		callsMetric, a.otelCfg.Labels.ServiceName, extraFilters, rangeStr,
 	)
 
-	// Fallback queries: no span_kind filter, used for services without SERVER spans.
-	// Services with SERVER spans use the SERVER-filtered queries above (unchanged behavior).
-	fallbackRateQuery := fmt.Sprintf(
-		`sum by (%s, %s, %s) (rate(%s{%s!=""%s}%s))`,
-		a.otelCfg.Labels.ServiceName, a.otelCfg.Labels.ServiceNamespace, envLabel,
-		callsMetric, a.otelCfg.Labels.ServiceName, extraFilters, rangeStr,
-	)
-	fallbackErrorQuery := fmt.Sprintf(
-		`sum by (%s, %s, %s) (rate(%s{%s!="", %s="%s"%s}%s))`,
-		a.otelCfg.Labels.ServiceName, a.otelCfg.Labels.ServiceNamespace, envLabel,
-		callsMetric, a.otelCfg.Labels.ServiceName,
-		a.otelCfg.Labels.StatusCode, a.otelCfg.StatusCodes.Error, extraFilters, rangeStr,
-	)
-	fallbackP95Query := fmt.Sprintf(
-		`histogram_quantile(0.95, sum by (%s, %s, %s, %s) (rate(%s{%s!=""%s}%s)))`,
-		a.otelCfg.Labels.ServiceName, a.otelCfg.Labels.ServiceNamespace, envLabel, a.otelCfg.Labels.Le,
-		durationBucket, a.otelCfg.Labels.ServiceName, extraFilters, rangeStr,
-	)
-
 	// Framework detection from app-emitted metrics (uses app/namespace labels).
 	// Detection metrics per framework:
 	//   Ktor:        ktor_http_server_requests_seconds_count (always present with Ktor + Micrometer)
@@ -207,18 +190,48 @@ func (a *App) fetchServiceSummaries(
 		err     error
 	}
 
-	// Run instant queries in parallel
-	var wg sync.WaitGroup
-	ch := make(chan queryResult, 20)
+	runQueries := func(instant map[string]string, series []struct{ name, query string }) map[string][]queries.PromResult {
+		var wg sync.WaitGroup
+		ch := make(chan queryResult, len(instant)+len(series)+1)
+		for name, q := range instant {
+			wg.Add(1)
+			go func(n, query string) {
+				defer wg.Done()
+				results, err := a.prom(ctx).InstantQuery(ctx, query, to)
+				ch <- queryResult{name: n, results: results, err: err}
+			}(name, q)
+		}
+		for _, sq := range series {
+			wg.Add(1)
+			go func(n, query string) {
+				defer wg.Done()
+				results, err := a.prom(ctx).RangeQuery(ctx, query, from, to, step)
+				ch <- queryResult{name: n, results: results, err: err}
+			}(sq.name, sq.query)
+		}
+		go func() {
+			wg.Wait()
+			close(ch)
+		}()
+		out := make(map[string][]queries.PromResult)
+		for qr := range ch {
+			if qr.err != nil {
+				logger.Warn("Query failed", "query", qr.name, "error", qr.err)
+				continue
+			}
+			out[qr.name] = qr.results
+		}
+		return out
+	}
 
 	// Faro frontend detection: query Loki for app_name label values (parallel, ~100ms)
-	// Use environment-specific Loki when filtered to improve detection accuracy.
 	var faroApps map[string]bool
 	var faroMu sync.Mutex
+	var faroWG sync.WaitGroup
 	lokiURL := a.lokiURL(filterEnvironment)
 	if lokiURL != "" {
 		resolvedToken := a.resolveServiceToken(ctx)
-		wg.Go(func() {
+		faroWG.Go(func() {
 			lokiClient := queries.NewLokiMetricClient(lokiURL, resolvedToken)
 			if headers != nil {
 				lokiClient = lokiClient.WithAuthHeaders(headers)
@@ -237,69 +250,112 @@ func (a *App) fetchServiceSummaries(
 		})
 	}
 
-	instantQueries := map[string]string{
-		"rate":          rateQuery,
-		"error":         errorQuery,
-		"p95":           p95Query,
-		"sdk":           sdkQuery,
-		"framework":     frameworkQuery,
-		"fallbackRate":  fallbackRateQuery,
-		"fallbackError": fallbackErrorQuery,
-		"fallbackP95":   fallbackP95Query,
+	// Phase 1: primary SERVER RED + discovery + framework (no fallback yet).
+	phase1Instant := map[string]string{
+		"rate":      rateQuery,
+		"error":     errorQuery,
+		"p95":       p95Query,
+		"sdk":       sdkQuery,
+		"framework": frameworkQuery,
 	}
-
-	for name, q := range instantQueries {
-		wg.Add(1)
-		go func(n, query string) {
-			defer wg.Done()
-			results, err := a.prom(ctx).InstantQuery(ctx, query, to)
-			ch <- queryResult{name: n, results: results, err: err}
-		}(name, q)
-	}
-
-	// Optionally run range queries for sparklines
+	var phase1Series []struct{ name, query string }
 	if withSeries {
-		for _, sq := range []struct {
-			name  string
-			query string
-		}{
+		phase1Series = []struct{ name, query string }{
 			{"rateSeries", strings.Replace(rateQuery, rangeStr, sparklineRangeStr, 1)},
 			{"errorSeries", strings.Replace(errorQuery, rangeStr, sparklineRangeStr, 1)},
 			{"durationSeries", strings.Replace(p95Query, rangeStr, sparklineRangeStr, 1)},
-			{"fallbackRateSeries", strings.Replace(fallbackRateQuery, rangeStr, sparklineRangeStr, 1)},
-			{"fallbackErrorSeries", strings.Replace(fallbackErrorQuery, rangeStr, sparklineRangeStr, 1)},
-			{"fallbackDurationSeries", strings.Replace(fallbackP95Query, rangeStr, sparklineRangeStr, 1)},
-		} {
-			wg.Add(1)
-			go func(n, query string) {
-				defer wg.Done()
-				results, err := a.prom(ctx).RangeQuery(ctx, query, from, to, step)
-				ch <- queryResult{name: n, results: results, err: err}
-			}(sq.name, sq.query)
 		}
 	}
+	resultMap := runQueries(phase1Instant, phase1Series)
 
-	go func() {
-		wg.Wait()
-		close(ch)
-	}()
-
-	// Collect results
-	resultMap := make(map[string][]queries.PromResult)
-	for qr := range ch {
-		if qr.err != nil {
-			logger.Warn("Query failed", "query", qr.name, "error", qr.err)
-			continue
+	// Phase 2: fallback RED only for services present in sdk but missing from SERVER rate.
+	needNames := servicesNeedingFallback(
+		resultMap["sdk"], resultMap["rate"],
+		a.otelCfg.Labels.ServiceName, a.otelCfg.Labels.ServiceNamespace, envLabel,
+	)
+	if len(needNames) > 0 {
+		fbFilters := extraFilters
+		if scoped, ok := scopedServiceNameFilter(a.otelCfg.Labels.ServiceName, needNames); ok {
+			fbFilters += scoped
 		}
-		resultMap[qr.name] = qr.results
+		fallbackRateQuery := fmt.Sprintf(
+			`sum by (%s, %s, %s) (rate(%s{%s!=""%s}%s))`,
+			a.otelCfg.Labels.ServiceName, a.otelCfg.Labels.ServiceNamespace, envLabel,
+			callsMetric, a.otelCfg.Labels.ServiceName, fbFilters, rangeStr,
+		)
+		fallbackErrorQuery := fmt.Sprintf(
+			`sum by (%s, %s, %s) (rate(%s{%s!="", %s="%s"%s}%s))`,
+			a.otelCfg.Labels.ServiceName, a.otelCfg.Labels.ServiceNamespace, envLabel,
+			callsMetric, a.otelCfg.Labels.ServiceName,
+			a.otelCfg.Labels.StatusCode, a.otelCfg.StatusCodes.Error, fbFilters, rangeStr,
+		)
+		fallbackP95Query := fmt.Sprintf(
+			`histogram_quantile(0.95, sum by (%s, %s, %s, %s) (rate(%s{%s!=""%s}%s)))`,
+			a.otelCfg.Labels.ServiceName, a.otelCfg.Labels.ServiceNamespace, envLabel, a.otelCfg.Labels.Le,
+			durationBucket, a.otelCfg.Labels.ServiceName, fbFilters, rangeStr,
+		)
+		fbInstant := map[string]string{
+			"fallbackRate":  fallbackRateQuery,
+			"fallbackError": fallbackErrorQuery,
+			"fallbackP95":   fallbackP95Query,
+		}
+		var fbSeries []struct{ name, query string }
+		if withSeries {
+			fbSeries = []struct{ name, query string }{
+				{"fallbackRateSeries", strings.Replace(fallbackRateQuery, rangeStr, sparklineRangeStr, 1)},
+				{"fallbackErrorSeries", strings.Replace(fallbackErrorQuery, rangeStr, sparklineRangeStr, 1)},
+				{"fallbackDurationSeries", strings.Replace(fallbackP95Query, rangeStr, sparklineRangeStr, 1)},
+			}
+		}
+		maps.Copy(resultMap, runQueries(fbInstant, fbSeries))
 	}
 
-	// Mark services that have Faro frontend data
+	faroWG.Wait()
 	faroMu.Lock()
 	localFaroApps := faroApps
 	faroMu.Unlock()
 
 	return a.aggregateServiceResults(resultMap, withSeries, durationUnit, envLabel, containerLabel, localFaroApps)
+}
+
+// servicesNeedingFallback returns unique service_name values present in sdk discovery
+// but absent from SERVER-filtered rate results (same namespace + environment key).
+func servicesNeedingFallback(sdk, rate []queries.PromResult, nameLabel, nsLabel, envLabel string) []string {
+	type key struct{ name, ns, env string }
+	hasRate := make(map[key]struct{}, len(rate))
+	for _, r := range rate {
+		hasRate[key{r.Metric[nameLabel], r.Metric[nsLabel], r.Metric[envLabel]}] = struct{}{}
+	}
+	names := make(map[string]struct{})
+	for _, r := range sdk {
+		k := key{r.Metric[nameLabel], r.Metric[nsLabel], r.Metric[envLabel]}
+		if _, ok := hasRate[k]; ok {
+			continue
+		}
+		if k.name != "" {
+			names[k.name] = struct{}{}
+		}
+	}
+	out := make([]string, 0, len(names))
+	for n := range names {
+		out = append(out, n)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// scopedServiceNameFilter builds a PromQL matcher for service_name=~"a|b|…".
+// Returns ok=false when the list is empty or exceeds maxScopedServices (caller
+// should keep the unscoped fallback in that case).
+func scopedServiceNameFilter(nameLabel string, names []string) (string, bool) {
+	if len(names) == 0 || len(names) > maxScopedServices {
+		return "", false
+	}
+	escaped := make([]string, len(names))
+	for i, n := range names {
+		escaped[i] = promQLEscape(n)
+	}
+	return fmt.Sprintf(`, %s=~"%s"`, nameLabel, strings.Join(escaped, "|")), true
 }
 
 // aggregateServiceResults builds ServiceSummary entries from parallel query results.

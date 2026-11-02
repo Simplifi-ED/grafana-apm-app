@@ -250,7 +250,40 @@ when the recording is entirely malformed/incomplete.
 
 `GET /services/{namespace}/{service}/feedback`
 
-User feedback events (`faro.feedback`) captured by the `@nais/apm` client.
+Reads **custom** `faro.feedback` events emitted by the app. Grafana Faro has no
+built-in feedback feature — the event name is a plugin wire contract. Empty
+results usually mean the app never emits that event (not a plugin misconfig).
+
+### Emit from the app
+
+**Faro → Loki** (`kind=event`):
+
+```ts
+import { faro } from '@grafana/faro-web-sdk';
+
+faro.api.pushEvent('faro.feedback', {
+  message: text,
+  category: 'bug', // bug | idea | other
+  // email?: string
+  // fingerprint?: string  // joins to an issue in the Exception Drawer
+});
+```
+
+Alloy logfmt stores attributes as `event_data_message`, `event_data_category`, …
+
+**HyperDX / ClickStack** (`otel_traces`):
+
+```ts
+addAction('faro.feedback', {
+  'feedback.message': text,
+  'feedback.category': 'bug',
+  // 'feedback.email'?: string
+  // 'feedback.fingerprint'?: string
+});
+```
+
+Match on `SpanName = 'faro.feedback'` (or span attr `event_name`). Do **not**
+point this UI at product HTTP routes like `/api/feedback`.
 
 ### Parameters
 
@@ -263,10 +296,11 @@ User feedback events (`faro.feedback`) captured by the `@nais/apm` client.
 
 ### Response — `FeedbackResponse`
 
-| Field         | Type                       | Description                                    |
-| ------------- | -------------------------- | ---------------------------------------------- |
-| `feedback`    | array&lt;FeedbackEntry&gt; | Up to 200, newest first.                       |
-| `unavailable` | bool?                      | Loki not configured/reachable or query failed. |
+| Field         | Type                       | Description                                                         |
+| ------------- | -------------------------- | ------------------------------------------------------------------- |
+| `feedback`    | array&lt;FeedbackEntry&gt; | Up to 200, newest first.                                            |
+| `unavailable` | bool?                      | Loki/ClickHouse not configured/reachable or query failed.           |
+| `hint`        | string?                    | ClickStack empty-state guidance (alias miss or no `faro.feedback`). |
 
 **FeedbackEntry**:
 
@@ -291,4 +325,4 @@ curl -s ".../services/team-a/storefront/feedback?from=1783090000&to=1783185000"
 { "feedback": [] }
 ```
 
-> Feedback entries commonly contain free-text and an `email`. Treat as PII.
+> Free-text `message` / `email` are PII. Apps should warn users not to enter personal data.

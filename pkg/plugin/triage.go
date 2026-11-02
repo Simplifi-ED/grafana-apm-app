@@ -354,6 +354,10 @@ func (a *App) handleTriageAction(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
 		return
 	}
+	// Writes org annotations via the plugin SA — Viewer must not drive that (confused deputy).
+	if !a.requireEditor(w, req) {
+		return
+	}
 	ctx := a.requestContext(req)
 	namespace, service := parseServiceRef(req)
 	if !requireServiceParam(w, service) {
@@ -420,8 +424,8 @@ func (a *App) handleTriageHistory(w http.ResponseWriter, req *http.Request) {
 
 // triageActor resolves who performed the action: the signed-in Grafana user
 // from the plugin request context, falling back to headers, then "unknown".
-// Every state change records its actor (Sentry model — anyone with plugin
-// access may triage, but always attributably).
+// Writes are gated by requireEditor (confused-deputy); every accepted change
+// still records an attributable actor.
 func triageActor(ctx context.Context, req *http.Request) string {
 	if u := backend.UserFromContext(ctx); u != nil && u.Login != "" {
 		return u.Login

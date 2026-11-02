@@ -15,6 +15,7 @@ import { useDebouncedValue, escapeRegex } from '../../utils/debounce';
 import { sanitizeLabelValue, escapeQueryString } from '../../utils/sanitize';
 import { useUrlString, useUrlCsv, useUrlBoolean } from '../../utils/useUrlState';
 import { useTimeRange } from '../../utils/timeRange';
+import { useFrozenWhileHidden } from '../../utils/useFrozenWhileHidden';
 import { buildLogsDrilldownUrl } from '../../utils/explore';
 import { otel } from '../../otelconfig';
 import { PatternsPanel } from './logs/PatternsPanel';
@@ -28,6 +29,8 @@ interface LogsTabProps {
   clickHouseUid?: string;
   from: string;
   to: string;
+  /** When false, freeze the resolved time range so hidden tabs do not re-query. */
+  active?: boolean;
   serviceNameLabel?: string;
   /** Cluster/environment filter to inject into stream selectors (for centralized Loki). */
   clusterFilter?: string;
@@ -61,6 +64,7 @@ export function LogsTab({
   clickHouseUid = '',
   from,
   to,
+  active = true,
   serviceNameLabel = otel.labels.serviceName,
   clusterFilter,
   clusterLabel = otel.labels.deploymentEnv,
@@ -76,7 +80,9 @@ export function LogsTab({
   // Resolved timestamps drive the patterns fetch AND bust the scene memo on a
   // global time-picker refresh (from/to strings stay "now-1h" but fromMs/toMs
   // re-resolve), so the scene rebuilds and re-queries the fresh window.
-  const { fromMs, toMs } = useTimeRange();
+  const live = useTimeRange();
+  const fromMs = useFrozenWhileHidden(live.fromMs, active);
+  const toMs = useFrozenWhileHidden(live.toMs, active);
 
   // Fetch available pod names for this service
   useEffect(() => {
@@ -283,7 +289,7 @@ export function LogsTab({
               to,
               serviceNameLabel,
             })}
-            tooltip="Open this service's logs in Grafana's queryless Logs Drilldown app"
+            tooltip="Open these logs in Logs Drilldown"
           >
             Open in Logs Drilldown
           </LinkButton>
@@ -310,7 +316,9 @@ export function LogsTab({
           from={from}
           to={to}
           exploreLogsUid={logsUid}
+          clickHouseUid={clickHouseUid}
           serviceNameLabel={serviceNameLabel}
+          environment={clusterFilter}
         />
       ) : scene ? (
         <div className={styles.sceneWrapper}>
@@ -318,7 +326,7 @@ export function LogsTab({
         </div>
       ) : (
         <Alert severity="info" title="Logs unavailable">
-          Configure Loki or ClickHouse to search logs for this service.
+          Configure a logs datasource to search logs for this service.
         </Alert>
       )}
     </div>

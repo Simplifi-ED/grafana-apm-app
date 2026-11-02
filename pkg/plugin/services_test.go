@@ -114,6 +114,100 @@ func TestHandleServicesCacheKeyIncludesStep(t *testing.T) {
 	}
 }
 
+func TestHandleServices_SkipsFallbackWhenAllHaveServerSpans(t *testing.T) {
+	now := time.Now().Truncate(time.Second)
+	svc := queries.PromResult{
+		Metric: map[string]string{
+			"service_name": "api", "service_namespace": "ns", "k8s_cluster_name": "prod",
+			"telemetry_sdk_language": "go",
+		},
+		Value: queries.NewPromValue(float64(now.Unix()), "1"),
+	}
+	promSrv, captured := queryCapturingPromServer(t, map[string][]queries.PromResult{
+		"present_over_time(traces_spanmetrics_calls_total": {svc},
+		`span_kind="SPAN_KIND_SERVER"`:                     {svc},
+	})
+	defer promSrv.Close()
+
+	app := newTestApp(t, promSrv.URL, defaultCaps())
+	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf(
+		"/services?from=%d&to=%d&withSeries=false", now.Add(-time.Hour).Unix(), now.Unix(),
+	), nil)
+	w := httptest.NewRecorder()
+	app.handleServices(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", w.Code, w.Body.String())
+	}
+
+	for _, q := range *captured {
+		if isFallbackREDQuery(q) {
+			t.Fatalf("unexpected fallback RED query when all services have SERVER spans: %s\nall=%v", q, *captured)
+		}
+	}
+}
+
+func TestHandleServices_ScopesFallbackToNonServerServices(t *testing.T) {
+	now := time.Now().Truncate(time.Second)
+	server := queries.PromResult{
+		Metric: map[string]string{
+			"service_name": "api", "service_namespace": "ns", "k8s_cluster_name": "prod",
+			"telemetry_sdk_language": "go",
+		},
+		Value: queries.NewPromValue(float64(now.Unix()), "1"),
+	}
+	clientOnly := queries.PromResult{
+		Metric: map[string]string{
+			"service_name": "worker", "service_namespace": "ns", "k8s_cluster_name": "prod",
+			"telemetry_sdk_language": "go",
+		},
+		Value: queries.NewPromValue(float64(now.Unix()), "1"),
+	}
+	promSrv, captured := queryCapturingPromServer(t, map[string][]queries.PromResult{
+		"present_over_time(traces_spanmetrics_calls_total": {server, clientOnly},
+		`span_kind="SPAN_KIND_SERVER"`:                     {server},
+	})
+	defer promSrv.Close()
+
+	app := newTestApp(t, promSrv.URL, defaultCaps())
+	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf(
+		"/services?from=%d&to=%d&withSeries=false", now.Add(-time.Hour).Unix(), now.Unix(),
+	), nil)
+	w := httptest.NewRecorder()
+	app.handleServices(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", w.Code, w.Body.String())
+	}
+
+	var sawScopedFallback bool
+	for _, q := range *captured {
+		if !isFallbackREDQuery(q) {
+			continue
+		}
+		if strings.Contains(q, `service_name=~"worker"`) || strings.Contains(q, `service_name=~"worker|`) {
+			sawScopedFallback = true
+		}
+		if strings.Contains(q, "api") && !strings.Contains(q, "worker") {
+			t.Errorf("fallback should not target SERVER-only services alone: %s", q)
+		}
+	}
+	if !sawScopedFallback {
+		t.Fatalf("expected scoped fallback for worker; queries=%v", *captured)
+	}
+}
+
+// isFallbackREDQuery detects unscoped/non-SERVER rate/error/p95 RED queries used
+// as fallbacks for services without SERVER spans.
+func isFallbackREDQuery(q string) bool {
+	if strings.Contains(q, "present_over_time") || strings.Contains(q, "span_kind=") {
+		return false
+	}
+	if strings.Contains(q, "__name__=~") {
+		return false // framework probe
+	}
+	return strings.Contains(q, "rate(traces_spanmetrics_calls_total") ||
+		strings.Contains(q, "rate(traces_spanmetrics_duration_milliseconds_bucket")
+}
+
 func TestHandleServicesCacheKeyIncludesQueryWindow(t *testing.T) {
 	promSrv := mockPromServer(t, nil)
 	defer promSrv.Close()

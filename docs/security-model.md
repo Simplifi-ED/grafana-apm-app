@@ -18,37 +18,32 @@
 - **Writes:** the only writes are `POST /api/annotations` (triage + deploy sync)
   and `POST .../settings` (ops watchlist). No `PUT`/`DELETE` to Grafana exists.
 
-## Hardened (2026-07-04)
+## Hardened
 
-- **Ops-watchlist write now requires Editor/Admin** (`requireEditor`, authz.go):
-  the write goes through the Admin-scoped SA token, so a Viewer must no longer be
-  able to drive it (confused deputy). Fails closed when the role is absent.
+- **Ops-watchlist write requires Editor/Admin** (`requireEditor`, authz.go):
+  the write goes through the Admin-scoped SA token, so a Viewer must not drive
+  it (confused deputy). Fails closed when the role is absent.
+- **Triage writes require Editor/Admin** (`requireEditor` on
+  `POST .../triage/{fp}`): annotations are created with the plugin SA token, so
+  Viewers must not drive that path either. Reads stay open to any authenticated
+  plugin user; the UI disables triage actions when `canEditPlugin()` is false.
+  (Supersedes the 2026-07-04 "open to Viewer / Sentry parity" decision.)
 - **Datasource-UID allowlist** on `/logs/patterns` and `/traces/breakdown`
   (`EnvAwareDataSource.Allows`): the client-supplied `lokiUid`/`tracesUid` is
   proxied with the SA token, so only the configured logs/traces datasource UIDs
   are accepted — never an arbitrary UID the SA happens to reach.
 
-## Accepted design decisions (Hans, 2026-07-04)
+## Accepted design decisions
 
-Both are the intended "anyone with plugin access participates" model. Reviewed
-and **kept as built** — recorded here so future audits read them as deliberate,
-not oversights:
-
-1. **Triage writes are open to any plugin user (Sentry parity).** `POST
-/triage/{fp}` records an org annotation with the SA token; any authenticated
-   user (incl. Viewer) can resolve/ignore/assign, always attributed. Decision:
-   keep it — collaborative triage is the product intent; the risk is low
-   (constrained data, recorded actor). NOT gated on Editor (unlike the
-   ops-watchlist settings write, which IS gated because it mutates plugin
-   config). Multi-org note: triage writes forward no org-id, so state lives in
-   the SA's single org — fine for nais's single-org deployment; revisit if a
-   multi-org deployment is ever introduced.
-2. **Scorecard ownership is fleet-wide.** `/scorecard` resolves any namespace's
+1. **Scorecard ownership is fleet-wide.** `/scorecard` resolves any namespace's
    Console ownership facts (team, Slack channel, repo, ingress URLs) via the
    shared nais API token with no caller-team check. Decision: keep it —
    cross-team visibility ("whose failing dependency is this, who do I contact")
    is much of the point, and the fields are low-sensitivity contact/repo
    metadata, not secrets.
+2. **Multi-org triage annotations.** Triage writes forward no org-id, so state
+   lives in the SA's single org — fine for single-org deployments; revisit if
+   multi-org is introduced.
 
 ## Verified clean (no action)
 

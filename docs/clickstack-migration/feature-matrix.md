@@ -35,7 +35,7 @@
 | Issue occurrences / drawer     | CH spans + `rum.sessionId`           | `otel_traces`, `hyperdx_sessions`                               | ✅     | **F** shipped; replay deep-link via `rum.sessionId`; Faro Loki not required                                                               |
 | Frontend Web Vitals            | `GET .../frontend` + tab             | `otel_traces` `webvitals`                                       | ✅     | **G** CH scene: bullets + trends + volume/exceptions + CWV rating pie + browser/per-page tables (HyperDX; no Faro)                        |
 | Frontend versions              | `GET .../frontend/versions`          | `ResourceAttributes['service.version']`                         | ✅     | **G** + **21**: DEV `@hyperdx/otel-web` emits `service.version=APP_VERSION` (never `rum.version`)                                         |
-| Frontend Feedback              | Feedback UI                          | `otel_traces` `SpanName=faro.feedback`                          | ✅     | **G** + **21**: contract live after `keep-browser-rum` sampling (#121); Support form optional extra proof                                 |
+| Frontend Feedback              | Feedback UI                          | `otel_traces` `SpanName=faro.feedback` (custom app event, not Faro built-in) | ✅     | App must `addAction('faro.feedback', …)`; see `docs/api/frontend.md` (#121 sampling)                                                      |
 | Frontend sessions list         | `GET .../frontend/sessions`          | `hyperdx_sessions` + enrich from traces                         | ✅     | **F** enrich: errors + user/version/pages/UA from all browser spans (not errors-only)                                                     |
 | Session replay                 | replay / probe / recordings          | `hyperdx_sessions`                                              | ✅     |                                                                                                                                           |
 | Service map                    | `GET /service-map`                   | `traces_service_graph_*`                                        | ✅     | Live edges via Grafana CH DS (ingress-gateway/checkout-api/postgres/valkey)                                                               |
@@ -65,7 +65,7 @@
 | Browser Issues                        | `storefront` `SpanName=unhandledrejection` + `error.message`/`error.stack` + `Events.exception.*` + `rum.sessionId` (**20**) |
 | Server exception events               | `checkout-api` `Events.Name=exception` (`exception.type`/`message`)                                                          |
 | Frontend `service.version`            | ✅ DEV: `1.2.3-main` on `@hyperdx/otel-web` (**21**)                                                                         |
-| Feedback RUM events                   | ✅ `SpanName=faro.feedback` after keep-browser-rum (**21** / #121)                                                           |
+| Feedback RUM events                   | ✅ Custom `SpanName=faro.feedback` after keep-browser-rum (#121); see `docs/api/frontend.md`                                 |
 | Runtime identity gap                  | spanmetrics `checkout-api` vs scrape `checkout` (**15**/ **06**) — aliases                                                   |
 | GraphQL / Jobs / Pyroscope            | Jobs ✅ KSM; Pyroscope ✅ local; GraphQL plugin-ready (no live emitter)                                                      |
 
