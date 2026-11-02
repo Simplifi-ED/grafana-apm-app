@@ -92,7 +92,7 @@ func TestParseOwnerAnnotation(t *testing.T) {
 
 func TestApplyHasOwnerCheck(t *testing.T) {
 	checks := scorecardBaseChecks()
-	applyHasOwnerCheck(checks, Ownership{OwnershipFields: OwnershipFields{Team: "platform"}, Source: OwnershipSourceTelemetry})
+	applyHasOwnerCheck(checks, Ownership{Team: "platform", Source: OwnershipSourceTelemetry})
 	c := scorecardCheckByKey(checks, "hasOwner")
 	if c == nil || !c.OK {
 		t.Fatalf("expected OK hasOwner, got %+v", c)

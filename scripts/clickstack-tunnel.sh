@@ -9,10 +9,21 @@
 # Optional:
 #   SSH_BIN                 — ssh binary (default: ssh on PATH)
 #   CLICKSTACK_SSH_CONTROL  — ControlMaster socket path
+#
+# Local file (gitignored): copy .env.clickstack.local.example → .env.clickstack.local
 set -euo pipefail
 
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+ENV_FILE="${CLICKSTACK_ENV_FILE:-$ROOT/.env.clickstack.local}"
+if [[ -f "$ENV_FILE" ]]; then
+  set -a
+  # shellcheck disable=SC1090
+  source "$ENV_FILE"
+  set +a
+fi
+
 SSH_BIN="${SSH_BIN:-ssh}"
-HOST="${CLICKSTACK_SSH_HOST:?set CLICKSTACK_SSH_HOST}"
+HOST="${CLICKSTACK_SSH_HOST:?set CLICKSTACK_SSH_HOST (or create .env.clickstack.local — see .env.clickstack.local.example)}"
 USER_NAME="${CLICKSTACK_SSH_USER:?set CLICKSTACK_SSH_USER}"
 KEY="${CLICKSTACK_SSH_KEY:?set CLICKSTACK_SSH_KEY}"
 CONTROL_PATH="${CLICKSTACK_SSH_CONTROL:-$HOME/.ssh/cm-clickstack}"

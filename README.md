@@ -91,7 +91,8 @@ pnpm install
 ### Against an existing ClickStack ClickHouse
 
 ```bash
-# Optional: SSH LocalForward CH ports (set CLICKSTACK_SSH_HOST/USER/KEY; see scripts/clickstack-tunnel.sh)
+# Optional: SSH LocalForward CH ports (8123/9000)
+cp .env.clickstack.local.example .env.clickstack.local   # fill HOST/USER/KEY
 mise run clickstack:tunnel
 
 # Provisioning: copy *.local.yaml examples for ClickHouse DS + plugin

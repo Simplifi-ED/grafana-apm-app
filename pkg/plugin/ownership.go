@@ -288,7 +288,7 @@ func parseOwnerAnnotation(ann grafanaAnnotation) OwnershipFields {
 			f.Runbook = strings.TrimPrefix(tag, "runbook:")
 		}
 	}
-	for _, line := range strings.Split(ann.Text, "\n") {
+	for line := range strings.SplitSeq(ann.Text, "\n") {
 		line = strings.TrimSpace(line)
 		key, val, ok := strings.Cut(line, "=")
 		if !ok {

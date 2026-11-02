@@ -16,21 +16,21 @@ func summarizeClickHouseError(err error) string {
 
 	switch {
 	case strings.Contains(lower, "connection refused"):
-		return "connection refused on port 8123 — start the SSH tunnel (mise run clickstack:tunnel)"
+		return "cannot reach ClickHouse — check the datasource URL and that the server is running"
 	case strings.Contains(lower, "i/o timeout"),
 		strings.Contains(lower, "deadline exceeded"),
 		strings.Contains(lower, "context deadline"):
-		return "timed out reaching ClickHouse"
+		return "timed out reaching ClickHouse — check the datasource URL and network access"
 	case strings.Contains(lower, "no such host"),
 		strings.Contains(lower, "server misbehaving"):
-		return "could not resolve the ClickHouse host"
+		return "could not resolve the ClickHouse host — check the datasource URL"
 	case strings.Contains(lower, "authentication"),
 		strings.Contains(lower, "access denied"),
 		strings.Contains(lower, "password is incorrect"):
 		return "authentication failed — check ClickHouse datasource credentials"
 	case strings.Contains(lower, "datasource not configured"),
 		strings.Contains(lower, "uid is empty"):
-		return "ClickHouse datasource is not configured"
+		return "ClickHouse datasource is not configured — select one in plugin settings"
 	}
 
 	// Drop nested JSON / HTTP body dumps.
@@ -39,7 +39,7 @@ func summarizeClickHouseError(err error) string {
 	}
 	s = strings.TrimSpace(strings.TrimSuffix(s, ":"))
 	if s == "" || s == "clickhouse ping failed" || s == "clickhouse ds query returned 400" {
-		return "ClickHouse query failed"
+		return "ClickHouse query failed — check the datasource configuration"
 	}
 	if len(s) > 120 {
 		return s[:117] + "…"
