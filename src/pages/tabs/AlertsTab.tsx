@@ -15,6 +15,7 @@ import {
 import { usePluginDatasources } from '../../utils/datasources';
 import { useFetch } from '../../utils/useFetch';
 import { useUrlParams } from '../../utils/useUrlState';
+import { hasAlertRoutingContext } from '../../utils/alertRouting';
 import { FiringAlertDrawer } from './alerts/FiringAlertDrawer';
 import { typographyFontSize, typographyVariant } from '../../utils/themeTypography';
 import { SkeletonBar, TableSkeleton } from '../../components/Skeleton';
@@ -99,6 +100,7 @@ const ALERT_TEMPLATES: AlertTemplateCard[] = [
  */
 export function AlertsTab({ service, namespace, environment }: AlertsTabProps) {
   const styles = useStyles2(getStyles);
+  const canRouteAlert = hasAlertRoutingContext(namespace, environment);
   const [searchParams, setSearchParams] = useSearchParams();
   const updateParams = useUrlParams();
   const ds = usePluginDatasources(environment);
@@ -215,9 +217,11 @@ export function AlertsTab({ service, namespace, environment }: AlertsTabProps) {
         <div className={styles.sectionHeader}>
           <h3 className={styles.sectionTitle}>Create alert</h3>
           <span className={styles.sectionSubtitle}>
-            {clickStackOnly
-              ? "Pre-filled ClickHouse SQL rules — opens Grafana's alert editor (evaluates against your ClickHouse datasource)."
-              : "Pre-filled rules for this service — opens Grafana's alert editor and returns here on save."}
+            {!canRouteAlert
+              ? 'Select a team and exactly one environment to create a Grafana alert that matches its notification policy.'
+              : clickStackOnly
+                ? "Pre-filled ClickHouse SQL rules — opens Grafana's alert editor (evaluates against your ClickHouse datasource)."
+                : "Pre-filled rules for this service — use notification policies (not a direct contact point) and Preview routing in Grafana before saving."}
           </span>
         </div>
 
@@ -232,7 +236,7 @@ export function AlertsTab({ service, namespace, environment }: AlertsTabProps) {
                 size="sm"
                 variant="secondary"
                 icon="bell"
-                disabled={creating !== null}
+                disabled={creating !== null || !canRouteAlert}
                 onClick={() => createAlert(card)}
               >
                 {creating === card.key ? 'Preparing…' : 'Create alert'}

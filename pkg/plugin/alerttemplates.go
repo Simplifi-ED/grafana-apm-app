@@ -229,8 +229,22 @@ func (a *App) handleAlertTemplate(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	var defaults ruleFormDefaults
+
 	kind := req.PathValue("kind")
+	if !alertTemplateKinds[kind] {
+		http.Error(w, `{"error":"unknown alert template kind"}`, http.StatusNotFound)
+		return
+	}
+	if namespace == "" || env == "" || strings.Contains(q.Get("environment"), ",") {
+		http.Error(w, `{"error":"select a team and exactly one environment to route Grafana alerts"}`, http.StatusBadRequest)
+		return
+	}
+	if routingEnv, ok := a.settings.AlertRoutingEnvironments[env]; ok && routingEnv == "" {
+		http.Error(w, `{"error":"alert routing environment is empty"}`, http.StatusServiceUnavailable)
+		return
+	}
+
+	var defaults ruleFormDefaults
 
 	// ClickStack: evaluate Grafana-managed rules against ClickHouse SQL
 	// (ticket 27 decision). Dual-mode keeps PromQL/LogQL when Metrics/Logs UIDs
@@ -377,7 +391,7 @@ func (a *App) errorRateDefaults(ctx context.Context, namespace, service, env, ds
 			{Key: "summary", Value: fmt.Sprintf("More than 5%% of requests to %s are failing (5m window)", service)},
 			{Key: "omnivya_apm_url", Value: serviceDeepLink(namespace, service, env, "", "", "")},
 		},
-		Labels: templateLabels(namespace, service),
+		Labels: templateLabels(namespace, service, a.alertRoutingEnvironment(env), "warning"),
 	}
 }
 
@@ -427,7 +441,7 @@ func (a *App) exceptionSpikeDefaults(namespace, service, env, fingerprint string
 			// exceptionHash as legacy fallback — both resolve there too.
 			{Key: "omnivya_apm_url", Value: serviceDeepLink(namespace, service, env, "issues", fingerprint, hashes[0])},
 		},
-		Labels: templateLabels(namespace, service),
+		Labels: templateLabels(namespace, service, a.alertRoutingEnvironment(env), "warning"),
 	}
 }
 
@@ -455,7 +469,7 @@ func (a *App) webVitalsDefaults(namespace, service, env, dsUID string) ruleFormD
 			// A UX-health alert, not an issue — stays on the Frontend tab (#69 P10).
 			{Key: "omnivya_apm_url", Value: serviceDeepLink(namespace, service, env, "frontend", "", "")},
 		},
-		Labels: templateLabels(namespace, service),
+		Labels: templateLabels(namespace, service, a.alertRoutingEnvironment(env), "info"),
 	}
 }
 
@@ -504,7 +518,7 @@ sum by (%[1]s) (count_over_time(%[2]s | logfmt | %[1]s!="" | keep %[1]s [7d] off
 			// own drawer on the Issues tab (#69 P10, docs/url-contract.md).
 			{Key: "omnivya_apm_url", Value: serviceDeepLink(namespace, service, env, "issues", "", "{{ $labels."+fl.Hash+" }}")},
 		},
-		Labels: templateLabels(namespace, service),
+		Labels: templateLabels(namespace, service, a.alertRoutingEnvironment(env), "info"),
 	}
 }
 
@@ -732,8 +746,7 @@ func (a *App) sloBurnRateDefaults(ctx context.Context, namespace, service, env, 
 				strings.ToLower(tier), service, longWin, factorStr, sloPct, shortWin)},
 			{Key: "omnivya_apm_url", Value: serviceDeepLink(namespace, service, env, "", "", "")},
 		},
-		Labels: append(templateLabels(namespace, service),
-			alertKeyValue{Key: "severity", Value: sloSeverity(window)},
+		Labels: append(templateLabels(namespace, service, a.alertRoutingEnvironment(env), sloSeverity(window)),
 			alertKeyValue{Key: "slo", Value: sloPct},
 		),
 	}
@@ -844,7 +857,7 @@ func (a *App) clickStackAlertDefaults(
 				{Key: "summary", Value: fmt.Sprintf("More than 5%% of requests to %s are failing (5m window)", service)},
 				{Key: "omnivya_apm_url", Value: serviceDeepLink(namespace, service, env, "", "", "")},
 			},
-			Labels: templateLabels(namespace, service),
+			Labels: templateLabels(namespace, service, a.alertRoutingEnvironment(env), "warning"),
 		}, true
 
 	case "slo-burn-rate":
@@ -879,8 +892,7 @@ func (a *App) clickStackAlertDefaults(
 					strings.ToLower(tier), service, longWin, factorStr, sloPct, shortWin)},
 				{Key: "omnivya_apm_url", Value: serviceDeepLink(namespace, service, env, "", "", "")},
 			},
-			Labels: append(templateLabels(namespace, service),
-				alertKeyValue{Key: "severity", Value: sloSeverity(window)},
+			Labels: append(templateLabels(namespace, service, a.alertRoutingEnvironment(env), sloSeverity(window)),
 				alertKeyValue{Key: "slo", Value: sloPct},
 			),
 		}, true
@@ -898,7 +910,7 @@ func (a *App) clickStackAlertDefaults(
 				{Key: "summary", Value: fmt.Sprintf("Largest Contentful Paint p75 for %s is above %dms (Core Web Vitals \"poor\")", service, lcpP75ThresholdMs)},
 				{Key: "omnivya_apm_url", Value: serviceDeepLink(namespace, service, env, "frontend", "", "")},
 			},
-			Labels: templateLabels(namespace, service),
+			Labels: templateLabels(namespace, service, a.alertRoutingEnvironment(env), "info"),
 		}, true
 
 	case "exception-spike":
@@ -921,7 +933,7 @@ func (a *App) clickStackAlertDefaults(
 				{Key: "summary", Value: fmt.Sprintf("Frontend exception %s in %s occurred more than %d times in 5m", shortRef(issueRef), service, int(exceptionSpikeThreshold))},
 				{Key: "omnivya_apm_url", Value: serviceDeepLink(namespace, service, env, "issues", fingerprint, hashes[0])},
 			},
-			Labels: templateLabels(namespace, service),
+			Labels: templateLabels(namespace, service, a.alertRoutingEnvironment(env), "warning"),
 		}, true
 
 	case "new-exceptions":
@@ -940,7 +952,7 @@ func (a *App) clickStackAlertDefaults(
 						"resolved-issue returns are not detected here — see Exception volume regression)", service)},
 				{Key: "omnivya_apm_url", Value: serviceDeepLink(namespace, service, env, "issues", "", "")},
 			},
-			Labels: templateLabels(namespace, service),
+			Labels: templateLabels(namespace, service, a.alertRoutingEnvironment(env), "info"),
 		}, true
 
 	case "regressing-exceptions":
@@ -961,7 +973,7 @@ func (a *App) clickStackAlertDefaults(
 						"a chronically loud type can trip the absolute floor", service)},
 				{Key: "omnivya_apm_url", Value: serviceDeepLink(namespace, service, env, "issues", "", "")},
 			},
-			Labels: templateLabels(namespace, service),
+			Labels: templateLabels(namespace, service, a.alertRoutingEnvironment(env), "info"),
 		}, true
 
 	default:
@@ -1009,16 +1021,26 @@ func expressionQueries(threshold float64) []alertQuery {
 	}
 }
 
+func (a *App) alertRoutingEnvironment(env string) string {
+	if routingEnv, ok := a.settings.AlertRoutingEnvironments[env]; ok {
+		return routingEnv
+	}
+	return env
+}
+
 // templateLabels are attached to every created rule so teams can route and
 // audit plugin-suggested rules (`source=omnivya-apm`).
-func templateLabels(namespace, service string) []alertKeyValue {
-	labels := make([]alertKeyValue, 0, 3)
-	if namespace != "" {
-		labels = append(labels, alertKeyValue{Key: "namespace", Value: namespace})
-	}
+func templateLabels(namespace, service, env, severity string) []alertKeyValue {
+	labels := make([]alertKeyValue, 0, 6)
+	labels = append(labels,
+		alertKeyValue{Key: "namespace", Value: namespace},
+		alertKeyValue{Key: "team", Value: namespace},
+		alertKeyValue{Key: "env", Value: env},
+	)
 	labels = append(labels,
 		alertKeyValue{Key: "service", Value: service},
 		alertKeyValue{Key: "source", Value: "omnivya-apm"},
+		alertKeyValue{Key: "severity", Value: severity},
 	)
 	return labels
 }

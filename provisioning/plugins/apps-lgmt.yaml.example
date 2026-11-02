@@ -7,6 +7,9 @@ apps:
     org_id: 1
     disabled: false
     jsonData:
+    # Optional: map data env → notification-policy env label
+    # alertRoutingEnvironments:
+    #   prod: prod-gcp
       metricsDataSource:
         uid: mimir
         type: prometheus

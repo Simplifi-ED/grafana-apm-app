@@ -6,6 +6,7 @@ import { Button, Icon, Toggletip, useStyles2 } from '@grafana/ui';
 import { getScorecard, ScorecardCheck, ScorecardResponse } from '../api/scorecard';
 import { getOwnership, Ownership } from '../api/ownership';
 import { buildAlertRuleUrl, getAlertTemplate } from '../api/client';
+import { hasAlertRoutingContext } from '../utils/alertRouting';
 import { useFetch } from '../utils/useFetch';
 import { typographyFontSize } from '../utils/themeTypography';
 import { applyScorecardOverrides, getScorecardNaOverrides, setScorecardNaOverride } from '../utils/scorecardOverrides';
@@ -155,6 +156,7 @@ function CheckActions({ check, namespace, service, environment }: { check: Score
   const styles = useStyles2(getStyles);
   const [creatingAlert, setCreatingAlert] = useState(false);
   const canCreateAlert = !check.notApplicable && check.key === 'alertRules';
+  const canRouteAlert = hasAlertRoutingContext(namespace, environment);
 
   const onCreateAlert = useCallback(async () => {
     setCreatingAlert(true);
@@ -179,9 +181,17 @@ function CheckActions({ check, namespace, service, environment }: { check: Score
   }
   return (
     <div className={styles.actions} data-testid={`check-actions-${check.key}`}>
-      <Button variant="secondary" fill="text" size="sm" icon="bell" disabled={creatingAlert} onClick={onCreateAlert}>
+      <Button
+        variant="secondary"
+        fill="text"
+        size="sm"
+        icon="bell"
+        disabled={creatingAlert || !canRouteAlert}
+        onClick={onCreateAlert}
+      >
         Alert on error rate
       </Button>
+      {!canRouteAlert && <span>Select a team and exactly one environment to create an alert.</span>}
     </div>
   );
 }

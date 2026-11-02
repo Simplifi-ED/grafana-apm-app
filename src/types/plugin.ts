@@ -48,6 +48,8 @@ export interface AppPluginSettings {
   metricNamespace?: string;
   durationUnit?: string;
   labelOverrides?: LabelOverrides;
+  /** Data environment name → Grafana notification policy env label. Unmapped names are used as-is. */
+  alertRoutingEnvironments?: Record<string, string>;
   /** Ingress hostname → service name mapping for discovering on-prem callers via nais ingress. */
   ingressAliases?: Record<string, string>;
   /**
