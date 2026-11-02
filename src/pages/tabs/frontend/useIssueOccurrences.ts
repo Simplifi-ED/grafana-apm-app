@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { getBackendSrv } from '@grafana/runtime';
 import { lastValueFrom } from 'rxjs';
 import { getIssueOccurrences, IssueSource } from '../../../api/client';
@@ -140,18 +140,63 @@ export function useIssueOccurrences(opts: UseIssueOccurrencesOptions): UseIssueO
   const useOccurrencesAPI =
     source === 'server' || (source === 'browser' && !resolving && hashesKey === '' && !!issueId);
 
+  const apiRequest = useMemo(
+    () => [useOccurrencesAPI, source, issueId, title, issueType, namespace, service, environment, fromMs, toMs],
+    [useOccurrencesAPI, source, issueId, title, issueType, namespace, service, environment, fromMs, toMs]
+  );
+  const browserRequest = useMemo(
+    () => [
+      source,
+      useOccurrencesAPI,
+      resolving,
+      hashesKey,
+      service,
+      environment,
+      logsUid,
+      clusterStream,
+      fromMs,
+      toMs,
+      fl.hash,
+      fl.kind,
+      fl.kindException,
+      fl.serviceName,
+    ],
+    [
+      source,
+      useOccurrencesAPI,
+      resolving,
+      hashesKey,
+      service,
+      environment,
+      logsUid,
+      clusterStream,
+      fromMs,
+      toMs,
+      fl.hash,
+      fl.kind,
+      fl.kindException,
+      fl.serviceName,
+    ]
+  );
+  const request = useOccurrencesAPI ? apiRequest : browserRequest;
+  const [previousRequest, setPreviousRequest] = useState(request);
+  if (previousRequest !== request) {
+    setPreviousRequest(request);
+    setLoading(true);
+    if (useOccurrencesAPI ? !!issueId : !resolving && hashesKey !== '') {
+      setError(null);
+    }
+  }
+
   // ---- Occurrences API path: server Loki (#84) + ClickStack browser/server ----
   useEffect(() => {
     if (!useOccurrencesAPI) {
       return;
     }
     if (!issueId) {
-      setLoading(true);
       return;
     }
     let cancelled = false;
-    setLoading(true);
-    setError(null);
     getIssueOccurrences(namespace, service, issueId, fromMs, toMs, environment || undefined, {
       title,
       type: issueType,
@@ -241,11 +286,8 @@ export function useIssueOccurrences(opts: UseIssueOccurrencesOptions): UseIssueO
     // While the deep link is still resolving to hashes, keep the spinner and
     // don't query — the same instance re-runs this once hashes land.
     if (resolving || hashesKey === '') {
-      setLoading(true);
       return;
     }
-    setLoading(true);
-    setError(null);
 
     const single = !hashesKey.includes('|');
     const lineFilter = single ? `|= \`${fl.hash}=${hashesKey}\`` : `|~ \`${fl.hash}=(${hashesKey})\``;

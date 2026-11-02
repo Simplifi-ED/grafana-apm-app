@@ -1,7 +1,13 @@
+allowBuilds:
+  '@parcel/watcher': false
+  '@swc/core': false
+  unrs-resolver: false
 # pnpm settings (pnpm >= 11 no longer reads the "pnpm" field in package.json;
 # this file is the new home — https://pnpm.io/settings). The overrides below
 # are mostly Dependabot/audit security pins and were being SILENTLY IGNORED
 # while they lived in package.json.
+minimumReleaseAgeExclude:
+  - minimatch@11.0.4
 overrides:
   protobufjs: '>=7.5.5'
   # GHSA-cg2g-xh64-v4q7

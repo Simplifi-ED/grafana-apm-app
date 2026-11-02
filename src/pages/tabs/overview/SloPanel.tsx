@@ -5,6 +5,7 @@ import { AppEvents, GrafanaTheme2 } from '@grafana/data';
 import { Button, Icon, RadioButtonGroup, Tooltip, useStyles2 } from '@grafana/ui';
 import { css } from '@emotion/css';
 import { buildAlertRuleUrl } from '../../../api/client';
+import { hasAlertRoutingContext } from '../../../utils/alertRouting';
 import { useFetch } from '../../../utils/useFetch';
 import { useCapabilities, getMetricNames } from '../../../utils/capabilities';
 import { usePluginDatasources } from '../../../utils/datasources';
@@ -46,6 +47,7 @@ function parseTargetParam(raw: string | null): number {
  */
 export function SloPanel({ namespace, service, environment }: SloPanelProps) {
   const styles = useStyles2(getStyles);
+  const canRouteAlert = hasAlertRoutingContext(namespace, environment);
   const [searchParams, setSearchParams] = useSearchParams();
   const target = parseTargetParam(searchParams.get('slo'));
 
@@ -138,7 +140,7 @@ export function SloPanel({ namespace, service, environment }: SloPanelProps) {
               size="sm"
               variant="secondary"
               icon="bell"
-              disabled={creating !== null}
+              disabled={creating !== null || !canRouteAlert}
               onClick={() => createAlert('fast')}
             >
               Fast burn (page)
@@ -147,7 +149,7 @@ export function SloPanel({ namespace, service, environment }: SloPanelProps) {
               size="sm"
               variant="secondary"
               icon="bell"
-              disabled={creating !== null}
+              disabled={creating !== null || !canRouteAlert}
               onClick={() => createAlert('slow')}
             >
               Slow burn (ticket)
@@ -155,6 +157,7 @@ export function SloPanel({ namespace, service, environment }: SloPanelProps) {
             <Tooltip content="Multi-window multi-burn-rate rules (Google SRE): fast burn = 14.4× budget over 1h & 5m, slow burn = 6× over 6h & 30m.">
               <Icon name="info-circle" className={styles.infoIcon} aria-label="About burn-rate alert windows" />
             </Tooltip>
+            {!canRouteAlert && <span>Select a team and exactly one environment to create an alert.</span>}
           </div>
         </>
       ) : null}

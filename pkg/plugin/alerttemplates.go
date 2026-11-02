@@ -45,6 +45,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/grafana/grafana-plugin-sdk-go/backend/log"
 	"github.com/grafana/grafana-plugin-sdk-go/backend/useragent"
 	"github.com/grafana/grafana-plugin-sdk-go/config"
 
@@ -167,9 +168,14 @@ type alertQuery struct {
 	Model             map[string]any          `json:"model"`
 }
 
+type alertFolder struct {
+	Title string `json:"title"`
+	UID   string `json:"uid"`
+}
+
 // ruleFormDefaults is the partial RuleFormValues we pre-fill. Grafana merges
-// it with its own form defaults, so anything omitted (folder, evaluation
-// group, contact point) is chosen by the user in Grafana's editor.
+// it with its own form defaults, so anything omitted (evaluation group,
+// contact point, or a folder without an exact team match) is chosen in the editor.
 type ruleFormDefaults struct {
 	Type        string          `json:"type"`
 	Name        string          `json:"name"`
@@ -178,6 +184,7 @@ type ruleFormDefaults struct {
 	Queries     []alertQuery    `json:"queries"`
 	Annotations []alertKeyValue `json:"annotations"`
 	Labels      []alertKeyValue `json:"labels"`
+	Folder      *alertFolder    `json:"folder,omitempty"`
 }
 
 // alertTemplateResponse is the resource endpoint payload.
@@ -229,100 +236,44 @@ func (a *App) handleAlertTemplate(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	var defaults ruleFormDefaults
+
 	kind := req.PathValue("kind")
+	if !alertTemplateKinds[kind] {
+		http.Error(w, `{"error":"unknown alert template kind"}`, http.StatusNotFound)
+		return
+	}
+	if namespace == "" || env == "" || strings.Contains(q.Get("environment"), ",") {
+		http.Error(w, `{"error":"select a team and exactly one environment to route Grafana alerts"}`, http.StatusBadRequest)
+		return
+	}
+	if routingEnv, ok := a.settings.AlertRoutingEnvironments[env]; ok && routingEnv == "" {
+		http.Error(w, `{"error":"alert routing environment is empty"}`, http.StatusServiceUnavailable)
+		return
+	}
+
+	var defaults ruleFormDefaults
+	var status int
+	var errBody string
 
 	// ClickStack: evaluate Grafana-managed rules against ClickHouse SQL
 	// (ticket 27 decision). Dual-mode keeps PromQL/LogQL when Metrics/Logs UIDs
 	// are configured and ClickHouse is not the primary path.
 	if a.clickStackMode() {
-		chUID := a.settings.ClickHouseDataSource.UID
-		if chUID == "" {
-			http.Error(w, `{"error":"clickhouse datasource not configured"}`, http.StatusServiceUnavailable)
-			return
-		}
-		var ok bool
-		defaults, ok = a.clickStackAlertDefaults(kind, namespace, service, env, fingerprint, hashes, chUID, q.Get("window"), q.Get("slo"))
-		if !ok {
-			if !alertTemplateKinds[kind] {
-				http.Error(w, `{"error":"unknown alert template kind"}`, http.StatusNotFound)
-				return
-			}
-			if kind == "exception-spike" && len(hashes) == 0 {
-				http.Error(w, `{"error":"missing or invalid hash"}`, http.StatusBadRequest)
-				return
-			}
-			if kind == "slo-burn-rate" {
-				http.Error(w, `{"error":"window must be fast or slow"}`, http.StatusBadRequest)
-				return
-			}
-			http.Error(w, `{"error":"unknown alert template kind"}`, http.StatusNotFound)
-			return
-		}
+		defaults, status, errBody = a.clickStackAlertTemplate(kind, namespace, service, env, fingerprint, hashes, q.Get("window"), q.Get("slo"))
 	} else {
-		switch kind {
-		case "error-rate":
-			uid := a.settings.MetricsDataSource.Resolve(env).UID
-			if uid == "" {
-				http.Error(w, `{"error":"metrics datasource not configured"}`, http.StatusServiceUnavailable)
-				return
-			}
-			defaults = a.errorRateDefaults(a.requestContext(req), namespace, service, env, uid)
-
-		case "exception-spike":
-			if len(hashes) == 0 {
-				http.Error(w, `{"error":"missing or invalid hash"}`, http.StatusBadRequest)
-				return
-			}
-			uid := a.settings.LogsDataSource.Resolve(env).UID
-			if uid == "" {
-				http.Error(w, `{"error":"logs datasource not configured"}`, http.StatusServiceUnavailable)
-				return
-			}
-			defaults = a.exceptionSpikeDefaults(namespace, service, env, fingerprint, hashes, uid)
-
-		case "web-vitals":
-			uid := a.settings.MetricsDataSource.Resolve(env).UID
-			if uid == "" {
-				http.Error(w, `{"error":"metrics datasource not configured"}`, http.StatusServiceUnavailable)
-				return
-			}
-			defaults = a.webVitalsDefaults(namespace, service, env, uid)
-
-		case "new-exceptions":
-			uid := a.settings.LogsDataSource.Resolve(env).UID
-			if uid == "" {
-				http.Error(w, `{"error":"logs datasource not configured"}`, http.StatusServiceUnavailable)
-				return
-			}
-			defaults = a.newExceptionsDefaults(namespace, service, env, uid)
-
-		case "regressing-exceptions":
-			// Phase A (ticket 06): volume-regression template is ClickHouse-only.
-			http.Error(w, `{"error":"regressing-exceptions requires ClickStack (ClickHouse) mode"}`, http.StatusBadRequest)
-			return
-
-		case "slo-burn-rate":
-			window := q.Get("window")
-			if window == "" {
-				window = "fast"
-			}
-			if window != "fast" && window != "slow" {
-				http.Error(w, `{"error":"window must be fast or slow"}`, http.StatusBadRequest)
-				return
-			}
-			uid := a.settings.MetricsDataSource.Resolve(env).UID
-			if uid == "" {
-				http.Error(w, `{"error":"metrics datasource not configured"}`, http.StatusServiceUnavailable)
-				return
-			}
-			defaults = a.sloBurnRateDefaults(a.requestContext(req), namespace, service, env, uid, parseSloTarget(q.Get("slo")), window)
-
-		default:
-			http.Error(w, `{"error":"unknown alert template kind"}`, http.StatusNotFound)
-			return
-		}
+		defaults, status, errBody = a.lgmtAlertTemplate(req, kind, namespace, service, env, fingerprint, hashes, q.Get("window"), q.Get("slo"))
 	}
+	if status != 0 {
+		http.Error(w, errBody, status)
+		return
+	}
+
+	folder, err := a.teamAlertFolder(req, namespace)
+	if err != nil {
+		log.DefaultLogger.Warn("Unable to preselect alert team folder",
+			"team", sanitizeLogValue(namespace), "error", sanitizeLogValue(err.Error()))
+	}
+	defaults.Folder = folder
 
 	// Version guard (#77): key the emitted RuleFormValues shape to the running
 	// Grafana major. Only one shape ships today, so this is the branch point,
@@ -345,6 +296,130 @@ func (a *App) handleAlertTemplate(w http.ResponseWriter, req *http.Request) {
 		URL:      "/alerting/new?defaults=" + url.QueryEscape(string(data)),
 		Defaults: defaults,
 	})
+}
+
+func (a *App) clickStackAlertTemplate(
+	kind, namespace, service, env, fingerprint string,
+	hashes []string,
+	window, slo string,
+) (ruleFormDefaults, int, string) {
+	chUID := a.settings.ClickHouseDataSource.UID
+	if chUID == "" {
+		return ruleFormDefaults{}, http.StatusServiceUnavailable, `{"error":"clickhouse datasource not configured"}`
+	}
+	defaults, ok := a.clickStackAlertDefaults(kind, namespace, service, env, fingerprint, hashes, chUID, window, slo)
+	if ok {
+		return defaults, 0, ""
+	}
+	if kind == "exception-spike" && len(hashes) == 0 {
+		return ruleFormDefaults{}, http.StatusBadRequest, `{"error":"missing or invalid hash"}`
+	}
+	if kind == "slo-burn-rate" {
+		return ruleFormDefaults{}, http.StatusBadRequest, `{"error":"window must be fast or slow"}`
+	}
+	return ruleFormDefaults{}, http.StatusNotFound, `{"error":"unknown alert template kind"}`
+}
+
+func (a *App) lgmtAlertTemplate(
+	req *http.Request,
+	kind, namespace, service, env, fingerprint string,
+	hashes []string,
+	window, slo string,
+) (ruleFormDefaults, int, string) {
+	switch kind {
+	case "error-rate":
+		uid := a.settings.MetricsDataSource.Resolve(env).UID
+		if uid == "" {
+			return ruleFormDefaults{}, http.StatusServiceUnavailable, `{"error":"metrics datasource not configured"}`
+		}
+		return a.errorRateDefaults(a.requestContext(req), namespace, service, env, uid), 0, ""
+
+	case "exception-spike":
+		if len(hashes) == 0 {
+			return ruleFormDefaults{}, http.StatusBadRequest, `{"error":"missing or invalid hash"}`
+		}
+		uid := a.settings.LogsDataSource.Resolve(env).UID
+		if uid == "" {
+			return ruleFormDefaults{}, http.StatusServiceUnavailable, `{"error":"logs datasource not configured"}`
+		}
+		return a.exceptionSpikeDefaults(namespace, service, env, fingerprint, hashes, uid), 0, ""
+
+	case "web-vitals":
+		uid := a.settings.MetricsDataSource.Resolve(env).UID
+		if uid == "" {
+			return ruleFormDefaults{}, http.StatusServiceUnavailable, `{"error":"metrics datasource not configured"}`
+		}
+		return a.webVitalsDefaults(namespace, service, env, uid), 0, ""
+
+	case "new-exceptions":
+		uid := a.settings.LogsDataSource.Resolve(env).UID
+		if uid == "" {
+			return ruleFormDefaults{}, http.StatusServiceUnavailable, `{"error":"logs datasource not configured"}`
+		}
+		return a.newExceptionsDefaults(namespace, service, env, uid), 0, ""
+
+	case "regressing-exceptions":
+		// Phase A (ticket 06): volume-regression template is ClickHouse-only.
+		return ruleFormDefaults{}, http.StatusBadRequest, `{"error":"regressing-exceptions requires ClickStack (ClickHouse) mode"}`
+
+	case "slo-burn-rate":
+		if window == "" {
+			window = "fast"
+		}
+		if window != "fast" && window != "slow" {
+			return ruleFormDefaults{}, http.StatusBadRequest, `{"error":"window must be fast or slow"}`
+		}
+		uid := a.settings.MetricsDataSource.Resolve(env).UID
+		if uid == "" {
+			return ruleFormDefaults{}, http.StatusServiceUnavailable, `{"error":"metrics datasource not configured"}`
+		}
+		return a.sloBurnRateDefaults(a.requestContext(req), namespace, service, env, uid, parseSloTarget(slo), window), 0, ""
+
+	default:
+		return ruleFormDefaults{}, http.StatusNotFound, `{"error":"unknown alert template kind"}`
+	}
+}
+
+func (a *App) teamAlertFolder(req *http.Request, namespace string) (*alertFolder, error) {
+	if a.grafanaURL == "" {
+		return nil, nil
+	}
+
+	const searchLimit = 1000
+	params := url.Values{
+		"type":  {"dash-folder"},
+		"query": {namespace},
+		"limit": {strconv.Itoa(searchLimit)},
+	}
+	body, err := a.proxyGET(req.Context(), req.Header, a.resolveServiceToken(req.Context()),
+		a.grafanaURL+"/api/search?"+params.Encode())
+	if err != nil {
+		return nil, fmt.Errorf("search Grafana folders: %w", err)
+	}
+
+	var results []struct {
+		Title string `json:"title"`
+		UID   string `json:"uid"`
+		Type  string `json:"type"`
+	}
+	if err := json.Unmarshal(body, &results); err != nil {
+		return nil, fmt.Errorf("decode Grafana folder search: %w", err)
+	}
+	if len(results) >= searchLimit {
+		return nil, fmt.Errorf("grafana folder search reached the %d-result limit", searchLimit)
+	}
+
+	var match *alertFolder
+	for _, result := range results {
+		if result.Type != "dash-folder" || result.UID == "" || !strings.EqualFold(result.Title, namespace) {
+			continue
+		}
+		if match != nil {
+			return nil, fmt.Errorf("multiple Grafana folders match team %q", namespace)
+		}
+		match = &alertFolder{Title: result.Title, UID: result.UID}
+	}
+	return match, nil
 }
 
 // errorRateDefaults builds a Mimir error-ratio rule using the detected
@@ -377,7 +452,7 @@ func (a *App) errorRateDefaults(ctx context.Context, namespace, service, env, ds
 			{Key: "summary", Value: fmt.Sprintf("More than 5%% of requests to %s are failing (5m window)", service)},
 			{Key: "omnivya_apm_url", Value: serviceDeepLink(namespace, service, env, "", "", "")},
 		},
-		Labels: templateLabels(namespace, service),
+		Labels: templateLabels(namespace, service, a.alertRoutingEnvironment(env), "warning"),
 	}
 }
 
@@ -427,7 +502,7 @@ func (a *App) exceptionSpikeDefaults(namespace, service, env, fingerprint string
 			// exceptionHash as legacy fallback — both resolve there too.
 			{Key: "omnivya_apm_url", Value: serviceDeepLink(namespace, service, env, "issues", fingerprint, hashes[0])},
 		},
-		Labels: templateLabels(namespace, service),
+		Labels: templateLabels(namespace, service, a.alertRoutingEnvironment(env), "warning"),
 	}
 }
 
@@ -455,7 +530,7 @@ func (a *App) webVitalsDefaults(namespace, service, env, dsUID string) ruleFormD
 			// A UX-health alert, not an issue — stays on the Frontend tab (#69 P10).
 			{Key: "omnivya_apm_url", Value: serviceDeepLink(namespace, service, env, "frontend", "", "")},
 		},
-		Labels: templateLabels(namespace, service),
+		Labels: templateLabels(namespace, service, a.alertRoutingEnvironment(env), "info"),
 	}
 }
 
@@ -504,7 +579,7 @@ sum by (%[1]s) (count_over_time(%[2]s | logfmt | %[1]s!="" | keep %[1]s [7d] off
 			// own drawer on the Issues tab (#69 P10, docs/url-contract.md).
 			{Key: "omnivya_apm_url", Value: serviceDeepLink(namespace, service, env, "issues", "", "{{ $labels."+fl.Hash+" }}")},
 		},
-		Labels: templateLabels(namespace, service),
+		Labels: templateLabels(namespace, service, a.alertRoutingEnvironment(env), "info"),
 	}
 }
 
@@ -732,8 +807,7 @@ func (a *App) sloBurnRateDefaults(ctx context.Context, namespace, service, env, 
 				strings.ToLower(tier), service, longWin, factorStr, sloPct, shortWin)},
 			{Key: "omnivya_apm_url", Value: serviceDeepLink(namespace, service, env, "", "", "")},
 		},
-		Labels: append(templateLabels(namespace, service),
-			alertKeyValue{Key: "severity", Value: sloSeverity(window)},
+		Labels: append(templateLabels(namespace, service, a.alertRoutingEnvironment(env), sloSeverity(window)),
 			alertKeyValue{Key: "slo", Value: sloPct},
 		),
 	}
@@ -844,7 +918,7 @@ func (a *App) clickStackAlertDefaults(
 				{Key: "summary", Value: fmt.Sprintf("More than 5%% of requests to %s are failing (5m window)", service)},
 				{Key: "omnivya_apm_url", Value: serviceDeepLink(namespace, service, env, "", "", "")},
 			},
-			Labels: templateLabels(namespace, service),
+			Labels: templateLabels(namespace, service, a.alertRoutingEnvironment(env), "warning"),
 		}, true
 
 	case "slo-burn-rate":
@@ -879,8 +953,7 @@ func (a *App) clickStackAlertDefaults(
 					strings.ToLower(tier), service, longWin, factorStr, sloPct, shortWin)},
 				{Key: "omnivya_apm_url", Value: serviceDeepLink(namespace, service, env, "", "", "")},
 			},
-			Labels: append(templateLabels(namespace, service),
-				alertKeyValue{Key: "severity", Value: sloSeverity(window)},
+			Labels: append(templateLabels(namespace, service, a.alertRoutingEnvironment(env), sloSeverity(window)),
 				alertKeyValue{Key: "slo", Value: sloPct},
 			),
 		}, true
@@ -898,7 +971,7 @@ func (a *App) clickStackAlertDefaults(
 				{Key: "summary", Value: fmt.Sprintf("Largest Contentful Paint p75 for %s is above %dms (Core Web Vitals \"poor\")", service, lcpP75ThresholdMs)},
 				{Key: "omnivya_apm_url", Value: serviceDeepLink(namespace, service, env, "frontend", "", "")},
 			},
-			Labels: templateLabels(namespace, service),
+			Labels: templateLabels(namespace, service, a.alertRoutingEnvironment(env), "info"),
 		}, true
 
 	case "exception-spike":
@@ -921,7 +994,7 @@ func (a *App) clickStackAlertDefaults(
 				{Key: "summary", Value: fmt.Sprintf("Frontend exception %s in %s occurred more than %d times in 5m", shortRef(issueRef), service, int(exceptionSpikeThreshold))},
 				{Key: "omnivya_apm_url", Value: serviceDeepLink(namespace, service, env, "issues", fingerprint, hashes[0])},
 			},
-			Labels: templateLabels(namespace, service),
+			Labels: templateLabels(namespace, service, a.alertRoutingEnvironment(env), "warning"),
 		}, true
 
 	case "new-exceptions":
@@ -940,7 +1013,7 @@ func (a *App) clickStackAlertDefaults(
 						"resolved-issue returns are not detected here — see Exception volume regression)", service)},
 				{Key: "omnivya_apm_url", Value: serviceDeepLink(namespace, service, env, "issues", "", "")},
 			},
-			Labels: templateLabels(namespace, service),
+			Labels: templateLabels(namespace, service, a.alertRoutingEnvironment(env), "info"),
 		}, true
 
 	case "regressing-exceptions":
@@ -961,7 +1034,7 @@ func (a *App) clickStackAlertDefaults(
 						"a chronically loud type can trip the absolute floor", service)},
 				{Key: "omnivya_apm_url", Value: serviceDeepLink(namespace, service, env, "issues", "", "")},
 			},
-			Labels: templateLabels(namespace, service),
+			Labels: templateLabels(namespace, service, a.alertRoutingEnvironment(env), "info"),
 		}, true
 
 	default:
@@ -1009,16 +1082,26 @@ func expressionQueries(threshold float64) []alertQuery {
 	}
 }
 
+func (a *App) alertRoutingEnvironment(env string) string {
+	if routingEnv, ok := a.settings.AlertRoutingEnvironments[env]; ok {
+		return routingEnv
+	}
+	return env
+}
+
 // templateLabels are attached to every created rule so teams can route and
 // audit plugin-suggested rules (`source=omnivya-apm`).
-func templateLabels(namespace, service string) []alertKeyValue {
-	labels := make([]alertKeyValue, 0, 3)
-	if namespace != "" {
-		labels = append(labels, alertKeyValue{Key: "namespace", Value: namespace})
-	}
+func templateLabels(namespace, service, env, severity string) []alertKeyValue {
+	labels := make([]alertKeyValue, 0, 6)
+	labels = append(labels,
+		alertKeyValue{Key: "namespace", Value: namespace},
+		alertKeyValue{Key: "team", Value: namespace},
+		alertKeyValue{Key: "env", Value: env},
+	)
 	labels = append(labels,
 		alertKeyValue{Key: "service", Value: service},
 		alertKeyValue{Key: "source", Value: "omnivya-apm"},
+		alertKeyValue{Key: "severity", Value: severity},
 	)
 	return labels
 }

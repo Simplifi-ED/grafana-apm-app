@@ -42,10 +42,10 @@ const PROMETHEUS_RULE = [
   '  name: "omnivya-apm-new-exceptions-orders"',
 ].join('\n');
 
-function renderTab(initialEntries: string[] = ['/']) {
+function renderTab(initialEntries: string[] = ['/'], environment = 'prod-gcp', namespace = 'teamorders') {
   return render(
     <MemoryRouter initialEntries={initialEntries}>
-      <AlertsTab namespace="teamorders" service="orders" environment="prod-gcp" />
+      <AlertsTab namespace={namespace} service="orders" environment={environment} />
     </MemoryRouter>
   );
 }
@@ -228,6 +228,19 @@ describe('AlertsTab (#32/#33 home)', () => {
       )
     );
     await waitFor(() => expect(mockPush).toHaveBeenCalledWith(expect.stringContaining('/alerting/new?defaults=')));
+  });
+
+  it.each([
+    ['no environment', '', 'teamorders'],
+    ['multiple environments', 'dev-gcp,prod-gcp', 'teamorders'],
+    ['no team', 'prod-gcp', '_'],
+  ])('disables Grafana alert templates with %s', async (_name, environment, namespace) => {
+    renderTab(['/'], environment, namespace);
+    await screen.findByText(/Select a team and exactly one environment/);
+    for (const button of screen.getAllByRole('button', { name: /Create alert/ })) {
+      expect(button).toBeDisabled();
+    }
+    expect(getAlertTemplate).not.toHaveBeenCalled();
   });
 
   it('explains where alerts live and does not show Under construction', async () => {
