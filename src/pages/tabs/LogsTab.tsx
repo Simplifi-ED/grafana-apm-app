@@ -289,7 +289,7 @@ export function LogsTab({
               to,
               serviceNameLabel,
             })}
-            tooltip="Open this service's logs in Grafana's queryless Logs Drilldown app"
+            tooltip="Open these logs in Logs Drilldown"
           >
             Open in Logs Drilldown
           </LinkButton>
