@@ -13,23 +13,20 @@ import (
 	"github.com/nais/grafana-otel-plugin/pkg/plugin/queries"
 )
 
-// feedbackEventName is the Faro event name browser SDK's captureFeedback()
-// pushes (sdk/src/feedback.ts) — the wire contract this reader is built
-// against.
+// feedbackEventName is the custom event name apps must emit for Feedback UI.
+// Grafana Faro has no built-in feedback API — apps call pushEvent("faro.feedback", …)
+// (or HyperDX addAction("faro.feedback", …) on ClickStack). See docs/api/frontend.md.
 const feedbackEventName = "faro.feedback"
 
-// Faro's Alloy receiver logfmt-encodes event attributes under an
-// "event_data_" prefix (verified against live kind=event lines, e.g.
-// event_data_duration on faro.performance.resource); session_id, page_url
-// and app_version ride at the top level of the same line.
+// Faro's Alloy receiver logfmt-encodes pushEvent attributes under an
+// "event_data_" prefix (e.g. event_data_message); session_id, page_url, and
+// app_version ride at the top level of the same kind=event line.
 const eventDataPrefix = "event_data_"
 
-// Response cap: feedback is a raw log read (no aggregation to rank by), so
-// cap the payload like the other raw-line handlers (M6 seed).
+// Response cap: feedback is a raw log read (no aggregation to rank by).
 const maxFeedback = 200
 
-// FeedbackEntry is one piece of user feedback captured via
-// `browser SDK`'s captureFeedback() (M6 seed).
+// FeedbackEntry is one user-feedback event matching feedbackEventName.
 type FeedbackEntry struct {
 	TimeMs      int64  `json:"timeMs"`
 	Message     string `json:"message"`
@@ -46,15 +43,15 @@ type FeedbackResponse struct {
 	Feedback []FeedbackEntry `json:"feedback"`
 	// Unavailable indicates Loki is not configured/reachable for this env.
 	Unavailable bool `json:"unavailable,omitempty"`
-	// Hint is set in ClickStack mode for alias-miss or missing faro.feedback
-	// enablement (ticket 13/21) — empty-state copy, never fake zeros.
+	// Hint is set in ClickStack mode for alias-miss or missing instrumentation
+	// — empty-state copy, never fake zeros.
 	Hint string `json:"hint,omitempty"`
 }
 
-const feedbackEnablementHint = "No faro.feedback events in ClickHouse for this service in range. Emit HyperDX addAction('faro.feedback', …) from the app — see plan ticket 21. Do not bind Feedback UI to HTTP /api/feedback spans."
+const feedbackEnablementHint = "No faro.feedback events in ClickHouse for this service in range. Emit a custom HyperDX addAction('faro.feedback', …) from the app (not a built-in Faro API; see docs/api/frontend.md). Do not bind Feedback UI to product HTTP /api/feedback spans."
 
-// handleFeedback returns recent user feedback for a frontend app, optionally
-// scoped to a session or joined to an issue via fingerprint.
+// handleFeedback returns recent custom faro.feedback events for a frontend app,
+// optionally scoped to a session or joined to an issue via fingerprint.
 // GET /services/{namespace}/{service}/feedback?from=&to=&sessionId=&fingerprint=
 func (a *App) handleFeedback(w http.ResponseWriter, req *http.Request) {
 	if !requireGET(w, req) {

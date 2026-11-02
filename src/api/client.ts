@@ -1468,7 +1468,7 @@ export async function getCustomMetrics(
   );
 }
 
-// ---- User feedback (M6) ----
+// ---- User feedback (custom faro.feedback events; see docs/api/frontend.md) ----
 
 export interface FeedbackEntry {
   timeMs: number;
@@ -1484,7 +1484,7 @@ export interface FeedbackEntry {
 export interface FeedbackResponse {
   feedback: FeedbackEntry[];
   unavailable?: boolean;
-  /** ClickStack: alias-miss or missing faro.feedback enablement (ticket 13/21). */
+  /** ClickStack: alias-miss or no faro.feedback instrumentation in range. */
   hint?: string;
 }
 
@@ -1529,7 +1529,7 @@ export async function getSourcemapDoctor(
   );
 }
 
-/** Feedback captured via browser SDK (e.g. Faro / HyperDX), newest first. */
+/** Custom faro.feedback events for a service, newest first. */
 export async function getFeedback(
   namespace: string,
   service: string,

@@ -17,8 +17,8 @@ interface FeedbackPanelProps {
 }
 
 /**
- * Service-level user feedback list (letter G / ticket 21). Faro Loki reads
- * event_name=faro.feedback; ClickStack reads otel_traces SpanName=faro.feedback.
+ * Service-level list of custom `faro.feedback` events (app-emitted; not a Faro
+ * built-in). Loki: event_name=faro.feedback. ClickStack: SpanName=faro.feedback.
  */
 export function FeedbackPanel({ namespace, service, environment, clickStack = false }: FeedbackPanelProps) {
   const styles = useStyles2(getStyles);
@@ -33,8 +33,8 @@ export function FeedbackPanel({ namespace, service, environment, clickStack = fa
 
   const emptyTitle = data?.hint?.includes('serviceAliases')
     ? 'Configure service alias'
-    : data?.hint?.includes('faro.feedback') || data?.hint?.includes('ticket 21')
-      ? 'Feedback events not detected'
+    : data?.hint?.includes('faro.feedback')
+      ? 'No faro.feedback events yet'
       : 'No feedback';
 
   return (
@@ -43,8 +43,8 @@ export function FeedbackPanel({ namespace, service, environment, clickStack = fa
         <h6 className={styles.title}>Feedback</h6>
         <span className={styles.subtitle}>
           {clickStack
-            ? 'User feedback from HyperDX faro.feedback actions'
-            : 'User feedback captured via the browser SDK'}
+            ? 'Custom faro.feedback actions from the browser (app must emit them)'
+            : 'Custom faro.feedback events from the browser (app must emit them)'}
         </span>
       </div>
       <DataState

@@ -66,12 +66,12 @@ describe('FeedbackPanel', () => {
   it('surfaces enablement hint when faro.feedback is absent', async () => {
     getFeedback.mockResolvedValue({
       feedback: [],
-      hint: 'No faro.feedback events in ClickHouse… see plan ticket 21.',
+      hint: 'No faro.feedback events in ClickHouse for this service in range. Emit a custom HyperDX addAction…',
     });
     renderPanel(true);
 
-    await waitFor(() => expect(screen.getByText('Feedback events not detected')).toBeInTheDocument());
-    expect(screen.getByText(/ticket 21/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('No faro.feedback events yet')).toBeInTheDocument());
+    expect(screen.getByText(/Emit a custom HyperDX addAction/)).toBeInTheDocument();
   });
 
   it('surfaces Loki unavailability on Faro path', async () => {
