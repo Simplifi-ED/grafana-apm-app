@@ -31,6 +31,7 @@ import { Sparkline } from '../components/Sparkline';
 import { AppTimeRangePicker } from '../components/AppTimeRangePicker';
 import { RefreshControl } from '../components/RefreshControl';
 import { useFavorites, serviceKey } from '../utils/useFavorites';
+import { BANNER_OWNERSHIP_COVERAGE, useDismissedBanner } from '../utils/dismissedBanners';
 import { createServiceSearchIndex, searchServices } from '../utils/serviceSearch';
 import { typographyFontSize } from '../utils/themeTypography';
 
@@ -103,7 +104,7 @@ function ServiceInventory() {
     [fromMs, toMs],
     { skip: !fetchResult }
   );
-  const [ownershipDismissed, setOwnershipDismissed] = useState(false);
+  const [ownershipDismissed, dismissOwnership] = useDismissedBanner(BANNER_OWNERSHIP_COVERAGE);
 
   const services = useMemo(() => fetchResult?.services ?? [], [fetchResult]);
   const caps = fetchResult?.caps ?? null;
@@ -375,7 +376,7 @@ function ServiceInventory() {
           <Alert
             severity={fleetOwnership.coverage < 1 ? 'info' : 'success'}
             title={`Ownership coverage ${Math.round(fleetOwnership.coverage * 100)}%`}
-            onRemove={() => setOwnershipDismissed(true)}
+            onRemove={dismissOwnership}
           >
             {fleetOwnership.owned}/{fleetOwnership.total} services have <code>owner.team</code>.
             {fleetOwnership.unowned.length > 0 && (
