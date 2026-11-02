@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.31.0](https://github.com/Simplifi-ED/grafana-apm-app/compare/clickhouse-apm-app-v0.30.1...clickhouse-apm-app-v0.31.0) (2026-11-02)
+
+
+### Features
+
+* **ServiceInventory:** add ownership dismissal functionality and improve ScorecardBadge styles ([76cc523](https://github.com/Simplifi-ED/grafana-apm-app/commit/76cc5232956f2842e1c25f2ddf2be5f2672c4714))
+
 ## [0.30.1](https://github.com/Simplifi-ED/grafana-apm-app/compare/clickhouse-apm-app-v0.30.0...clickhouse-apm-app-v0.30.1) (2026-10-30)
 
 
