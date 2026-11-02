@@ -326,7 +326,7 @@ export function LogsTab({
         </div>
       ) : (
         <Alert severity="info" title="Logs unavailable">
-          Configure Loki or ClickHouse to search logs for this service.
+          Configure a logs datasource to search logs for this service.
         </Alert>
       )}
     </div>
