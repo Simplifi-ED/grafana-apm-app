@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# smoke-test.sh — real-environment contract harness for the ClickStack APM Grafana plugin.
+# smoke-test.sh — real-environment contract harness for the Application Observability Grafana plugin.
 #
 # Where data-review.sh checks *data shapes* (do endpoints return the right keys
 # with plausible values), this script checks the *real-environment contracts*
@@ -68,7 +68,7 @@ EXPECT_DEPLOY_SYNC="${EXPECT_DEPLOY_SYNC:-}"
 USER_TOKEN="${USER_TOKEN:-}"
 VERBOSE="${VERBOSE:-0}"
 
-BASE="$HOST/api/plugins/clickhouse-apm-app/resources"
+BASE="$HOST/api/plugins/omnivya-apm-app/resources"
 NOW="$(date +%s)"
 FROM="$((NOW - RANGE_SECS))"
 NOW_MS="$((NOW * 1000))"
@@ -113,7 +113,7 @@ assert() {
 }
 
 echo "=============================================================="
-echo " ClickStack APM real-environment smoke tests"
+echo " Application Observability real-environment smoke tests"
 echo " host=$HOST  range=${RANGE_SECS}s"
 echo "=============================================================="
 
@@ -232,7 +232,7 @@ print(evs[-1].get("actor", "") if evs else "")
   # Cleanup: delete the annotation(s) this check created (tagged with our fp).
   # Requires annotation-write access; best-effort, reported but never fatal.
   IDS="$(c -G "$HOST/api/annotations" \
-    --data-urlencode 'tags=clickhouse-apm:triage' \
+    --data-urlencode 'tags=omnivya-apm:triage' \
     --data-urlencode "tags=fp:$FP" 2>/dev/null \
     | python3 -c 'import sys,json;[print(a["id"]) for a in json.load(sys.stdin)]' 2>/dev/null)"
   DELETED=0

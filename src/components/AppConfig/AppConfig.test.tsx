@@ -45,8 +45,8 @@ describe('Components/AppConfig', () => {
     props = {
       plugin: {
         meta: {
-          id: 'clickhouse-apm-app',
-          name: 'ClickStack APM',
+          id: 'omnivya-apm-app',
+          name: 'Application Observability',
           type: PluginType.app,
           enabled: true,
           jsonData: {

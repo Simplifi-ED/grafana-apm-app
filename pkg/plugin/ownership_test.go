@@ -82,7 +82,7 @@ func TestMergeOwnership_KnownTeams(t *testing.T) {
 func TestParseOwnerAnnotation(t *testing.T) {
 	ann := grafanaAnnotation{
 		Text: "owner.team=platform\nowner.contact=#ops\nvcs.repository.url=https://github.com/o/r",
-		Tags: []string{"clickhouse-apm:owner", "service:payments", "runbook:https://wiki/r"},
+		Tags: []string{"omnivya-apm:owner", "service:payments", "runbook:https://wiki/r"},
 	}
 	f := parseOwnerAnnotation(ann)
 	if f.Team != "platform" || f.Contact != "#ops" || f.Repo == "" || f.Runbook == "" {
@@ -92,7 +92,7 @@ func TestParseOwnerAnnotation(t *testing.T) {
 
 func TestApplyHasOwnerCheck(t *testing.T) {
 	checks := scorecardBaseChecks()
-	applyHasOwnerCheck(checks, Ownership{OwnershipFields: OwnershipFields{Team: "platform"}, Source: OwnershipSourceTelemetry})
+	applyHasOwnerCheck(checks, Ownership{Team: "platform", Source: OwnershipSourceTelemetry})
 	c := scorecardCheckByKey(checks, "hasOwner")
 	if c == nil || !c.OK {
 		t.Fatalf("expected OK hasOwner, got %+v", c)

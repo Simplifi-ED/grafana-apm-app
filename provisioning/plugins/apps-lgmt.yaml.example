@@ -3,7 +3,7 @@
 apiVersion: 1
 
 apps:
-  - type: 'clickhouse-apm-app'
+  - type: 'omnivya-apm-app'
     org_id: 1
     disabled: false
     jsonData:

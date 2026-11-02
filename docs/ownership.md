@@ -49,7 +49,7 @@ When telemetry is not tagged yet, publish a Grafana annotation:
 
 | Tag                    | Value                  |
 | ---------------------- | ---------------------- |
-| `clickhouse-apm:owner` | (marker)               |
+| `omnivya-apm:owner` | (marker)               |
 | `service:<name>`       | inventory service name |
 
 Put the same keys in the annotation **text** as `key=value` lines (or tags

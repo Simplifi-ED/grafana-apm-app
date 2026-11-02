@@ -5,6 +5,7 @@ import {
   LocalStorageFavoritesStorage,
   serviceKey,
   STORAGE_KEY,
+  LEGACY_STORAGE_KEY,
 } from './favoritesStorage';
 import { useFavorites } from './useFavorites';
 
@@ -25,6 +26,20 @@ describe('LocalStorageFavoritesStorage', () => {
   it('saves and loads favorites', () => {
     storage.save(['team-a/api', 'team-b/web']);
     expect(storage.load()).toEqual(['team-a/api', 'team-b/web']);
+  });
+
+  it('migrates legacy clickhouse-apm-favorites when new key is absent', () => {
+    localStorage.setItem(LEGACY_STORAGE_KEY, JSON.stringify({ version: 1, services: ['ns/legacy'] }));
+    expect(storage.load()).toEqual(['ns/legacy']);
+    expect(localStorage.getItem(STORAGE_KEY)).toContain('ns/legacy');
+    expect(localStorage.getItem(LEGACY_STORAGE_KEY)).toBeNull();
+  });
+
+  it('does not read legacy key when the new key is already present', () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, services: ['ns/new'] }));
+    localStorage.setItem(LEGACY_STORAGE_KEY, JSON.stringify({ version: 1, services: ['ns/legacy'] }));
+    expect(storage.load()).toEqual(['ns/new']);
+    expect(localStorage.getItem(LEGACY_STORAGE_KEY)).not.toBeNull();
   });
 
   it('handles corrupted JSON gracefully', () => {

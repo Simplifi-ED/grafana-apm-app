@@ -89,7 +89,7 @@ func TestGetOpsWatchlist_ReadsPluginContextWithoutGrafanaAPI(t *testing.T) {
 
 	app := newWatchlistApp(srv.URL, "")
 	req := httptest.NewRequest(http.MethodGet, "/ops-watchlist", nil).WithContext(
-		watchlistCtx("clickhouse-apm-app", `{"opsWatchlist":[{"namespace":"ns","service":"api"}]}`, ""))
+		watchlistCtx("omnivya-apm-app", `{"opsWatchlist":[{"namespace":"ns","service":"api"}]}`, ""))
 	rec := httptest.NewRecorder()
 	app.handleOpsWatchlist(rec, req)
 
@@ -108,7 +108,7 @@ func TestGetOpsWatchlist_ReadsPluginContextWithoutGrafanaAPI(t *testing.T) {
 func TestGetOpsWatchlist_EmptyJSONDataReturnsEmptyList(t *testing.T) {
 	app := newWatchlistApp("http://127.0.0.1:1", "")
 	req := httptest.NewRequest(http.MethodGet, "/ops-watchlist", nil).WithContext(
-		watchlistCtx("clickhouse-apm-app", ``, ""))
+		watchlistCtx("omnivya-apm-app", ``, ""))
 	rec := httptest.NewRecorder()
 	app.handleOpsWatchlist(rec, req)
 
@@ -120,7 +120,7 @@ func TestGetOpsWatchlist_EmptyJSONDataReturnsEmptyList(t *testing.T) {
 func TestSetOpsWatchlist_FallsBackAcrossCredentials(t *testing.T) {
 	api := &settingsAPI{
 		t:        t,
-		pluginID: "clickhouse-apm-app",
+		pluginID: "omnivya-apm-app",
 		// Managed SA lacks plugin permissions (older plugin.json iam); the
 		// manually configured token works.
 		allowed: map[string]bool{"Bearer manual-token": true},
@@ -136,7 +136,7 @@ func TestSetOpsWatchlist_FallsBackAcrossCredentials(t *testing.T) {
 	app := newWatchlistApp(srv.URL, "manual-token")
 	body := `[{"namespace":"ns","service":"api","environment":"prod"},{"namespace":"","service":"dropped"}]`
 	req := httptest.NewRequest(http.MethodPost, "/ops-watchlist", strings.NewReader(body)).WithContext(
-		watchlistCtx("clickhouse-apm-app", `{}`, "managed-token"))
+		watchlistCtx("omnivya-apm-app", `{}`, "managed-token"))
 	rec := httptest.NewRecorder()
 	app.handleOpsWatchlist(rec, req)
 
@@ -184,13 +184,13 @@ func TestSetOpsWatchlist_UsesPluginIDFromContext(t *testing.T) {
 }
 
 func TestSetOpsWatchlist_ReportsUpstreamStatusWhenAllCredentialsRejected(t *testing.T) {
-	api := &settingsAPI{t: t, pluginID: "clickhouse-apm-app", allowed: map[string]bool{}}
+	api := &settingsAPI{t: t, pluginID: "omnivya-apm-app", allowed: map[string]bool{}}
 	srv := httptest.NewServer(http.HandlerFunc(api.handler))
 	defer srv.Close()
 
 	app := newWatchlistApp(srv.URL, "manual-token")
 	req := httptest.NewRequest(http.MethodPost, "/ops-watchlist", strings.NewReader(`[]`)).WithContext(
-		watchlistCtx("clickhouse-apm-app", `{}`, "managed-token"))
+		watchlistCtx("omnivya-apm-app", `{}`, "managed-token"))
 	req.Header.Set("Cookie", "grafana_session=abc")
 	rec := httptest.NewRecorder()
 	app.handleOpsWatchlist(rec, req)

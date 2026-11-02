@@ -115,7 +115,7 @@ type pluginSettings struct {
 }
 
 // defaultPluginID is used only when the request carries no plugin context.
-const defaultPluginID = "clickhouse-apm-app"
+const defaultPluginID = "omnivya-apm-app"
 
 func requestPluginID(req *http.Request) string {
 	if id := backend.PluginConfigFromContext(req.Context()).PluginID; id != "" {
@@ -229,8 +229,7 @@ func (e *settingsAPIError) authRejected() bool {
 // publicSettingsError is the client-facing detail: the upstream status only,
 // never the upstream body. The plugins:write hint is only for 403.
 func publicSettingsError(err error) string {
-	var apiErr *settingsAPIError
-	if errors.As(err, &apiErr) {
+	if apiErr, ok := errors.AsType[*settingsAPIError](err); ok {
 		if apiErr.status == http.StatusForbidden {
 			return fmt.Sprintf("grafana settings API returned %d (check the plugin service account has plugins:write on this app)", apiErr.status)
 		}
@@ -240,8 +239,7 @@ func publicSettingsError(err error) string {
 }
 
 func settingsErrorStatus(err error) int {
-	var apiErr *settingsAPIError
-	if errors.As(err, &apiErr) {
+	if _, ok := errors.AsType[*settingsAPIError](err); ok {
 		return http.StatusBadGateway
 	}
 	return http.StatusInternalServerError

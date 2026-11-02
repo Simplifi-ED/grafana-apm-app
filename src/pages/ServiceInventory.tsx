@@ -341,10 +341,11 @@ function ServiceInventory() {
           </Alert>
         )}
         {!loading && caps?.clickHouse && !caps.clickHouse.available && (
-          <Alert severity="error" title="ClickHouse unreachable">
-            {caps.clickHouse.error || 'The ClickHouse datasource is not reachable.'} Then refresh this page.
+          <Alert severity="error" title="Data source unavailable">
+            {caps.clickHouse.error || 'Configure a data source in plugin settings, then refresh this page.'}
           </Alert>
         )}
+
         {!loading && caps && !caps.spanMetrics.detected && !(caps.clickHouse && !caps.clickHouse.available) && (
           <Alert severity="warning" title="No span metrics detected">
             {caps.clickHouse

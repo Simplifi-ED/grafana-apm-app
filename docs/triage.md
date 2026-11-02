@@ -14,7 +14,7 @@ One org annotation per state change (no `dashboardUID`):
 
 | Field | Value                                                                                                                                  |
 | ----- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| tags  | `clickhouse-apm:triage`, `app:<namespace>/<service>`, `fp:<fingerprint>`                                                               |
+| tags  | `omnivya-apm:triage`, `app:<namespace>/<service>`, `fp:<fingerprint>`                                                               |
 | text  | `{"schema":1,"action":"resolve"\|"ignore"\|"unresolve"\|"assign","actor":"<login>","assignee":"…","resolvedInVersion":"…","note":"…"}` |
 | time  | write timestamp (ms)                                                                                                                   |
 
@@ -69,7 +69,7 @@ service account lacks admin scope).
 `[annotations.api]` retention is org-wide, so keep-all also keeps every deploy
 marker forever — and those churn (one per deploy of every service) where triage
 events are sparse. The deploy sync therefore prunes them itself, once a
-day: `clickhouse-apm:deploy` markers older than 90 days are deleted **except** the
+day: `omnivya-apm:deploy` markers older than 90 days are deleted **except** the
 newest per namespace, service and environment, which regression detection
 anchors on.
 Markers inside the window are untouched (dashboard overlays, release health),
@@ -79,7 +79,7 @@ and triage annotations are never deleted.
 
 An issue whose folded state is `resolved` but which still has occurrences in
 the current query window **and** whose resolve predates the newest deploy
-annotation (`clickhouse-apm:deploy`, see #64) is flagged
+annotation (`omnivya-apm:deploy`, see #64) is flagged
 `returnedAfterResolve` on `/issues` and renders as **Returned after resolve**
 (bubbles to the top). This is triage/deploy semantics — not the alert template
 **Exception volume regression** (volume ≫ baseline). Approximate: when viewing

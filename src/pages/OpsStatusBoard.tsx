@@ -392,7 +392,7 @@ function OpsStatusBoard() {
                   <h3>No services configured</h3>
                   <p>
                     Add services directly from this dashboard, or use the{' '}
-                    <a href={`/plugins/clickhouse-apm-app`}>plugin configuration</a> as a fallback.
+                    <a href={`/plugins/omnivya-apm-app`}>plugin configuration</a> as a fallback.
                   </p>
                   <Button variant="secondary" onClick={openPicker}>
                     Add services

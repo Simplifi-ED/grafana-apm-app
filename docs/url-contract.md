@@ -5,20 +5,30 @@ annotations, Slack notifications, runbooks, and shared links depend on them —
 treat renames as breaking changes: keep the old parameter resolving as an
 alias for at least two minor releases and note the change in the CHANGELOG.
 
+### Breaking: plugin ID path prefix (0.32+)
+
+The app plugin ID changed from `clickhouse-apm-app` to `omnivya-apm-app`.
+Grafana mounts app routes under `/a/<plugin-id>/…`, so **`/a/clickhouse-apm-app/…`
+no longer resolves** to this plugin. A plugin cannot register routes under
+another plugin ID. Operators who need the old prefix must add a reverse-proxy
+or Grafana ingress rewrite for at least two minor releases; otherwise update
+bookmarks, alert `dashboard_url` annotations, and shared links to
+`/a/omnivya-apm-app/…`.
+
 ## Service pages
 
 ```
-/a/clickhouse-apm-app/services                                  service inventory
-/a/clickhouse-apm-app/services/{namespace}/{service}            service detail
-/a/clickhouse-apm-app/namespaces/{namespace}                    namespace overview
-/a/clickhouse-apm-app/dependencies/{name}                       dependency detail
+/a/omnivya-apm-app/services                                  service inventory
+/a/omnivya-apm-app/services/{namespace}/{service}            service detail
+/a/omnivya-apm-app/namespaces/{namespace}                    namespace overview
+/a/omnivya-apm-app/dependencies/{name}                       dependency detail
 ```
 
 ## Fleet pages
 
 ```
-/a/clickhouse-apm-app/service-map                               global service map (#22)
-/a/clickhouse-apm-app/jobs                                      cron / Naisjob inventory (#74)
+/a/omnivya-apm-app/service-map                               global service map (#22)
+/a/omnivya-apm-app/jobs                                      cron / Naisjob inventory (#74)
 ```
 
 Both fleet pages read the global `from`/`to` and `environment` params (below) and
@@ -79,7 +89,7 @@ The #32 firing-alert detail drawer opens purely from URL state, so a firing
 alert is shareable as a deep link without a new route:
 
 ```
-/a/clickhouse-apm-app/services/{namespace}/{service}?tab=alerts&environment={env}&firingAlert={ruleName}
+/a/omnivya-apm-app/services/{namespace}/{service}?tab=alerts&environment={env}&firingAlert={ruleName}
 ```
 
 | Param         | Meaning                                                                                                                                                                                                                                                                                                                                                            |
@@ -102,8 +112,8 @@ row) via the shared `useExceptionDrawerState` hook
 still opens the drawer if shared or bookmarked with the other:
 
 ```
-/a/clickhouse-apm-app/services/{namespace}/{service}?tab=issues&environment={env}&issueId={fingerprint}[&exceptionSessionId={id}]
-/a/clickhouse-apm-app/services/{namespace}/{service}?tab=frontend&environment={env}&exceptionHash={hash}[&exceptionSessionId={id}]
+/a/omnivya-apm-app/services/{namespace}/{service}?tab=issues&environment={env}&issueId={fingerprint}[&exceptionSessionId={id}]
+/a/omnivya-apm-app/services/{namespace}/{service}?tab=frontend&environment={env}&exceptionHash={hash}[&exceptionSessionId={id}]
 ```
 
 | Param                | Meaning                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |

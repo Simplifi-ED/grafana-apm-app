@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# data-review.sh — data-conformance harness for the ClickStack APM Grafana plugin.
+# data-review.sh — data-conformance harness for the Application Observability Grafana plugin.
 #
 # Sweeps every backend resource endpoint across a configurable service matrix
 # and asserts basic conformance:
@@ -46,7 +46,7 @@ RANGE_SECS="${RANGE_SECS:-21600}"
 MAXTIME="${MAXTIME:-90}"
 VERBOSE="${VERBOSE:-0}"
 
-BASE="$HOST/api/plugins/clickhouse-apm-app/resources"
+BASE="$HOST/api/plugins/omnivya-apm-app/resources"
 NOW="$(date +%s)"
 FROM="$((NOW - RANGE_SECS))"
 
@@ -99,7 +99,7 @@ TSV
 }
 
 echo "=============================================================="
-echo " ClickStack APM data-conformance review"
+echo " Application Observability data-conformance review"
 echo " host=$HOST  range=${RANGE_SECS}s  loki=$LOKI_UID  tempo=$TEMPO_UID"
 echo "=============================================================="
 

@@ -4,7 +4,7 @@
 additive-only promise — their series-bearing shapes are still tuned for the UI.
 
 RED metrics and topology derived from span metrics (Mimir) and the service graph.
-All `GET`. Base: `{GRAFANA_URL}/api/plugins/clickhouse-apm-app/resources`.
+All `GET`. Base: `{GRAFANA_URL}/api/plugins/omnivya-apm-app/resources`.
 
 Contents:
 

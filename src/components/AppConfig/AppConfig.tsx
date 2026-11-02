@@ -722,10 +722,11 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
         </div>
 
         {caps?.clickHouse && !caps.clickHouse.available && (
-          <Alert severity="error" title="ClickHouse unreachable" className={s.marginTop}>
-            {caps.clickHouse.error || 'The ClickHouse datasource is not reachable.'}
+          <Alert severity="error" title="Data source unavailable" className={s.marginTop}>
+            {caps.clickHouse.error || 'Select a working data source above, save, then run Auto-detect again.'}
           </Alert>
         )}
+
         {caps && !caps.spanMetrics.detected && !(caps.clickHouse && !caps.clickHouse.available) && (
           <Alert severity="warning" title="No span metrics detected" className={s.marginTop}>
             {caps.clickHouse || state.clickHouseUid

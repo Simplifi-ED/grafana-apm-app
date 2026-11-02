@@ -33,7 +33,7 @@ function App(props: AppRootProps) {
 
   useEffect(() => {
     let active = true;
-    initPluginTranslations('clickhouse-apm-app', [
+    initPluginTranslations('omnivya-apm-app', [
       (lang: string) => import('@grafana/scenes').then((m) => m.loadResources(lang)),
     ])
       .then(() => {
@@ -67,7 +67,7 @@ function App(props: AppRootProps) {
           fontFamily: 'sans-serif',
         }}
       >
-        Loading ClickStack APM...
+        Loading Application Observability...
       </div>
     );
   }
@@ -85,7 +85,7 @@ function App(props: AppRootProps) {
             fontFamily: 'sans-serif',
           }}
         >
-          Loading ClickStack APM...
+          Loading Application Observability...
         </div>
       }
     >

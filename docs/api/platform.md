@@ -5,7 +5,7 @@ readiness scorecard, jobs/cronjobs, and the service-map topology.
 
 `GET /capabilities` is **stable**; the rest are **experimental**.
 
-Base: `{GRAFANA_URL}/api/plugins/clickhouse-apm-app/resources`.
+Base: `{GRAFANA_URL}/api/plugins/omnivya-apm-app/resources`.
 
 Contents:
 
@@ -96,7 +96,7 @@ An observability-readiness scorecard for a service. Score is
 Base checks: `spanMetrics`, `traces`, `logs`, `runtimeMetrics`,
 `browserTelemetry`, `alertRules`, plus `graphql` (N/A until enablement),
 `jobs`, `profiling`, `deployMarkers` (Grafana annotations tagged
-`clickhouse-apm:deploy`, 30d lookback), `hasOwner` (see [ownership.md](../ownership.md)).
+`omnivya-apm:deploy`, 30d lookback), `hasOwner` (see [ownership.md](../ownership.md)).
 ClickStack v2 (letter F): `sourcemaps`
 (browser-only), `database` (N/A without `db.system`), `messagingOrWorkflow`
 (N/A without messaging or Temporal signals), `structuredLogs` (N/A without

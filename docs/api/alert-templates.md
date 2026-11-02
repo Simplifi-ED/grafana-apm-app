@@ -9,7 +9,7 @@ link into the Grafana "new alert rule" form with those defaults applied. The
 plugin does **not** create the rule — it hands you a starting point. `GET` only,
 never cached.
 
-Base: `{GRAFANA_URL}/api/plugins/clickhouse-apm-app/resources`.
+Base: `{GRAFANA_URL}/api/plugins/omnivya-apm-app/resources`.
 
 ### Path parameter — `{kind}`
 
@@ -90,7 +90,7 @@ and an unknown kind still returns `404` as it does without the param.
 | `evaluateFor` | string                   | Pending period, e.g. `"5m"`.                           |
 | `queries`     | array&lt;alertQuery&gt;  | The A (data) / B (reduce) / C (threshold) query chain. |
 | `annotations` | array&lt;{key,value}&gt; | Suggested annotations (summary, deep link).            |
-| `labels`      | array&lt;{key,value}&gt; | `namespace`, `service`, `source=clickhouse-apm`.       |
+| `labels`      | array&lt;{key,value}&gt; | `namespace`, `service`, `source=omnivya-apm`.       |
 
 **alertQuery**: `refId`, `queryType`, `relativeTimeRange` (`{from,to}` seconds
 before now; present on the data query), `datasourceUid`, `model` (query model —
@@ -147,7 +147,7 @@ curl -s ".../alert-templates/new-exceptions?namespace=team-a&service=storefront&
     "labels": [
       { "key": "namespace", "value": "team-a" },
       { "key": "service", "value": "storefront" },
-      { "key": "source", "value": "clickhouse-apm" }
+      { "key": "source", "value": "omnivya-apm" }
     ]
   }
 }

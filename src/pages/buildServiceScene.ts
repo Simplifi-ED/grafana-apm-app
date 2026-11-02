@@ -40,7 +40,7 @@ export interface BuildServiceSceneParams {
  * built-in `grafana` annotations datasource for deploy events (#64 Phase 1).
  *
  * Deploy events are written as Grafana organization annotations by CI (see
- * infra/actions/apm-deploy-annotation) tagged `clickhouse-apm:deploy`,
+ * infra/actions/apm-deploy-annotation) tagged `omnivya-apm:deploy`,
  * `service:<app>`, `namespace:<ns>`, `env:<env>`, `version:<sha>`. Filtering
  * here is by tags with `matchAny: false` (AND semantics), so markers show only
  * for the selected service — and only for the selected environment when an
@@ -63,7 +63,13 @@ export interface DeployAnnotationTarget {
 }
 
 export function buildDeployAnnotationsLayer(service: string, environment?: string): SceneDataLayerSet {
-  const tags = ['clickhouse-apm:deploy', `service:${service}`];
+  // Panel overlay queries the current tag only. CI dual-writes
+  // clickhouse-apm:deploy alongside omnivya-apm:deploy during rollout so new
+  // markers match this layer for both plugin generations. Pre-rename
+  // clickhouse-only markers are still read by the backend / alert drawer
+  // dual-query path — a second panel layer would duplicate dual-tagged
+  // annotations from the action.
+  const tags = ['omnivya-apm:deploy', `service:${service}`];
   if (environment) {
     tags.push(`env:${environment}`);
   }

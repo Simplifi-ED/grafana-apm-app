@@ -23,10 +23,13 @@ import (
 const maxVersions = 20
 
 // Deploy annotations are tagged per the #64 Phase 0 contract:
-// clickhouse-apm:deploy + service:<app> (+ env:<env>) + version:<sha>.
+// omnivya-apm:deploy + service:<app> (+ env:<env>) + version:<sha>.
+// legacyDeployAnnotationTag is read during the plugin-id rename so markers
+// written before the rename still enrich versions / scorecard / issues.
 const (
-	deployAnnotationTag = "clickhouse-apm:deploy"
-	versionTagPrefix    = "version:"
+	deployAnnotationTag       = "omnivya-apm:deploy"
+	legacyDeployAnnotationTag = "clickhouse-apm:deploy"
+	versionTagPrefix          = "version:"
 )
 
 // VersionStat is per-app_version release health (#64 Phase 1), computed
@@ -44,7 +47,7 @@ type VersionStat struct {
 	// Exception occurrences on this version in range.
 	Exceptions float64 `json:"exceptions"`
 	// DeployedAtMs is the deploy annotation timestamp for this version,
-	// when a matching clickhouse-apm:deploy annotation exists in range.
+	// when a matching omnivya-apm:deploy annotation exists in range.
 	DeployedAtMs int64 `json:"deployedAtMs,omitempty"`
 }
 
@@ -225,43 +228,14 @@ func (a *App) fetchDeployAnnotations(ctx context.Context, service, env string, f
 	if a.healthClient == nil || a.grafanaURL == "" {
 		return nil, "", 0
 	}
-	logger := log.DefaultLogger.With("handler", "frontend-versions")
-
-	params := url.Values{}
-	params.Add("tags", deployAnnotationTag)
-	params.Add("tags", "service:"+service)
-	// Repeated tags params AND together; a multi-env selection can't be
-	// expressed that way, so only scope when a single environment is selected.
-	if env != "" && !strings.Contains(env, ",") {
-		params.Add("tags", "env:"+env)
-	}
-	params.Set("from", strconv.FormatInt(from.UnixMilli(), 10))
-	params.Set("to", strconv.FormatInt(to.UnixMilli(), 10))
-	params.Set("limit", "100")
-
-	apiReq, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/api/annotations?%s", a.grafanaURL, params.Encode()), nil)
-	if err != nil {
-		return nil, "", 0
-	}
-	if token := a.resolveServiceToken(ctx); token != "" {
-		apiReq.Header.Set("Authorization", "Bearer "+token)
-	}
-
-	resp, err := a.healthClient.Do(apiReq)
-	if err != nil {
-		logger.Debug("Deploy annotations request failed", "error", err)
-		return nil, "", 0
-	}
-	defer resp.Body.Close() //nolint:errcheck
-	if resp.StatusCode != http.StatusOK {
-		logger.Debug("Deploy annotations request failed", "status", resp.StatusCode)
-		return nil, "", 0
-	}
 
 	var annotations []grafanaAnnotation
-	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&annotations); err != nil {
-		logger.Debug("Deploy annotations decode failed", "error", err)
-		return nil, "", 0
+	for _, tag := range []string{deployAnnotationTag, legacyDeployAnnotationTag} {
+		batch, ok := a.queryDeployAnnotations(ctx, tag, service, env, from, to)
+		if !ok {
+			return nil, "", 0
+		}
+		annotations = append(annotations, batch...)
 	}
 
 	deploys := make(map[string]int64, len(annotations))
@@ -289,4 +263,49 @@ func (a *App) fetchDeployAnnotations(ctx context.Context, service, env string, f
 		}
 	}
 	return deploys, latestVersion, latestTime
+}
+
+// queryDeployAnnotations returns annotations carrying tag, scoped by service,
+// the single selected environment, and the time range. ok is false on request
+// or decode failure (caller returns empty enrichment).
+func (a *App) queryDeployAnnotations(ctx context.Context, tag, service, env string, from, to time.Time) ([]grafanaAnnotation, bool) {
+	logger := log.DefaultLogger.With("handler", "frontend-versions")
+
+	params := url.Values{}
+	params.Add("tags", tag)
+	params.Add("tags", "service:"+service)
+	// Repeated tags params AND together; a multi-env selection can't be
+	// expressed that way, so only scope when a single environment is selected.
+	if env != "" && !strings.Contains(env, ",") {
+		params.Add("tags", "env:"+env)
+	}
+	params.Set("from", strconv.FormatInt(from.UnixMilli(), 10))
+	params.Set("to", strconv.FormatInt(to.UnixMilli(), 10))
+	params.Set("limit", "100")
+
+	apiReq, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/api/annotations?%s", a.grafanaURL, params.Encode()), nil)
+	if err != nil {
+		return nil, false
+	}
+	if token := a.resolveServiceToken(ctx); token != "" {
+		apiReq.Header.Set("Authorization", "Bearer "+token)
+	}
+
+	resp, err := a.healthClient.Do(apiReq)
+	if err != nil {
+		logger.Debug("Deploy annotations request failed", "error", err)
+		return nil, false
+	}
+	defer resp.Body.Close() //nolint:errcheck
+	if resp.StatusCode != http.StatusOK {
+		logger.Debug("Deploy annotations request failed", "status", resp.StatusCode)
+		return nil, false
+	}
+
+	var annotations []grafanaAnnotation
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&annotations); err != nil {
+		logger.Debug("Deploy annotations decode failed", "error", err)
+		return nil, false
+	}
+	return annotations, true
 }

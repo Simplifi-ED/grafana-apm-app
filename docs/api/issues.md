@@ -4,7 +4,7 @@
 promise (see [README](./README.md#stability-contract)).
 
 All paths are under the resources proxy base
-`{GRAFANA_URL}/api/plugins/clickhouse-apm-app/resources`. Examples use
+`{GRAFANA_URL}/api/plugins/omnivya-apm-app/resources`. Examples use
 `admin:admin` basic auth against a local Grafana; in automation send
 `Authorization: Bearer $GRAFANA_SA_TOKEN` instead.
 
@@ -88,7 +88,7 @@ rounded `from`/`to`, and the three facet values. `X-Cache: HIT` on hit.
 ### Example
 
 ```bash
-curl -s "http://admin:admin@localhost:3000/api/plugins/clickhouse-apm-app/resources/services/team-a/storefront/issues?from=1783090000&to=1783185000"
+curl -s "http://admin:admin@localhost:3000/api/plugins/omnivya-apm-app/resources/services/team-a/storefront/issues?from=1783090000&to=1783185000"
 ```
 
 ```json

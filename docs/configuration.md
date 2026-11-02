@@ -1,8 +1,25 @@
 # Configuration
 
 How to set up datasources, authentication, and per-environment overrides for
-ClickStack APM. For the full list of expected LGTM metrics and labels (dual-mode),
+Application Observability. For the full list of expected LGTM metrics and labels (dual-mode),
 see [metrics-reference.md](metrics-reference.md).
+
+---
+
+## Upgrading from `clickhouse-apm-app`
+
+The plugin ID is now `omnivya-apm-app`. Grafana stores plugin settings per ID —
+values saved under `clickhouse-apm-app` are **not** migrated automatically.
+
+After installing the new ID:
+
+1. Open **Configuration** and re-enter ClickHouse (and any LGTM) datasource UIDs.
+2. Re-enter `serviceAccountToken` (stored in `secureJsonData`).
+3. For provisioned installs, set `type: 'omnivya-apm-app'` and supply the token
+   in `secureJsonData` (see `provisioning/plugins/apps-clickhouse.yaml.example`).
+
+Deploy / triage / owner annotation **reads** still accept the legacy
+`clickhouse-apm:*` tags; new writes use `omnivya-apm:*`.
 
 ---
 
@@ -218,13 +235,14 @@ failed save reports Grafana's status code (for example `401`).
 ## Deploy Annotations
 
 Time-series panels on the Backend (RED) and Frontend tabs render deploy markers from
-Grafana **organization annotations** tagged `clickhouse-apm:deploy`,
+Grafana **organization annotations** tagged `omnivya-apm:deploy`,
 `service:<app>`, `namespace:<ns>`, `env:<env>`, and `version:<sha>`. The
 plugin queries the built-in `grafana` annotations datasource filtered by the
-`clickhouse-apm:deploy` and `service:` tags (plus `env:` when an environment filter
-is selected); the marker tooltip shows the annotation text, which carries the
-deployed version and a link to the triggering workflow. To produce these
-annotations from CI, use the reusable GitHub Action in
+`omnivya-apm:deploy` and `service:` tags (plus `env:` when an environment filter
+is selected). Markers tagged `clickhouse-apm:deploy` (pre-rename) are still
+queried so historical deploys remain visible. The marker tooltip shows the
+annotation text, which carries the deployed version and a link to the triggering
+workflow. To produce these annotations from CI, use the reusable GitHub Action in
 [`infra/actions/apm-deploy-annotation`](../infra/actions/apm-deploy-annotation/action.yml)
 after a successful deploy — it POSTs one annotation to `/api/annotations`
 using a service-account token with the `annotations:create` permission. No

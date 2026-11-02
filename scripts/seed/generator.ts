@@ -218,7 +218,7 @@ export function generateScenario(options: SeedOptions): FaroPayload[] {
 
         const payload: FaroPayload = {
           meta: {
-            sdk: { name: 'clickhouse-apm-seed', version: '1.0.0' },
+            sdk: { name: 'omnivya-apm-seed', version: '1.0.0' },
             app: { name: app, namespace, version, environment, release: version },
             session: { id: hex(rng, 16), attributes: { isSampled: 'true' } },
             browser: { ...browser },
