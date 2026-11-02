@@ -4,6 +4,9 @@ import {
   buildLokiExploreUrl,
   buildMimirExploreUrl,
   buildClickHouseExploreUrl,
+  buildClickHouseTraceExploreUrl,
+  buildClickHouseTraceSearchExploreUrl,
+  buildClickHouseLogsExploreUrl,
   buildLogsDrilldownUrl,
   buildMetricsDrilldownUrl,
   buildTracesDrilldownUrl,
@@ -159,13 +162,81 @@ describe('buildMimirExploreUrl', () => {
 });
 
 describe('buildClickHouseExploreUrl', () => {
-  it('passes rawSql with ClickHouse SQL queryType', () => {
-    const sql = 'SELECT 1';
+  it('passes rawSql as timeseries SQL with editorType sql', () => {
+    const sql = 'SELECT $__timeInterval(TimeUnix) AS time, sum(Value) / $__interval_s AS rate';
     const url = buildClickHouseExploreUrl('ch-uid', sql, { from: 'now-1h', to: 'now' });
     const left = parseLeft(url);
     expect(left.datasource).toBe('ch-uid');
     expect(left.queries[0].rawSql).toBe(sql);
-    expect(left.queries[0].queryType).toBe('sql');
+    expect(left.queries[0].queryType).toBe('timeseries');
+    expect(left.queries[0].format).toBe(0);
+    expect(left.queries[0].editorType).toBe('sql');
+    expect(String(left.queries[0].rawSql)).toContain('$__interval_s');
+  });
+});
+
+describe('buildClickHouseTraceExploreUrl', () => {
+  it('opens a TraceId with traces format and OTel aliases', () => {
+    const url = buildClickHouseTraceExploreUrl('ch-uid', 'abc123def456');
+    const left = parseLeft(url);
+    expect(left.datasource).toBe('ch-uid');
+    expect(left.queries[0].queryType).toBe('traces');
+    expect(left.queries[0].format).toBe(3);
+    expect(left.queries[0].editorType).toBe('sql');
+    const sql = left.queries[0].rawSql as string;
+    expect(sql).toContain("TraceId = 'abc123def456'");
+    expect(sql).toContain('AS traceID');
+    expect(sql).toContain('$__timeFilter(Timestamp)');
+  });
+
+  it('escapes apostrophes in the TraceId literal', () => {
+    const url = buildClickHouseTraceExploreUrl('ch-uid', "O'Reilly");
+    const left = parseLeft(url);
+    expect(left.queries[0].rawSql as string).toContain("'O''Reilly'");
+  });
+
+  it('uses the provided lookup window when both bounds are given', () => {
+    const url = buildClickHouseTraceExploreUrl('ch-uid', 'abc', { from: '1700000000000', to: '1700003600000' });
+    const left = parseLeft(url);
+    expect(left.range.from).toBe('1700000000000');
+    expect(left.range.to).toBe('1700003600000');
+  });
+});
+
+describe('buildClickHouseTraceSearchExploreUrl', () => {
+  it('builds a table query scoped to the service', () => {
+    const url = buildClickHouseTraceSearchExploreUrl('ch-uid', 'checkout', { statusCode: 'error' });
+    const left = parseLeft(url);
+    expect(left.datasource).toBe('ch-uid');
+    expect(left.queries[0].queryType).toBe('table');
+    expect(left.queries[0].format).toBe(1);
+    const sql = left.queries[0].rawSql as string;
+    expect(sql).toContain("ServiceName = 'checkout'");
+    expect(sql).toContain("StatusCode IN ('Error', 'STATUS_CODE_ERROR')");
+    expect(sql).toContain('AS traceID');
+  });
+});
+
+describe('buildClickHouseLogsExploreUrl', () => {
+  it('builds a logs-format query with body/level aliases', () => {
+    const url = buildClickHouseLogsExploreUrl('ch-uid', 'checkout', { search: "O'Reilly", from: 'now-6h', to: 'now' });
+    const left = parseLeft(url);
+    expect(left.datasource).toBe('ch-uid');
+    expect(left.queries[0].queryType).toBe('logs');
+    expect(left.queries[0].format).toBe(2);
+    expect(left.queries[0].editorType).toBe('sql');
+    const sql = left.queries[0].rawSql as string;
+    expect(sql).toContain("ServiceName = 'checkout'");
+    expect(sql).toContain("'O''Reilly'");
+    expect(sql).toContain('AS body');
+    expect(sql).toContain('AS level');
+    expect(left.range.from).toBe('now-6h');
+  });
+
+  it('filters by TraceId when provided', () => {
+    const url = buildClickHouseLogsExploreUrl('ch-uid', 'svc', { traceId: 'aabbcc' });
+    const left = parseLeft(url);
+    expect(left.queries[0].rawSql as string).toContain("TraceId = 'aabbcc'");
   });
 });
 

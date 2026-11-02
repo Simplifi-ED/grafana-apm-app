@@ -12,7 +12,12 @@ import {
 import { useFetch } from '../../../utils/useFetch';
 import { DataState } from '../../../components/DataState';
 import { formatDuration } from '../../../utils/format';
-import { buildTempoExploreUrl } from '../../../utils/explore';
+import {
+  buildClickHouseTraceExploreUrl,
+  buildClickHouseTraceSearchExploreUrl,
+  buildTempoExploreUrl,
+  buildTraceExploreUrl,
+} from '../../../utils/explore';
 import { ClickStackExploreFilters, TRACE_FIELD_KEYS } from '../explore/ClickStackExploreFilters';
 import { typographyFontSize } from '../../../utils/themeTypography';
 
@@ -27,8 +32,12 @@ interface ClickStackTracesPanelProps {
   durationMax: string;
   from?: string;
   to?: string;
-  /** When set, show secondary “Open in Explore” (Tempo). Hidden in CH-only mode. */
+  /** When set, show secondary “Open in Explore” (Tempo). Prefer over ClickHouse. */
   exploreTracesUid?: string;
+  /** ClickHouse UID for Explore deep links when Tempo is not configured. */
+  clickHouseUid?: string;
+  /** Preselect a TraceId (e.g. log → traces jump via URL). */
+  initialTraceId?: string;
 }
 
 export function ClickStackTracesPanel({
@@ -43,12 +52,21 @@ export function ClickStackTracesPanel({
   from = 'now-1h',
   to = 'now',
   exploreTracesUid = '',
+  clickHouseUid = '',
+  initialTraceId = '',
 }: ClickStackTracesPanelProps) {
   const styles = useStyles2(getStyles);
-  const [selectedTraceId, setSelectedTraceId] = useState('');
+  const [selectedTraceId, setSelectedTraceId] = useState(initialTraceId);
   const [fields, setFields] = useState<ExploreFieldFilter[]>([]);
   const [sqlWhere, setSqlWhere] = useState('');
   const detailRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (initialTraceId) {
+      setSelectedTraceId(initialTraceId);
+    }
+  }, [initialTraceId]);
+
   const { data, loading, error } = useFetch(
     () =>
       getTraceSearch(namespace, service, fromMs, toMs, status, spanSearch, durationMin, durationMax, fields, sqlWhere),
@@ -60,7 +78,53 @@ export function ClickStackTracesPanel({
     { skip: !selectedTraceId }
   );
 
-  const traces = data?.traces ?? [];
+  const serviceExploreHref = exploreTracesUid
+    ? buildTempoExploreUrl(exploreTracesUid, service, {
+        namespace,
+        from,
+        to,
+        statusCode: status || undefined,
+      })
+    : clickHouseUid
+      ? buildClickHouseTraceSearchExploreUrl(clickHouseUid, service, {
+          namespace,
+          from,
+          to,
+          statusCode: status || undefined,
+        })
+      : '';
+  const serviceExploreTooltip = exploreTracesUid
+    ? 'Open this service in Grafana Explore (Tempo)'
+    : 'Open this service in Grafana Explore (ClickHouse)';
+
+  // Prefer Tempo TraceQL bare-ID lookup; ClickHouse uses APM-owned Traces SQL.
+  const traceExploreHref = selectedTraceId
+    ? exploreTracesUid
+      ? buildTraceExploreUrl(exploreTracesUid, selectedTraceId, { from, to })
+      : clickHouseUid
+        ? buildClickHouseTraceExploreUrl(clickHouseUid, selectedTraceId, { from, to })
+        : ''
+    : '';
+
+  // Log→traces jump may land on a TraceId outside the current search page —
+  // keep a synthetic row so the waterfall still mounts.
+  const displayTraces = useMemo((): ClickStackTraceSummary[] => {
+    const traces = data?.traces ?? [];
+    if (!selectedTraceId || traces.some((t) => t.traceId === selectedTraceId)) {
+      return traces;
+    }
+    return [
+      {
+        traceId: selectedTraceId,
+        startMs: 0,
+        endMs: 0,
+        spanCount: 0,
+        errors: 0,
+        totalMs: 0,
+      },
+      ...traces,
+    ];
+  }, [data?.traces, selectedTraceId]);
   const selectedSpans = detail.data?.spans ?? [];
 
   useEffect(() => {
@@ -85,19 +149,14 @@ export function ClickStackTracesPanel({
           onSqlWhereChange={setSqlWhere}
           sqlHint="Optional AND predicate on otel_traces spans (service + time already scoped). Not TraceQL. Allowed functions: lower, upper, positionCaseInsensitiveUTF8, position, like, ilike, has, mapContains, startsWith, endsWith, toString, length, empty, notEmpty, toInt64, toFloat64."
         />
-        {exploreTracesUid ? (
+        {serviceExploreHref ? (
           <LinkButton
             variant="secondary"
             size="sm"
             icon="compass"
             className={styles.exploreLink}
-            href={buildTempoExploreUrl(exploreTracesUid, service, {
-              namespace,
-              from,
-              to,
-              statusCode: status || undefined,
-            })}
-            tooltip="Open this service in Grafana Explore (Tempo)"
+            href={serviceExploreHref}
+            tooltip={serviceExploreTooltip}
           >
             Open in Explore
           </LinkButton>
@@ -107,7 +166,7 @@ export function ClickStackTracesPanel({
       <DataState
         loading={loading}
         error={error ? 'Failed to load ClickStack traces' : data?.mode === 'unavailable' ? data.note : null}
-        empty={traces.length === 0}
+        empty={displayTraces.length === 0}
         emptyTitle="No traces found"
         emptyMessage="No ClickHouse traces match the selected filters and time range."
       >
@@ -129,7 +188,7 @@ export function ClickStackTracesPanel({
               </tr>
             </thead>
             <tbody>
-              {traces.map((trace) => {
+              {displayTraces.map((trace) => {
                 const selected = trace.traceId === selectedTraceId;
                 return (
                   <Fragment key={trace.traceId}>
@@ -143,9 +202,26 @@ export function ClickStackTracesPanel({
                                 <h4 className={styles.detailTitle}>Trace waterfall</h4>
                                 <code>{selectedTraceId}</code>
                               </div>
-                              <Button variant="secondary" size="sm" onClick={() => setSelectedTraceId('')}>
-                                Close
-                              </Button>
+                              <div className={styles.detailActions}>
+                                {traceExploreHref ? (
+                                  <LinkButton
+                                    variant="secondary"
+                                    size="sm"
+                                    icon="compass"
+                                    href={traceExploreHref}
+                                    tooltip={
+                                      exploreTracesUid
+                                        ? 'Open this trace in Grafana Explore (Tempo)'
+                                        : 'Open this trace in Grafana Explore (ClickHouse)'
+                                    }
+                                  >
+                                    Open in Explore
+                                  </LinkButton>
+                                ) : null}
+                                <Button variant="secondary" size="sm" onClick={() => setSelectedTraceId('')}>
+                                  Close
+                                </Button>
+                              </div>
                             </div>
                             <DataState
                               loading={detail.loading}
@@ -341,6 +417,12 @@ const getStyles = (theme: GrafanaTheme2) => ({
     justify-content: space-between;
     gap: ${theme.spacing(2)};
     margin-bottom: ${theme.spacing(1.5)};
+  `,
+  detailActions: css`
+    display: flex;
+    flex-wrap: wrap;
+    gap: ${theme.spacing(1)};
+    align-items: center;
   `,
   detailTitle: css`
     margin: 0 0 ${theme.spacing(0.5)};

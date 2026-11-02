@@ -9,7 +9,7 @@ import {
 } from '@grafana/scenes';
 import { DashboardCursorSync, TooltipDisplayMode } from '@grafana/schema';
 import { HeatmapColorMode } from '@grafana/schema/dist/esm/raw/composable/heatmap/panelcfg/x/HeatmapPanelCfg_types.gen';
-import { sanitizeLabelValue } from '../utils/sanitize';
+import { chStringLiteral, sanitizeLabelValue } from '../utils/sanitize';
 import { buildDeployAnnotationsLayer } from './buildServiceScene';
 
 export interface BuildClickStackServiceSceneParams {
@@ -28,9 +28,9 @@ export interface BuildClickStackServiceSceneParams {
 
 const CH_DS_TYPE = 'grafana-clickhouse-datasource';
 
-/** Escape a value for a ClickHouse string literal. */
+/** Escape a sanitized label for a ClickHouse string literal. */
 function sqlStr(value: string): string {
-  return `'${sanitizeLabelValue(value).replace(/'/g, "''")}'`;
+  return chStringLiteral(sanitizeLabelValue(value));
 }
 
 function serviceFilterSql(service: string, environment: string): string {

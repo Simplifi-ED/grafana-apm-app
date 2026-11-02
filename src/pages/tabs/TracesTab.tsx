@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useStyles2, Combobox, Input, Icon, Alert } from '@grafana/ui';
 import { GrafanaTheme2 } from '@grafana/data';
 import { css } from '@emotion/css';
@@ -68,6 +69,8 @@ export function TracesTab({
   const [spanSearch, setSpanSearch] = useState<string>(initialSpan ?? '');
   const debouncedSearch = useDebouncedValue(spanSearch, 500);
   const styles = useStyles2(getStyles);
+  const [searchParams] = useSearchParams();
+  const initialTraceId = searchParams.get('traceId') ?? '';
   // Resolved timestamps drive the breakdown fetch AND bust the scene memo on a
   // global time-picker refresh (from/to strings stay relative but fromMs/toMs
   // re-resolve), so the trace scene rebuilds and re-queries the fresh window.
@@ -204,6 +207,8 @@ export function TracesTab({
           from={from}
           to={to}
           exploreTracesUid={tracesUid}
+          clickHouseUid={clickHouseUid}
+          initialTraceId={initialTraceId}
         />
       ) : scene != null ? (
         <div className={styles.sceneWrapper}>

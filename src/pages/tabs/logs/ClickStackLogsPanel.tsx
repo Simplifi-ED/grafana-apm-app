@@ -5,9 +5,10 @@ import { css } from '@emotion/css';
 import { ClickStackLogEntry, ExploreFieldFilter, getLogSearch } from '../../../api/analytics';
 import { useFetch } from '../../../utils/useFetch';
 import { DataState } from '../../../components/DataState';
-import { buildLokiExploreUrl } from '../../../utils/explore';
+import { buildClickHouseLogsExploreUrl, buildLokiExploreUrl } from '../../../utils/explore';
 import { ClickStackExploreFilters, LOG_FIELD_KEYS } from '../explore/ClickStackExploreFilters';
 import { typographyFontSize } from '../../../utils/themeTypography';
+import { PLUGIN_BASE_URL } from '../../../constants';
 
 interface ClickStackLogsPanelProps {
   namespace: string;
@@ -19,9 +20,13 @@ interface ClickStackLogsPanelProps {
   /** Relative range strings for Explore deep links. */
   from?: string;
   to?: string;
-  /** When set, show secondary “Open in Explore” (Loki). Hidden in CH-only mode. */
+  /** When set, show secondary “Open in Explore” (Loki). Prefer over ClickHouse. */
   exploreLogsUid?: string;
+  /** ClickHouse UID for Explore deep links when Loki is not configured. */
+  clickHouseUid?: string;
   serviceNameLabel?: string;
+  /** deployment.environment / cluster for in-app log→trace links. */
+  environment?: string;
 }
 
 export function ClickStackLogsPanel({
@@ -34,7 +39,9 @@ export function ClickStackLogsPanel({
   from = 'now-1h',
   to = 'now',
   exploreLogsUid = '',
+  clickHouseUid = '',
   serviceNameLabel,
+  environment = '',
 }: ClickStackLogsPanelProps) {
   const styles = useStyles2(getStyles);
   const [fields, setFields] = useState<ExploreFieldFilter[]>([]);
@@ -44,6 +51,29 @@ export function ClickStackLogsPanel({
     [namespace, service, fromMs, toMs, severity, search, fields, sqlWhere]
   );
   const logs = data?.logs ?? [];
+
+  const exploreHref = exploreLogsUid
+    ? buildLokiExploreUrl(exploreLogsUid, service, {
+        namespace,
+        from,
+        to,
+        serviceNameLabel,
+      })
+    : clickHouseUid
+      ? buildClickHouseLogsExploreUrl(clickHouseUid, service, {
+          namespace,
+          from,
+          to,
+          search: search || undefined,
+        })
+      : '';
+  const exploreTooltip = exploreLogsUid
+    ? 'Open this service in Grafana Explore (Loki)'
+    : 'Open this service in Grafana Explore (ClickHouse)';
+
+  const nsSegment = encodeURIComponent(namespace || '_');
+  const envParam = environment ? `&env=${encodeURIComponent(environment)}` : '';
+  const tracesBase = `${PLUGIN_BASE_URL}/services/${nsSegment}/${encodeURIComponent(service)}?tab=traces&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}${envParam}`;
 
   return (
     <div className={styles.panel}>
@@ -56,19 +86,14 @@ export function ClickStackLogsPanel({
           onSqlWhereChange={setSqlWhere}
           sqlHint="Optional AND predicate on otel_logs (service + time already scoped). Not LogQL. Allowed functions: lower, upper, positionCaseInsensitiveUTF8, position, like, ilike, has, mapContains, startsWith, endsWith, toString, length, empty, notEmpty, toInt64, toFloat64."
         />
-        {exploreLogsUid ? (
+        {exploreHref ? (
           <LinkButton
             variant="secondary"
             size="sm"
             icon="compass"
             className={styles.exploreLink}
-            href={buildLokiExploreUrl(exploreLogsUid, service, {
-              namespace,
-              from,
-              to,
-              serviceNameLabel,
-            })}
-            tooltip="Open this service in Grafana Explore (Loki)"
+            href={exploreHref}
+            tooltip={exploreTooltip}
           >
             Open in Explore
           </LinkButton>
@@ -93,7 +118,12 @@ export function ClickStackLogsPanel({
             </thead>
             <tbody>
               {logs.map((entry, index) => (
-                <LogRow key={`${entry.timestampMs}-${entry.traceId ?? ''}-${index}`} entry={entry} styles={styles} />
+                <LogRow
+                  key={`${entry.timestampMs}-${entry.traceId ?? ''}-${index}`}
+                  entry={entry}
+                  styles={styles}
+                  tracesBase={tracesBase}
+                />
               ))}
             </tbody>
           </table>
@@ -103,7 +133,15 @@ export function ClickStackLogsPanel({
   );
 }
 
-function LogRow({ entry, styles }: { entry: ClickStackLogEntry; styles: ReturnType<typeof getStyles> }) {
+function LogRow({
+  entry,
+  styles,
+  tracesBase,
+}: {
+  entry: ClickStackLogEntry;
+  styles: ReturnType<typeof getStyles>;
+  tracesBase: string;
+}) {
   return (
     <tr>
       <td className={styles.timestamp}>{entry.timestampMs ? new Date(entry.timestampMs).toLocaleTimeString() : '—'}</td>
@@ -115,7 +153,7 @@ function LogRow({ entry, styles }: { entry: ClickStackLogEntry; styles: ReturnTy
       </td>
       <td className={styles.trace}>
         {entry.traceId ? (
-          <a href={`?tab=traces&traceId=${encodeURIComponent(entry.traceId)}`} title={entry.traceId}>
+          <a href={`${tracesBase}&traceId=${encodeURIComponent(entry.traceId)}`} title={entry.traceId}>
             {entry.traceId.slice(0, 12)}
           </a>
         ) : (

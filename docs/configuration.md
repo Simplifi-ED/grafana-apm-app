@@ -96,9 +96,14 @@ contact point.
 2. Create a datasource that reaches your existing ClickHouse (host, port, database
    `default`, TLS/user as required). Store credentials only in the datasource's
    `secureJsonData` — never in this plugin's settings or git.
-3. On the plugin **Configuration** page, set **ClickHouse (ClickStack)** to that
+3. On the **ClickHouse datasource**, set Explore defaults under Traces / Logs
+   (or provision `jsonData.traces` / `jsonData.logs` as below). Without
+   `defaultTable` + `otelEnabled`, Grafana Explore's Traces/Logs builders emit
+   empty-table SQL ("malformed SQL" / AST errors). APM also deep-links Explore
+   with APM-owned `rawSql` so links work even when those blocks are missing.
+4. On the plugin **Configuration** page, set **ClickHouse (ClickStack)** to that
    datasource UID (or provision `jsonData.clickHouseDataSource`).
-4. Save. Plugin health (`CheckHealth`) runs `SELECT 1` through `/api/ds/query`
+5. Save. Plugin health (`CheckHealth`) runs `SELECT 1` through `/api/ds/query`
    when the UID is set.
 
 Provisioning sketch (adapt host/auth; do not commit secrets):
@@ -116,6 +121,17 @@ datasources:
       protocol: native
       defaultDatabase: default
       username: readonly
+      traces:
+        defaultDatabase: default
+        defaultTable: otel_traces
+        otelEnabled: true
+        otelVersion: latest
+        durationUnit: nanoseconds
+      logs:
+        defaultDatabase: default
+        defaultTable: otel_logs
+        otelEnabled: true
+        otelVersion: latest
     secureJsonData:
       password: ${CLICKHOUSE_PASSWORD}
 ```

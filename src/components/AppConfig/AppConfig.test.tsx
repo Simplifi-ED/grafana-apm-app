@@ -32,11 +32,25 @@ describe('Components/AppConfig', () => {
 
   beforeEach(() => {
     jest.resetAllMocks();
-    mockGet.mockResolvedValue([
-      { uid: 'mimir', name: 'Mimir', type: 'prometheus', isDefault: true },
-      { uid: 'tempo', name: 'Tempo', type: 'tempo', isDefault: true },
-      { uid: 'loki', name: 'Loki', type: 'loki', isDefault: true },
-    ]);
+    mockGet.mockImplementation(async (url: string) => {
+      if (String(url).includes('/api/datasources/uid/')) {
+        // Fully configured CH Explore defaults — no warning in most tests.
+        return {
+          uid: 'clickhouse',
+          type: 'grafana-clickhouse-datasource',
+          jsonData: {
+            traces: { defaultTable: 'otel_traces' },
+            logs: { defaultTable: 'otel_logs' },
+          },
+        };
+      }
+      return [
+        { uid: 'mimir', name: 'Mimir', type: 'prometheus', isDefault: true },
+        { uid: 'tempo', name: 'Tempo', type: 'tempo', isDefault: true },
+        { uid: 'loki', name: 'Loki', type: 'loki', isDefault: true },
+        { uid: 'clickhouse', name: 'ClickHouse', type: 'grafana-clickhouse-datasource', isDefault: true },
+      ];
+    });
     // fetch returns undefined; lastValueFrom rejects and is swallowed by the
     // component's catch, so window.location.reload is never reached in tests.
     mockFetch.mockReturnValue(undefined);
@@ -263,6 +277,31 @@ describe('Components/AppConfig', () => {
 
     const payload = submittedPayload();
     expect(payload.jsonData.serviceAliases).toEqual({ 'checkout-api': 'checkout' });
+  });
+
+  test('warns when ClickHouse Explore traces/logs defaults are missing', async () => {
+    mockGet.mockImplementation(async (url: string) => {
+      if (String(url).includes('/api/datasources/uid/')) {
+        return { uid: 'clickhouse', type: 'grafana-clickhouse-datasource', jsonData: {} };
+      }
+      return [{ uid: 'clickhouse', name: 'ClickHouse', type: 'grafana-clickhouse-datasource', isDefault: true }];
+    });
+    const plugin = {
+      meta: {
+        ...props.plugin.meta,
+        enabled: true,
+        jsonData: {
+          clickHouseDataSource: { uid: 'clickhouse', type: 'grafana-clickhouse-datasource' },
+        },
+      },
+    };
+
+    await act(async () => {
+      // @ts-ignore
+      render(<AppConfig plugin={plugin} query={props.query} />);
+    });
+
+    expect(await screen.findByText(/ClickHouse Explore Traces\/Logs not configured/i)).toBeInTheDocument();
   });
 
   test('persists optional pyroscopeDataSource.uid on save', async () => {

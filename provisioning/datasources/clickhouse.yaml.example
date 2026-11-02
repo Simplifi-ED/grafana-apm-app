@@ -16,5 +16,18 @@ datasources:
       defaultDatabase: default
       username: default
       # tlsSkipVerify: false
+      # Required for Grafana Explore Traces/Logs builders (and APM deep links
+      # that open Explore). Without these, the CH plugin emits empty-table SQL.
+      traces:
+        defaultDatabase: default
+        defaultTable: otel_traces
+        otelEnabled: true
+        otelVersion: latest
+        durationUnit: nanoseconds
+      logs:
+        defaultDatabase: default
+        defaultTable: otel_logs
+        otelEnabled: true
+        otelVersion: latest
     secureJsonData:
       password: ${CLICKHOUSE_PASSWORD}

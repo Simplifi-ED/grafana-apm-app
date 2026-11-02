@@ -27,3 +27,12 @@ export function sanitizeLabelValue(value: string): string {
 export function escapeQueryString(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 }
+
+/**
+ * Quote a value as a ClickHouse single-quoted string literal (`'` → `''`).
+ * Use for Explore/rawSql deep links — do not rely on sanitizeLabelValue alone
+ * (it rejects apostrophes that are valid in escaped SQL literals).
+ */
+export function chStringLiteral(value: string): string {
+  return `'${String(value).replace(/'/g, "''")}'`;
+}

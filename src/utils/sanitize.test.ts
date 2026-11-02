@@ -1,4 +1,4 @@
-import { sanitizeLabelValue, escapeQueryString } from './sanitize';
+import { sanitizeLabelValue, escapeQueryString, chStringLiteral } from './sanitize';
 
 describe('sanitizeLabelValue', () => {
   it('returns valid label values unchanged', () => {
@@ -53,5 +53,15 @@ describe('escapeQueryString', () => {
 
   it('escapes both backslashes and quotes', () => {
     expect(escapeQueryString('a\\b"c')).toBe('a\\\\b\\"c');
+  });
+});
+
+describe('chStringLiteral', () => {
+  it('wraps in single quotes', () => {
+    expect(chStringLiteral('checkout')).toBe("'checkout'");
+  });
+
+  it('escapes embedded single quotes for ClickHouse', () => {
+    expect(chStringLiteral("O'Reilly")).toBe("'O''Reilly'");
   });
 });

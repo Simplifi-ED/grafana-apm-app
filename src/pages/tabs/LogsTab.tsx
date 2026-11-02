@@ -316,7 +316,9 @@ export function LogsTab({
           from={from}
           to={to}
           exploreLogsUid={logsUid}
+          clickHouseUid={clickHouseUid}
           serviceNameLabel={serviceNameLabel}
+          environment={clusterFilter}
         />
       ) : scene ? (
         <div className={styles.sceneWrapper}>

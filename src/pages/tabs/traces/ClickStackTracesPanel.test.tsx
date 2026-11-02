@@ -66,7 +66,7 @@ const DETAIL_A = {
   ],
 };
 
-function renderPanel() {
+function renderPanel(props: Partial<React.ComponentProps<typeof ClickStackTracesPanel>> = {}) {
   return render(
     <ClickStackTracesPanel
       namespace="ns"
@@ -77,6 +77,7 @@ function renderPanel() {
       spanSearch=""
       durationMin=""
       durationMax=""
+      {...props}
     />
   );
 }
@@ -134,5 +135,39 @@ describe('ClickStackTracesPanel', () => {
 
     await waitFor(() => expect(screen.getByTestId('trace-waterfall')).toBeInTheDocument());
     expect(screen.getByLabelText(`Trace ${TRACE_A}`)).toBeInTheDocument();
+  });
+
+  it('shows ClickHouse Explore links when Tempo UID is absent', async () => {
+    getTraceSearch.mockResolvedValue(SEARCH);
+    getTraceDetail.mockResolvedValue(DETAIL_A);
+    renderPanel({ clickHouseUid: 'clickhouse' });
+
+    await waitFor(() => expect(screen.getByRole('link', { name: /Open in Explore/i })).toBeInTheDocument());
+    const serviceLink = screen.getByRole('link', { name: /Open in Explore/i });
+    const left = JSON.parse(
+      new URL(serviceLink.getAttribute('href')!, 'http://grafana.local').searchParams.get('left')!
+    );
+    expect(left.datasource).toBe('clickhouse');
+    expect(left.queries[0].queryType).toBe('table');
+
+    fireEvent.click(screen.getByTestId(`trace-row-${TRACE_A}`));
+    await waitFor(() => expect(screen.getByTestId('trace-waterfall')).toBeInTheDocument());
+    const exploreLinks = screen.getAllByRole('link', { name: /Open in Explore/i });
+    expect(exploreLinks.length).toBeGreaterThanOrEqual(2);
+    const parsed = exploreLinks.map((a) =>
+      JSON.parse(new URL(a.getAttribute('href')!, 'http://grafana.local').searchParams.get('left')!)
+    );
+    expect(parsed.some((p) => p.queries[0].queryType === 'table')).toBe(true);
+    const traceLeft = parsed.find((p) => p.queries[0].queryType === 'traces');
+    expect(traceLeft?.queries[0].rawSql).toContain(TRACE_A);
+  });
+
+  it('preselects initialTraceId even when missing from search results', async () => {
+    getTraceSearch.mockResolvedValue({ mode: 'clickhouse', traces: [] });
+    getTraceDetail.mockResolvedValue(DETAIL_A);
+    renderPanel({ clickHouseUid: 'clickhouse', initialTraceId: TRACE_A });
+
+    await waitFor(() => expect(screen.getByTestId('trace-waterfall')).toBeInTheDocument());
+    expect(getTraceDetail).toHaveBeenCalledWith('ns', 'svc', TRACE_A, 1000, 2000);
   });
 });

@@ -3,6 +3,7 @@ package plugin
 import (
 	"context"
 	"fmt"
+	"maps"
 	"net/http"
 	"sort"
 	"strings"
@@ -306,9 +307,7 @@ func (a *App) fetchServiceSummaries(
 				{"fallbackDurationSeries", strings.Replace(fallbackP95Query, rangeStr, sparklineRangeStr, 1)},
 			}
 		}
-		for k, v := range runQueries(fbInstant, fbSeries) {
-			resultMap[k] = v
-		}
+		maps.Copy(resultMap, runQueries(fbInstant, fbSeries))
 	}
 
 	faroWG.Wait()

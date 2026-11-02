@@ -1,6 +1,25 @@
 import { urlUtil } from '@grafana/data';
-import { escapeQueryString } from './sanitize';
+import { chStringLiteral, escapeQueryString, sanitizeLabelValue } from './sanitize';
 import { otel } from '../otelconfig';
+
+/** grafana-clickhouse-datasource ≥4 query model for Explore deep links. */
+const CH_EXPLORE_PLUGIN_VERSION = '4.0.0';
+
+function chExploreQuery(opts: {
+  rawSql: string;
+  /** 0 timeseries, 1 table, 2 logs, 3 traces */
+  format: 0 | 1 | 2 | 3;
+  queryType: 'timeseries' | 'table' | 'logs' | 'traces';
+}): Record<string, unknown> {
+  return {
+    refId: 'A',
+    editorType: 'sql',
+    pluginVersion: CH_EXPLORE_PLUGIN_VERSION,
+    rawSql: opts.rawSql,
+    format: opts.format,
+    queryType: opts.queryType,
+  };
+}
 
 interface ExploreParams {
   datasourceUid: string;
@@ -156,14 +175,134 @@ export function buildClickHouseExploreUrl(
 ): string {
   return buildExploreUrl({
     datasourceUid: clickHouseUid,
-    queries: [
-      {
-        refId: 'A',
-        rawSql,
-        format: 0,
-        queryType: 'sql',
-      },
-    ],
+    queries: [chExploreQuery({ rawSql, format: 0, queryType: 'timeseries' })],
+    range: {
+      from: options?.from ?? 'now-1h',
+      to: options?.to ?? 'now',
+    },
+  });
+}
+
+/** OTel span aliases expected by grafana-clickhouse-datasource Traces view. */
+function clickHouseTraceDetailSql(traceId: string): string {
+  return `
+SELECT
+  TraceId AS traceID,
+  SpanId AS spanID,
+  SpanName AS operationName,
+  ParentSpanId AS parentSpanID,
+  ServiceName AS serviceName,
+  Duration / 1000000 AS duration,
+  Timestamp AS startTime,
+  arrayMap(key -> map('key', key, 'value', SpanAttributes[key]), mapKeys(SpanAttributes)) AS tags,
+  arrayMap(key -> map('key', key, 'value', ResourceAttributes[key]), mapKeys(ResourceAttributes)) AS serviceTags,
+  if(StatusCode IN ('Error', 'STATUS_CODE_ERROR'), 2, 0) AS statusCode
+FROM \`default\`.\`otel_traces\`
+WHERE TraceId = ${chStringLiteral(traceId)}
+  AND $__timeFilter(Timestamp)
+ORDER BY startTime ASC
+LIMIT 2000`.trim();
+}
+
+/**
+ * Explore URL that opens one TraceId in the ClickHouse datasource (Traces view).
+ * Uses APM-owned rawSql so it does not depend on DS `jsonData.traces` defaults.
+ */
+export function buildClickHouseTraceExploreUrl(
+  clickHouseUid: string,
+  traceId: string,
+  options?: { from?: string; to?: string }
+): string {
+  return buildExploreUrl({
+    datasourceUid: clickHouseUid,
+    queries: [chExploreQuery({ rawSql: clickHouseTraceDetailSql(traceId), format: 3, queryType: 'traces' })],
+    range: options?.from && options?.to ? { from: options.from, to: options.to } : { from: 'now-1h', to: 'now' },
+  });
+}
+
+/**
+ * Explore URL listing recent traces for a service (table of TraceIds) in ClickHouse.
+ */
+export function buildClickHouseTraceSearchExploreUrl(
+  clickHouseUid: string,
+  serviceName: string,
+  options?: { from?: string; to?: string; statusCode?: string; namespace?: string }
+): string {
+  const svc = sanitizeLabelValue(serviceName) || serviceName;
+  let where = `ServiceName = ${chStringLiteral(svc)} AND TraceId != '' AND $__timeFilter(Timestamp)`;
+  if (options?.namespace) {
+    const ns = sanitizeLabelValue(options.namespace) || options.namespace;
+    where += ` AND ResourceAttributes['service.namespace'] = ${chStringLiteral(ns)}`;
+  }
+  if (options?.statusCode === 'error') {
+    where += ` AND StatusCode IN ('Error', 'STATUS_CODE_ERROR')`;
+  } else if (options?.statusCode === 'ok') {
+    where += ` AND StatusCode IN ('Ok', 'STATUS_CODE_OK', 'Unset', 'STATUS_CODE_UNSET')`;
+  }
+  const rawSql = `
+SELECT
+  TraceId AS traceID,
+  toUnixTimestamp64Milli(min(Timestamp)) AS start_ms,
+  count() AS spans,
+  countIf(StatusCode IN ('Error', 'STATUS_CODE_ERROR')) AS errors,
+  sum(Duration) / 1e6 AS total_ms
+FROM \`default\`.\`otel_traces\`
+WHERE ${where}
+GROUP BY traceID
+ORDER BY start_ms DESC
+LIMIT 50`.trim();
+
+  return buildExploreUrl({
+    datasourceUid: clickHouseUid,
+    queries: [chExploreQuery({ rawSql, format: 1, queryType: 'table' })],
+    range: {
+      from: options?.from ?? 'now-1h',
+      to: options?.to ?? 'now',
+    },
+  });
+}
+
+/**
+ * Explore URL for ClickHouse otel_logs (Logs view) filtered by service.
+ */
+export function buildClickHouseLogsExploreUrl(
+  clickHouseUid: string,
+  serviceName: string,
+  options?: {
+    from?: string;
+    to?: string;
+    namespace?: string;
+    traceId?: string;
+    search?: string;
+  }
+): string {
+  const svc = sanitizeLabelValue(serviceName) || serviceName;
+  let where = `ServiceName = ${chStringLiteral(svc)} AND $__timeFilter(Timestamp)`;
+  if (options?.namespace) {
+    const ns = sanitizeLabelValue(options.namespace) || options.namespace;
+    where += ` AND ResourceAttributes['service.namespace'] = ${chStringLiteral(ns)}`;
+  }
+  if (options?.traceId) {
+    where += ` AND TraceId = ${chStringLiteral(options.traceId)}`;
+  }
+  if (options?.search) {
+    where += ` AND positionCaseInsensitive(Body, ${chStringLiteral(options.search)}) > 0`;
+  }
+  const rawSql = `
+SELECT
+  Timestamp AS timestamp,
+  Body AS body,
+  SeverityText AS level,
+  TraceId AS traceID,
+  mapConcat(ResourceAttributes, LogAttributes) AS labels
+FROM \`default\`.\`otel_logs\`
+WHERE ${where}
+ORDER BY Timestamp DESC
+LIMIT 200`.trim();
+
+  return buildExploreUrl({
+    datasourceUid: clickHouseUid,
+    queries: [chExploreQuery({ rawSql, format: 2, queryType: 'logs' })],
     range: {
       from: options?.from ?? 'now-1h',
       to: options?.to ?? 'now',
