@@ -6,6 +6,8 @@ allowBuilds:
 # this file is the new home — https://pnpm.io/settings). The overrides below
 # are mostly Dependabot/audit security pins and were being SILENTLY IGNORED
 # while they lived in package.json.
+minimumReleaseAgeExclude:
+  - minimatch@11.0.4
 overrides:
   protobufjs: '>=7.5.5'
   # GHSA-cg2g-xh64-v4q7
@@ -57,3 +59,7 @@ overrides:
   websocket-driver: '>=0.7.5'
   # GHSA-3jxr-9vmj-r5cp — exponential-time brace expansion (minimatch 10.x).
   'brace-expansion@>=3.0.0 <5.0.11': '>=5.0.11'
+  # GHSA-g3hv-75wg-m249 / CVE-2026-118764 — globparts amplification DoS in
+  # minimatch 10.x firstPhasePreProcess. Pin the 10 line only so eslint's
+  # minimatch@3 stays untouched.
+  'minimatch@10': 11.0.4
