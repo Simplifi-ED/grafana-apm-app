@@ -1,6 +1,7 @@
 package chquery
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -165,18 +166,54 @@ type LogEntry struct {
 }
 
 // ParseLogSearchMaps parses log search results.
+// When SeverityText is empty (common for filelog → JSON Body), severity is
+// taken from Body fields like "level" / "severity" so the UI is not "unknown".
 func ParseLogSearchMaps(rows []map[string]any) []LogEntry {
 	out := make([]LogEntry, 0, len(rows))
 	for _, r := range rows {
+		body := ParseString(r["body"])
 		out = append(out, LogEntry{
 			TimestampMs: ParseInt64(r["ts_ms"]),
-			Severity:    ParseString(r["severity"]),
-			Body:        ParseString(r["body"]),
+			Severity:    coalesceLogSeverity(ParseString(r["severity"]), body),
+			Body:        body,
 			TraceID:     ParseString(r["trace_id"]),
 			SpanID:      ParseString(r["span_id"]),
 		})
 	}
 	return out
+}
+
+// coalesceLogSeverity prefers SeverityText; otherwise reads level from a JSON Body.
+func coalesceLogSeverity(severity, body string) string {
+	if s := strings.TrimSpace(severity); s != "" {
+		return s
+	}
+	return severityFromJSONBody(body)
+}
+
+func severityFromJSONBody(body string) string {
+	body = strings.TrimSpace(body)
+	if body == "" || body[0] != '{' {
+		return ""
+	}
+	var m map[string]any
+	if err := json.Unmarshal([]byte(body), &m); err != nil {
+		return ""
+	}
+	for _, key := range []string{"level", "severity", "SeverityText", "lvl"} {
+		v, ok := m[key]
+		if !ok {
+			continue
+		}
+		s, ok := v.(string)
+		if !ok {
+			continue
+		}
+		if s = strings.TrimSpace(s); s != "" {
+			return s
+		}
+	}
+	return ""
 }
 
 // LogPattern is one clustered pattern.
@@ -192,10 +229,11 @@ type LogPattern struct {
 func ParseLogPatternMaps(rows []map[string]any) []LogPattern {
 	out := make([]LogPattern, 0, len(rows))
 	for _, r := range rows {
+		pattern := ParseString(r["pattern"])
 		out = append(out, LogPattern{
-			Pattern:     ParseString(r["pattern"]),
+			Pattern:     pattern,
 			Count:       ParseInt64(r["c"]),
-			Severity:    ParseString(r["severity"]),
+			Severity:    coalesceLogSeverity(ParseString(r["severity"]), pattern),
 			FirstSeenMs: ParseInt64(r["first_seen"]),
 			LastSeenMs:  ParseInt64(r["last_seen"]),
 		})
