@@ -29,7 +29,7 @@ var (
 	_ backend.CheckHealthHandler    = (*App)(nil)
 )
 
-// App is the ClickStack APM plugin backend.
+// App is the Application Observability plugin backend.
 type App struct {
 	backend.CallResourceHandler
 

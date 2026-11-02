@@ -1,4 +1,4 @@
-# ClickStack APM
+# Application Observability
 
 Grafana app plugin for **[ClickStack](https://clickhouse.com/clickstack)** — OpenTelemetry
 logs, traces, metrics, and HyperDX session replay already in ClickHouse, surfaced as
@@ -53,15 +53,15 @@ This fork is **not** on grafana.com yet. Install from a GitHub Release zip (see
 [Releasing](#releasing)) or build locally:
 
 ```sh
-# After downloading clickhouse-apm-app-<version>.zip from Releases
-grafana-cli --pluginUrl file:///path/to/clickhouse-apm-app-<version>.zip plugins install clickhouse-apm-app
+# After downloading omnivya-apm-app-<version>.zip from Releases
+grafana-cli --pluginUrl file:///path/to/omnivya-apm-app-<version>.zip plugins install omnivya-apm-app
 ```
 
 Or copy `dist/` (or the unzipped plugin folder) into Grafana's plugins directory
 and allow unsigned loading while developing:
 
 ```sh
-GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS=clickhouse-apm-app
+GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS=omnivya-apm-app
 ```
 
 Enable the plugin under **Administration → Plugins**.
@@ -99,7 +99,7 @@ mise run deploy:up:clickstack
 pnpm run dev
 ```
 
-Open `http://localhost:3000/a/clickhouse-apm-app/services`.
+Open `http://localhost:3000/a/omnivya-apm-app/services`.
 
 ### Local Grafana container
 
@@ -185,7 +185,7 @@ On push to `main`, [`.github/workflows/release-please.yml`](https://github.com/S
 1. Opens/updates a **Release PR** (version + CHANGELOG from Conventional Commits).
 2. Merging that PR cuts the tag and GitHub Release.
 3. The publish job builds frontend/backend, **signs** the plugin, validates, and
-   uploads `clickhouse-apm-app-<version>.zip` to that release.
+   uploads `omnivya-apm-app-<version>.zip` to that release.
 
 **Repo secrets required for signed builds:**
 

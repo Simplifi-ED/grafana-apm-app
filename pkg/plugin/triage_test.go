@@ -154,7 +154,7 @@ func TestTriageWritePayloadShape(t *testing.T) {
 		t.Fatalf("expected 1 annotation, got %d", len(mock.anns))
 	}
 	ann := mock.anns[0]
-	wantTags := map[string]bool{"clickhouse-apm:triage": true, "app:team/app": true, "fp:v1-abc123": true}
+	wantTags := map[string]bool{"omnivya-apm:triage": true, "app:team/app": true, "fp:v1-abc123": true}
 	for _, tg := range ann.Tags {
 		if !wantTags[tg] {
 			t.Errorf("unexpected tag %q", tg)
@@ -213,12 +213,12 @@ func TestTriageActionValidation(t *testing.T) {
 }
 
 func TestTriageFetchOmitsCommonTagAndFiltersClientSide(t *testing.T) {
-	// ADR-0001 mitigation 1: the ultra-common clickhouse-apm:triage tag must not
+	// ADR-0001 mitigation 1: the ultra-common omnivya-apm:triage tag must not
 	// reach the API query (global-volume coupling); it is verified on the
 	// returned annotations instead.
 	var gotTags [][]string
 	mock := &mockAnnotationsAPI{anns: []grafanaAnnotation{
-		{Time: 100, Text: `{"schema":1,"action":"resolve","actor":"a"}`, Tags: []string{"clickhouse-apm:triage", "app:team/app", "fp:v1-abc"}},
+		{Time: 100, Text: `{"schema":1,"action":"resolve","actor":"a"}`, Tags: []string{"omnivya-apm:triage", "app:team/app", "fp:v1-abc"}},
 		// Same app tag but NOT a triage annotation (e.g. a deploy marker) —
 		// must be filtered client-side.
 		{Time: 200, Text: `deploy`, Tags: []string{"app:team/app", "nais-deploy"}},
@@ -251,7 +251,7 @@ func TestTriageFetchOmitsCommonTagAndFiltersClientSide(t *testing.T) {
 	}
 	for _, tags := range gotTags {
 		for _, tg := range tags {
-			if tg == "clickhouse-apm:triage" {
+			if tg == "omnivya-apm:triage" {
 				t.Errorf("common tag sent to the API: %v", tags)
 			}
 		}
@@ -270,14 +270,14 @@ func seedPaginationEvents(m *mockAnnotationsAPI) {
 		ID:   1,
 		Time: 1,
 		Text: `{"schema":1,"action":"resolve","actor":"a"}`,
-		Tags: []string{"clickhouse-apm:triage", "app:team/app", "fp:v1-old"},
+		Tags: []string{"omnivya-apm:triage", "app:team/app", "fp:v1-old"},
 	})
 	for i := 1; i < total; i++ {
 		m.anns = append(m.anns, grafanaAnnotation{
 			ID:   int64(i + 1),
 			Time: int64(i + 1),
 			Text: `{"schema":1,"action":"assign","actor":"b","assignee":"x"}`,
-			Tags: []string{"clickhouse-apm:triage", "app:team/app", "fp:v1-noise"},
+			Tags: []string{"omnivya-apm:triage", "app:team/app", "fp:v1-noise"},
 		})
 	}
 	m.nextID = int64(total)
@@ -310,8 +310,8 @@ func TestTriageFetchPaginatesPastLimit(t *testing.T) {
 // resolve off the page — the fold must still see the resolve.
 func TestTriageFetchKeepsTiedTimestampsAcrossPages(t *testing.T) {
 	s, mock := triageTestStore(t)
-	tags := []string{"clickhouse-apm:triage", "app:team/app", "fp:v1-tied"}
-	noise := []string{"clickhouse-apm:triage", "app:team/app", "fp:v1-noise"}
+	tags := []string{"omnivya-apm:triage", "app:team/app", "fp:v1-tied"}
+	noise := []string{"omnivya-apm:triage", "app:team/app", "fp:v1-noise"}
 
 	mock.anns = append(mock.anns, grafanaAnnotation{
 		ID: 1, Time: 1000,
@@ -367,7 +367,7 @@ func TestTriageFetchSendsPositiveFrom(t *testing.T) {
 				ID:   int64(i + 1),
 				Time: int64(maxTriageEvents - i),
 				Text: `{"schema":1,"action":"assign","actor":"b","assignee":"x"}`,
-				Tags: []string{"clickhouse-apm:triage", "app:team/app", "fp:v1-noise"},
+				Tags: []string{"omnivya-apm:triage", "app:team/app", "fp:v1-noise"},
 			})
 		}
 		w.Header().Set("Content-Type", "application/json")

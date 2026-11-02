@@ -253,7 +253,7 @@ jobs:
         run: rm -f ./dist/MANIFEST.txt
 
       # *.local.yaml is gitignored (ClickStack/prod secrets). Without an apps.yaml
-      # Grafana never enables the plugin, so /a/clickhouse-apm-app/ stays blank and
+      # Grafana never enables the plugin, so /a/omnivya-apm-app/ stays blank and
       # every page assertion burns its full timeout — the previous 15m job cancel.
       - name: Seed e2e plugin provisioning
         run: cp provisioning/plugins/apps.e2e.yaml provisioning/plugins/apps.yaml
@@ -296,7 +296,7 @@ jobs:
 
       - name: Docker logs
         if: ${{ failure() }}
-        run: docker logs clickhouse-apm-app >& grafana-server.log
+        run: docker logs omnivya-apm-app >& grafana-server.log
 
       - name: Upload server log
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # ratchet:actions/upload-artifact@v7

@@ -4,7 +4,7 @@
 #
 # Then provision provisioning/datasources/pyroscope.yaml.example (copy to a
 # live datasources*.yaml) and restart Grafana. Confirm:
-#   GET /api/plugins/clickhouse-apm-app/resources/capabilities → pyroscope.available
+#   GET /api/plugins/omnivya-apm-app/resources/capabilities → pyroscope.available
 
 services:
   grafana:

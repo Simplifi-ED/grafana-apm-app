@@ -161,12 +161,12 @@ func scorecardBaseChecks() []ScorecardCheck {
 		{Key: "structuredLogs", Label: "Structured logging (exceptions)",
 			Hint: "Export exceptions via OTLP with exception.type/message/stacktrace (ADR-0002 shape A)."},
 		// Deploy markers (#64 / deferred scorecard): Grafana annotations tagged
-		// clickhouse-apm:deploy — no Nais Console required.
+		// omnivya-apm:deploy — no Nais Console required.
 		{Key: "deployMarkers", Label: "Deploy markers",
-			Hint: "Publish Grafana annotations tagged clickhouse-apm:deploy and service:<name> (CI or nais sync) so Versions and triage can correlate deploys."},
+			Hint: "Publish Grafana annotations tagged omnivya-apm:deploy and service:<name> (CI or nais sync) so Versions and triage can correlate deploys."},
 		// Service ownership directory (docs/ownership.md) — never N/A.
 		{Key: "hasOwner", Label: "Service owner",
-			Hint: "Set owner.team on the workload (OTEL_RESOURCE_ATTRIBUTES) or a clickhouse-apm:owner annotation."},
+			Hint: "Set owner.team on the workload (OTEL_RESOURCE_ATTRIBUTES) or a omnivya-apm:owner annotation."},
 	}
 }
 
@@ -511,7 +511,7 @@ func (a *App) applyProfilingCheck(ctx context.Context, headers http.Header, toke
 }
 
 // applyDeployMarkersCheck scores deployMarkers from Grafana annotations
-// (clickhouse-apm:deploy). N/A when the annotations API is unreachable.
+// (omnivya-apm:deploy). N/A when the annotations API is unreachable.
 func (a *App) applyDeployMarkersCheck(ctx context.Context, service, env string, now time.Time, checks []ScorecardCheck) {
 	c := scorecardCheckByKey(checks, "deployMarkers")
 	if c == nil {
@@ -528,9 +528,9 @@ func (a *App) applyDeployMarkersCheck(ctx context.Context, service, env string, 
 	deploys, _, latestMs := a.fetchDeployAnnotations(ctx, service, env, from, now)
 	c.OK = len(deploys) > 0 || latestMs > 0
 	if c.OK {
-		c.Hint = "Deploy annotations (clickhouse-apm:deploy) found in the last 30 days."
+		c.Hint = "Deploy annotations (omnivya-apm:deploy) found in the last 30 days."
 	} else {
-		c.Hint = "No deploy annotations in the last 30 days — tag releases with clickhouse-apm:deploy and service:<name> (CI or nais sync)."
+		c.Hint = "No deploy annotations in the last 30 days — tag releases with omnivya-apm:deploy and service:<name> (CI or nais sync)."
 	}
 }
 

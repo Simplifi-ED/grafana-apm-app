@@ -1,6 +1,6 @@
 services:
   grafana:
-    container_name: 'clickhouse-apm-app'
+    container_name: 'omnivya-apm-app'
 
     build:
       context: .
@@ -12,16 +12,16 @@ services:
     ports:
       - ${GRAFANA_PORT:-3000}:3000/tcp
     volumes:
-      - ../dist:/var/lib/grafana/plugins/clickhouse-apm-app
+      - ../dist:/var/lib/grafana/plugins/omnivya-apm-app
       - ../provisioning:/etc/grafana/provisioning
-      - ..:/root/clickhouse-apm-app
+      - ..:/root/omnivya-apm-app
 
     environment:
       NODE_ENV: development
-      GF_LOG_FILTERS: plugin.clickhouse-apm-app:debug
+      GF_LOG_FILTERS: plugin.omnivya-apm-app:debug
       GF_LOG_LEVEL: debug
       GF_DATAPROXY_LOGGING: 1
-      GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS: clickhouse-apm-app
+      GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS: omnivya-apm-app
       # ClickStack local-against-prod: grafana-clickhouse-datasource + host tunnel
       GF_INSTALL_PLUGINS: grafana-clickhouse-datasource
     extra_hosts:

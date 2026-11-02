@@ -98,7 +98,7 @@ func newScorecardApp(t *testing.T, fx scorecardFixture) *App {
 			_, _ = w.Write([]byte(`{"status":"success","data":{"groups":` + groups + `}}`))
 		case r.URL.Path == "/api/annotations":
 			if fx.deployMarkers {
-				_, _ = w.Write([]byte(`[{"id":1,"time":1700000000000,"text":"deploy","tags":["clickhouse-apm:deploy","service:my-app","version:1.0.0"]}]`))
+				_, _ = w.Write([]byte(`[{"id":1,"time":1700000000000,"text":"deploy","tags":["omnivya-apm:deploy","service:my-app","version:1.0.0"]}]`))
 			} else {
 				_, _ = w.Write([]byte(`[]`))
 			}

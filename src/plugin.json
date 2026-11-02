@@ -1,13 +1,13 @@
 {
   "$schema": "https://raw.githubusercontent.com/grafana/grafana/main/docs/sources/developers/plugins/plugin.schema.json",
   "type": "app",
-  "name": "ClickStack APM",
-  "id": "clickhouse-apm-app",
+  "name": "Application Observability",
+  "id": "omnivya-apm-app",
   "backend": true,
   "executable": "gpx_apm",
   "info": {
     "keywords": ["app", "observability", "apm", "otel", "opentelemetry", "clickstack", "clickhouse"],
-    "description": "Application Performance Monitoring on ClickStack — OpenTelemetry logs, traces, metrics, and session replay in ClickHouse",
+    "description": "Application Performance Monitoring — OpenTelemetry logs, traces, metrics, and session replay",
     "author": {
       "name": "Simplifi-ED",
       "url": "https://github.com/Simplifi-ED"
@@ -47,7 +47,7 @@
     {
       "type": "page",
       "name": "Services",
-      "path": "/a/clickhouse-apm-app/services",
+      "path": "/a/omnivya-apm-app/services",
       "addToNav": true,
       "defaultNav": true,
       "role": "Viewer"
@@ -55,7 +55,7 @@
     {
       "type": "page",
       "name": "Jobs",
-      "path": "/a/clickhouse-apm-app/jobs",
+      "path": "/a/omnivya-apm-app/jobs",
       "icon": "calendar-alt",
       "addToNav": true,
       "role": "Viewer"
@@ -63,7 +63,7 @@
     {
       "type": "page",
       "name": "My Apps",
-      "path": "/a/clickhouse-apm-app/favorites",
+      "path": "/a/omnivya-apm-app/favorites",
       "icon": "favorite",
       "addToNav": true,
       "role": "Viewer"
@@ -71,7 +71,7 @@
     {
       "type": "page",
       "name": "Ops Status",
-      "path": "/a/clickhouse-apm-app/ops",
+      "path": "/a/omnivya-apm-app/ops",
       "icon": "monitor",
       "addToNav": true,
       "role": "Viewer"
@@ -79,7 +79,7 @@
     {
       "type": "page",
       "name": "Service Map",
-      "path": "/a/clickhouse-apm-app/service-map",
+      "path": "/a/omnivya-apm-app/service-map",
       "icon": "sitemap",
       "addToNav": true,
       "role": "Viewer"
@@ -87,7 +87,7 @@
     {
       "type": "page",
       "name": "Dependencies",
-      "path": "/a/clickhouse-apm-app/dependencies",
+      "path": "/a/omnivya-apm-app/dependencies",
       "addToNav": true,
       "role": "Viewer"
     },
@@ -95,7 +95,7 @@
       "type": "page",
       "icon": "cog",
       "name": "Configuration",
-      "path": "/plugins/clickhouse-apm-app",
+      "path": "/plugins/omnivya-apm-app",
       "role": "Admin",
       "addToNav": true
     }
@@ -110,8 +110,8 @@
       { "action": "annotations:read", "scope": "annotations:*" },
       { "action": "annotations:create", "scope": "annotations:*" },
       { "action": "annotations:write", "scope": "annotations:*" },
-      { "action": "plugins.app:access", "scope": "plugins:id:clickhouse-apm-app" },
-      { "action": "plugins:write", "scope": "plugins:id:clickhouse-apm-app" }
+      { "action": "plugins.app:access", "scope": "plugins:id:omnivya-apm-app" },
+      { "action": "plugins:write", "scope": "plugins:id:omnivya-apm-app" }
     ]
   },
   "extensions": {
@@ -128,8 +128,8 @@
       },
       {
         "targets": ["grafana/explore/toolbar/action"],
-        "title": "Open in ClickStack APM",
-        "description": "View this service's health, traces, logs and errors in ClickStack APM"
+        "title": "Open in Application Observability",
+        "description": "View this service's health, traces, logs and errors in Application Observability"
       }
     ]
   }

@@ -3,7 +3,7 @@
   "packages": {
     ".": {
       "release-type": "node",
-      "package-name": "clickhouse-apm-app",
+      "package-name": "omnivya-apm-app",
       "include-v-in-tag": true,
       "bump-minor-pre-major": true,
       "changelog-sections": [

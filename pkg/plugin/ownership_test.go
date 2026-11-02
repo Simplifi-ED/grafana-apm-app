@@ -82,7 +82,7 @@ func TestMergeOwnership_KnownTeams(t *testing.T) {
 func TestParseOwnerAnnotation(t *testing.T) {
 	ann := grafanaAnnotation{
 		Text: "owner.team=platform\nowner.contact=#ops\nvcs.repository.url=https://github.com/o/r",
-		Tags: []string{"clickhouse-apm:owner", "service:payments", "runbook:https://wiki/r"},
+		Tags: []string{"omnivya-apm:owner", "service:payments", "runbook:https://wiki/r"},
 	}
 	f := parseOwnerAnnotation(ann)
 	if f.Team != "platform" || f.Contact != "#ops" || f.Repo == "" || f.Runbook == "" {

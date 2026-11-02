@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	ownerAnnotationTag     = "clickhouse-apm:owner"
+	ownerAnnotationTag     = "omnivya-apm:owner"
 	ownershipStaleAfter    = 7 * 24 * time.Hour
 	ownershipTelemetryLook = 30 * 24 * time.Hour
 	ownershipDocPath       = "docs/ownership.md"
@@ -550,5 +550,5 @@ func applyHasOwnerCheck(checks []ScorecardCheck, own Ownership) {
 		return
 	}
 	c.OK = false
-	c.Hint = "No owner.team — set OTEL_RESOURCE_ATTRIBUTES owner.team=… (see docs/ownership.md) or publish a clickhouse-apm:owner annotation."
+	c.Hint = "No owner.team — set OTEL_RESOURCE_ATTRIBUTES owner.team=… (see docs/ownership.md) or publish a omnivya-apm:owner annotation."
 }

@@ -28,7 +28,7 @@ import (
 // keep-all — see docs/triage.md and checkAnnotationRetention below.
 
 const (
-	triageTag       = "clickhouse-apm:triage"
+	triageTag       = "omnivya-apm:triage"
 	maxTriageEvents = 1000
 	// minAnnotationFromMs is the lower time bound sent on every page. It must
 	// be positive: Grafana's annotation store only applies the epoch window

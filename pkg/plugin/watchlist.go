@@ -115,7 +115,7 @@ type pluginSettings struct {
 }
 
 // defaultPluginID is used only when the request carries no plugin context.
-const defaultPluginID = "clickhouse-apm-app"
+const defaultPluginID = "omnivya-apm-app"
 
 func requestPluginID(req *http.Request) string {
 	if id := backend.PluginConfigFromContext(req.Context()).PluginID; id != "" {

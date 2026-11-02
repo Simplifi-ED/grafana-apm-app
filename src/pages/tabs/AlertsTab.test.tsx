@@ -39,7 +39,7 @@ const PROMETHEUS_RULE = [
   'apiVersion: monitoring.coreos.com/v1',
   'kind: PrometheusRule',
   'metadata:',
-  '  name: "clickhouse-apm-new-exceptions-orders"',
+  '  name: "omnivya-apm-new-exceptions-orders"',
 ].join('\n');
 
 function renderTab(initialEntries: string[] = ['/']) {
