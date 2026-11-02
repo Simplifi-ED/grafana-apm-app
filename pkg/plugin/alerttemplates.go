@@ -252,97 +252,20 @@ func (a *App) handleAlertTemplate(w http.ResponseWriter, req *http.Request) {
 	}
 
 	var defaults ruleFormDefaults
+	var status int
+	var errBody string
 
 	// ClickStack: evaluate Grafana-managed rules against ClickHouse SQL
 	// (ticket 27 decision). Dual-mode keeps PromQL/LogQL when Metrics/Logs UIDs
 	// are configured and ClickHouse is not the primary path.
 	if a.clickStackMode() {
-		chUID := a.settings.ClickHouseDataSource.UID
-		if chUID == "" {
-			http.Error(w, `{"error":"clickhouse datasource not configured"}`, http.StatusServiceUnavailable)
-			return
-		}
-		var ok bool
-		defaults, ok = a.clickStackAlertDefaults(kind, namespace, service, env, fingerprint, hashes, chUID, q.Get("window"), q.Get("slo"))
-		if !ok {
-			if !alertTemplateKinds[kind] {
-				http.Error(w, `{"error":"unknown alert template kind"}`, http.StatusNotFound)
-				return
-			}
-			if kind == "exception-spike" && len(hashes) == 0 {
-				http.Error(w, `{"error":"missing or invalid hash"}`, http.StatusBadRequest)
-				return
-			}
-			if kind == "slo-burn-rate" {
-				http.Error(w, `{"error":"window must be fast or slow"}`, http.StatusBadRequest)
-				return
-			}
-			http.Error(w, `{"error":"unknown alert template kind"}`, http.StatusNotFound)
-			return
-		}
+		defaults, status, errBody = a.clickStackAlertTemplate(kind, namespace, service, env, fingerprint, hashes, q.Get("window"), q.Get("slo"))
 	} else {
-		switch kind {
-		case "error-rate":
-			uid := a.settings.MetricsDataSource.Resolve(env).UID
-			if uid == "" {
-				http.Error(w, `{"error":"metrics datasource not configured"}`, http.StatusServiceUnavailable)
-				return
-			}
-			defaults = a.errorRateDefaults(a.requestContext(req), namespace, service, env, uid)
-
-		case "exception-spike":
-			if len(hashes) == 0 {
-				http.Error(w, `{"error":"missing or invalid hash"}`, http.StatusBadRequest)
-				return
-			}
-			uid := a.settings.LogsDataSource.Resolve(env).UID
-			if uid == "" {
-				http.Error(w, `{"error":"logs datasource not configured"}`, http.StatusServiceUnavailable)
-				return
-			}
-			defaults = a.exceptionSpikeDefaults(namespace, service, env, fingerprint, hashes, uid)
-
-		case "web-vitals":
-			uid := a.settings.MetricsDataSource.Resolve(env).UID
-			if uid == "" {
-				http.Error(w, `{"error":"metrics datasource not configured"}`, http.StatusServiceUnavailable)
-				return
-			}
-			defaults = a.webVitalsDefaults(namespace, service, env, uid)
-
-		case "new-exceptions":
-			uid := a.settings.LogsDataSource.Resolve(env).UID
-			if uid == "" {
-				http.Error(w, `{"error":"logs datasource not configured"}`, http.StatusServiceUnavailable)
-				return
-			}
-			defaults = a.newExceptionsDefaults(namespace, service, env, uid)
-
-		case "regressing-exceptions":
-			// Phase A (ticket 06): volume-regression template is ClickHouse-only.
-			http.Error(w, `{"error":"regressing-exceptions requires ClickStack (ClickHouse) mode"}`, http.StatusBadRequest)
-			return
-
-		case "slo-burn-rate":
-			window := q.Get("window")
-			if window == "" {
-				window = "fast"
-			}
-			if window != "fast" && window != "slow" {
-				http.Error(w, `{"error":"window must be fast or slow"}`, http.StatusBadRequest)
-				return
-			}
-			uid := a.settings.MetricsDataSource.Resolve(env).UID
-			if uid == "" {
-				http.Error(w, `{"error":"metrics datasource not configured"}`, http.StatusServiceUnavailable)
-				return
-			}
-			defaults = a.sloBurnRateDefaults(a.requestContext(req), namespace, service, env, uid, parseSloTarget(q.Get("slo")), window)
-
-		default:
-			http.Error(w, `{"error":"unknown alert template kind"}`, http.StatusNotFound)
-			return
-		}
+		defaults, status, errBody = a.lgmtAlertTemplate(req, kind, namespace, service, env, fingerprint, hashes, q.Get("window"), q.Get("slo"))
+	}
+	if status != 0 {
+		http.Error(w, errBody, status)
+		return
 	}
 
 	folder, err := a.teamAlertFolder(req, namespace)
@@ -373,6 +296,88 @@ func (a *App) handleAlertTemplate(w http.ResponseWriter, req *http.Request) {
 		URL:      "/alerting/new?defaults=" + url.QueryEscape(string(data)),
 		Defaults: defaults,
 	})
+}
+
+func (a *App) clickStackAlertTemplate(
+	kind, namespace, service, env, fingerprint string,
+	hashes []string,
+	window, slo string,
+) (ruleFormDefaults, int, string) {
+	chUID := a.settings.ClickHouseDataSource.UID
+	if chUID == "" {
+		return ruleFormDefaults{}, http.StatusServiceUnavailable, `{"error":"clickhouse datasource not configured"}`
+	}
+	defaults, ok := a.clickStackAlertDefaults(kind, namespace, service, env, fingerprint, hashes, chUID, window, slo)
+	if ok {
+		return defaults, 0, ""
+	}
+	if kind == "exception-spike" && len(hashes) == 0 {
+		return ruleFormDefaults{}, http.StatusBadRequest, `{"error":"missing or invalid hash"}`
+	}
+	if kind == "slo-burn-rate" {
+		return ruleFormDefaults{}, http.StatusBadRequest, `{"error":"window must be fast or slow"}`
+	}
+	return ruleFormDefaults{}, http.StatusNotFound, `{"error":"unknown alert template kind"}`
+}
+
+func (a *App) lgmtAlertTemplate(
+	req *http.Request,
+	kind, namespace, service, env, fingerprint string,
+	hashes []string,
+	window, slo string,
+) (ruleFormDefaults, int, string) {
+	switch kind {
+	case "error-rate":
+		uid := a.settings.MetricsDataSource.Resolve(env).UID
+		if uid == "" {
+			return ruleFormDefaults{}, http.StatusServiceUnavailable, `{"error":"metrics datasource not configured"}`
+		}
+		return a.errorRateDefaults(a.requestContext(req), namespace, service, env, uid), 0, ""
+
+	case "exception-spike":
+		if len(hashes) == 0 {
+			return ruleFormDefaults{}, http.StatusBadRequest, `{"error":"missing or invalid hash"}`
+		}
+		uid := a.settings.LogsDataSource.Resolve(env).UID
+		if uid == "" {
+			return ruleFormDefaults{}, http.StatusServiceUnavailable, `{"error":"logs datasource not configured"}`
+		}
+		return a.exceptionSpikeDefaults(namespace, service, env, fingerprint, hashes, uid), 0, ""
+
+	case "web-vitals":
+		uid := a.settings.MetricsDataSource.Resolve(env).UID
+		if uid == "" {
+			return ruleFormDefaults{}, http.StatusServiceUnavailable, `{"error":"metrics datasource not configured"}`
+		}
+		return a.webVitalsDefaults(namespace, service, env, uid), 0, ""
+
+	case "new-exceptions":
+		uid := a.settings.LogsDataSource.Resolve(env).UID
+		if uid == "" {
+			return ruleFormDefaults{}, http.StatusServiceUnavailable, `{"error":"logs datasource not configured"}`
+		}
+		return a.newExceptionsDefaults(namespace, service, env, uid), 0, ""
+
+	case "regressing-exceptions":
+		// Phase A (ticket 06): volume-regression template is ClickHouse-only.
+		return ruleFormDefaults{}, http.StatusBadRequest, `{"error":"regressing-exceptions requires ClickStack (ClickHouse) mode"}`
+
+	case "slo-burn-rate":
+		if window == "" {
+			window = "fast"
+		}
+		if window != "fast" && window != "slow" {
+			return ruleFormDefaults{}, http.StatusBadRequest, `{"error":"window must be fast or slow"}`
+		}
+		uid := a.settings.MetricsDataSource.Resolve(env).UID
+		if uid == "" {
+			return ruleFormDefaults{}, http.StatusServiceUnavailable, `{"error":"metrics datasource not configured"}`
+		}
+		return a.sloBurnRateDefaults(a.requestContext(req), namespace, service, env, uid, parseSloTarget(slo), window), 0, ""
+
+	default:
+		return ruleFormDefaults{}, http.StatusNotFound, `{"error":"unknown alert template kind"}`
+	}
 }
 
 func (a *App) teamAlertFolder(req *http.Request, namespace string) (*alertFolder, error) {

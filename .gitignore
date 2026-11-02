@@ -67,3 +67,4 @@ nais-doc/
 e2e-local*.txt
 e2e-ci-sim.txt
 e2e-nightly-up.txt
+.pnpm-store/

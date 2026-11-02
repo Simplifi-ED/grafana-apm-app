@@ -221,7 +221,7 @@ export function AlertsTab({ service, namespace, environment }: AlertsTabProps) {
               ? 'Select a team and exactly one environment to create a Grafana alert that matches its notification policy.'
               : clickStackOnly
                 ? "Pre-filled ClickHouse SQL rules — opens Grafana's alert editor (evaluates against your ClickHouse datasource)."
-                : "Pre-filled rules for this service — use notification policies (not a direct contact point) and Preview routing in Grafana before saving."}
+                : 'Pre-filled rules for this service — use notification policies (not a direct contact point) and Preview routing in Grafana before saving.'}
           </span>
         </div>
 
