@@ -75,6 +75,13 @@ Enable the plugin under **Administration → Plugins**.
 3. Leave Metrics / Traces / Logs empty for ClickStack-only.
 4. Save. Health check runs `SELECT 1` via `/api/ds/query`.
 
+The backend resolves Grafana's base URL from the plugin SDK (`GF_APP_URL` /
+Grafana's configured root URL), falling back to `http://localhost:3000`. Backend
+calls to `/api/ds/query` and the datasource proxy use that URL with a service
+account token. If an OAuth2 proxy or ingress in front of Grafana rejects those
+bearer tokens, make the app URL reachable from the Grafana process (or configure
+the proxy to accept the service account).
+
 Example app provisioning: [`provisioning/plugins/apps-clickhouse.yaml.example`](https://github.com/Simplifi-ED/grafana-apm-app/blob/main/provisioning/plugins/apps-clickhouse.yaml.example).
 
 Full setup, schema notes, and LGTM dual-mode:
@@ -190,19 +197,21 @@ On push to `main`, [`.github/workflows/release-please.yml`](https://github.com/S
 
 **Repo secrets required for signed builds:**
 
-| Secret                         | Purpose                                              |
-| ------------------------------ | ---------------------------------------------------- |
-| `GRAFANA_ACCESS_POLICY_TOKEN`  | Grafana Cloud access policy that can sign plugins    |
-| `GRAFANA_PLUGIN_ROOT_URLS`     | Comma-separated Grafana root URLs for private signing |
+| Secret                        | Purpose                                                                           |
+| ----------------------------- | --------------------------------------------------------------------------------- |
+| `GRAFANA_ACCESS_POLICY_TOKEN` | Grafana.com access policy that can sign plugins for the `omnivya` org (community) |
 
-Without those secrets you still get a GitHub Release/tag; the zip may be unsigned
+The plugin ID prefix (`omnivya`) must match the Grafana.com org slug. Releases
+are signed at **community** level (works on any Grafana instance).
+
+Without that secret you still get a GitHub Release/tag; the zip may be unsigned
 (fine for local/`GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS`, not for locked-down prod).
 
 Local sign smoke-test:
 
 ```bash
 export GRAFANA_ACCESS_POLICY_TOKEN=...
-pnpm run build && npx @grafana/sign-plugin@latest --rootUrls 'https://your-grafana.example/'
+pnpm run build && pnpm run sign
 ```
 
 Grafana.com catalog publish is separate (plugin catalog submission) and not wired

@@ -25,12 +25,12 @@ var metricNamePattern = regexp.MustCompile(`^[a-zA-Z_:][a-zA-Z0-9_:]*$`)
 // host[:port] and a path of URL-safe characters (datasource UIDs included).
 // No userinfo, query, fragment or dot segments, so a bad datasource UID cannot
 // redirect the outgoing request.
-// The host is always localhost (resolveInternalGrafanaURL); widen this if GF_SERVER_HTTP_ADDR is wired in.
+// Host is Grafana's configured app URL (or localhost fallback from the plugin).
 var baseURLPattern = regexp.MustCompile(`^https?://[A-Za-z0-9.\-]+(:[0-9]+)?(/[A-Za-z0-9_\-/]*)?$`)
 
-// safeBaseURL returns u without trailing slashes if it matches baseURLPattern,
+// SafeBaseURL returns u without trailing slashes if it matches baseURLPattern,
 // or "" otherwise, which makes every request from the client fail.
-func safeBaseURL(u string) string {
+func SafeBaseURL(u string) string {
 	u = strings.TrimRight(u, "/")
 	if baseURLPattern.MatchString(u) {
 		return u
@@ -62,7 +62,7 @@ type PrometheusClient struct {
 // NewPrometheusClient creates a client that talks to a Prometheus-compatible endpoint.
 func NewPrometheusClient(baseURL string, serviceToken string) *PrometheusClient {
 	c := &PrometheusClient{
-		baseURL:      safeBaseURL(baseURL),
+		baseURL:      SafeBaseURL(baseURL),
 		serviceToken: serviceToken,
 		httpClient: &http.Client{
 			Timeout:   30 * time.Second,
@@ -81,7 +81,7 @@ func NewPrometheusClient(baseURL string, serviceToken string) *PrometheusClient 
 // format as Prometheus, so we reuse PrometheusClient with a /loki path prefix.
 func NewLokiMetricClient(proxyURL string, serviceToken string) *PrometheusClient {
 	c := &PrometheusClient{
-		baseURL:      safeBaseURL(strings.TrimRight(proxyURL, "/") + "/loki"),
+		baseURL:      SafeBaseURL(strings.TrimRight(proxyURL, "/") + "/loki"),
 		serviceToken: serviceToken,
 		httpClient: &http.Client{
 			Timeout:   30 * time.Second,

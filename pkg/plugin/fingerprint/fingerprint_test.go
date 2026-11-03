@@ -114,6 +114,19 @@ func TestComputeDeterministic(t *testing.T) {
 	}
 }
 
+// Pins the v1 hash byte layout so Tier's underlying type cannot silently
+// change stored fingerprints (G115 fix: Tier is uint8, hashed as one byte).
+func TestFingerprintHashStability(t *testing.T) {
+	got := Compute(Event{Type: "TypeError", Value: "Failed to fetch"})
+	const want = "v1:cc534b94d77e9b6f"
+	if got.Value != want {
+		t.Fatalf("fingerprint changed: got %q, want %q (Tier=%d)", got.Value, want, got.Tier)
+	}
+	if got.Tier != TierTypeMessage {
+		t.Fatalf("tier = %d, want TierTypeMessage", got.Tier)
+	}
+}
+
 func TestTiersDoNotCollide(t *testing.T) {
 	// The same string via different tiers must produce different fingerprints.
 	msg := "Failed to fetch"

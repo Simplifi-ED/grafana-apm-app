@@ -73,7 +73,7 @@ type ClickHouseClient struct {
 }
 
 // NewClickHouseClient builds a client bound to a single datasource UID.
-// grafanaURL is the internal Grafana base (e.g. http://localhost:3000).
+// grafanaURL is Grafana's configured app URL (e.g. http://localhost:3000).
 func NewClickHouseClient(grafanaURL, serviceToken, dsUID string) *ClickHouseClient {
 	return &ClickHouseClient{
 		grafanaURL:   strings.TrimRight(grafanaURL, "/"),

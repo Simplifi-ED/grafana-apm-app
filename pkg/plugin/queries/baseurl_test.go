@@ -19,8 +19,8 @@ func TestSafeBaseURL(t *testing.T) {
 		"http://localhost:3000/api/../x":                              "",
 		"file:///etc/passwd":                                          "",
 	} {
-		if got := safeBaseURL(in); got != want {
-			t.Errorf("safeBaseURL(%q) = %q, want %q", in, got, want)
+		if got := SafeBaseURL(in); got != want {
+			t.Errorf("SafeBaseURL(%q) = %q, want %q", in, got, want)
 		}
 	}
 }

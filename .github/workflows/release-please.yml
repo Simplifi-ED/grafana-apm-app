@@ -150,13 +150,13 @@ jobs:
           version: latest
           args: buildAll
 
-      # Private signature — identical secrets to the retired release.yml
-      # (GRAFANA_ACCESS_POLICY_TOKEN + GRAFANA_PLUGIN_ROOT_URLS). Required: a
-      # released plugin MUST be signed to load in the target Grafana instances.
+      # Community signature — GRAFANA_ACCESS_POLICY_TOKEN must belong to a
+      # Grafana.com org whose slug matches the plugin ID prefix (omnivya).
+      # Required: a released plugin MUST be signed to load in locked-down Grafana.
       - name: Sign plugin
-        run: npx --yes @grafana/sign-plugin@latest --rootUrls "$GRAFANA_PLUGIN_ROOT_URLS"
+        run: npx --yes @grafana/sign-plugin@latest --signatureType community
         env:
-          GRAFANA_PLUGIN_ROOT_URLS: ${{ secrets.GRAFANA_PLUGIN_ROOT_URLS }}
+          GRAFANA_ACCESS_POLICY_TOKEN: ${{ secrets.GRAFANA_ACCESS_POLICY_TOKEN }}
 
       - name: Get plugin metadata
         id: metadata
