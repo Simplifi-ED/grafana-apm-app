@@ -1,15 +1,15 @@
 import { toMermaidGraph } from './mermaid';
-import type { ServiceGraphNode, ServiceGraphEdge } from '../components/ServiceGraph';
+import type { GraphEdge, GraphNode } from './graphTypes';
 
 describe('toMermaidGraph', () => {
-  const mkNode = (id: string, overrides?: Partial<ServiceGraphNode>): ServiceGraphNode => ({
+  const mkNode = (id: string, overrides?: Partial<GraphNode>): GraphNode => ({
     id,
     title: id,
     errorRate: 0,
     ...overrides,
   });
 
-  const mkEdge = (source: string, target: string, overrides?: Partial<ServiceGraphEdge>): ServiceGraphEdge => ({
+  const mkEdge = (source: string, target: string, overrides?: Partial<GraphEdge>): GraphEdge => ({
     id: `${source}-${target}`,
     source,
     target,

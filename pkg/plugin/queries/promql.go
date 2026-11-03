@@ -335,13 +335,13 @@ func (c *PrometheusClient) LabelValues(ctx context.Context, labelName string, st
 		RawQuery: q.Encode(),
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
+	req, err := NewSafeRequest(ctx, http.MethodGet, u, nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)
 	}
 	c.applyAuth(req)
 
-	resp, err := c.httpClient.Do(req)
+	resp, err := DoValidated(c.httpClient, req)
 	if err != nil {
 		return nil, fmt.Errorf("fetching label values: %w", err)
 	}
@@ -399,13 +399,13 @@ func (c *PrometheusClient) Metadata(ctx context.Context, metric string) ([]Metri
 		RawQuery: url.Values{"metric": {metric}}.Encode(),
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
+	req, err := NewSafeRequest(ctx, http.MethodGet, u, nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)
 	}
 	c.applyAuth(req)
 
-	resp, err := c.httpClient.Do(req)
+	resp, err := DoValidated(c.httpClient, req)
 	if err != nil {
 		return nil, fmt.Errorf("fetching metadata: %w", err)
 	}
@@ -441,13 +441,13 @@ func (c *PrometheusClient) doQuery(ctx context.Context, path string, params url.
 		RawQuery: params.Encode(),
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
+	req, err := NewSafeRequest(ctx, http.MethodGet, u, nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)
 	}
 	c.applyAuth(req)
 
-	resp, err := c.httpClient.Do(req)
+	resp, err := DoValidated(c.httpClient, req)
 	if err != nil {
 		return nil, fmt.Errorf("executing query: %w", err)
 	}

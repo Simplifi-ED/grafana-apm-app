@@ -1,4 +1,4 @@
-import type { ServiceGraphNode, ServiceGraphEdge } from '../components/ServiceGraph';
+import type { GraphEdge, GraphNode } from './graphTypes';
 
 /** Sanitize a node ID for Mermaid (no dots, colons, slashes, or spaces). */
 function sanitizeId(id: string): string {
@@ -11,7 +11,7 @@ function escapeLabel(text: string): string {
 }
 
 /** Build a single-line label from title + optional subtitle. */
-function nodeLabel(node: ServiceGraphNode): string {
+function nodeLabel(node: GraphNode): string {
   const parts = [node.title];
   if (node.subtitle) {
     parts.push(node.subtitle);
@@ -34,15 +34,11 @@ function shapeWrap(id: string, label: string, nodeType?: string): string {
 }
 
 /**
- * Convert ServiceGraph nodes+edges to a Mermaid flowchart string.
+ * Convert graph nodes+edges to a Mermaid flowchart string.
  *
  * direction maps to Mermaid's graph direction: "DOWN" → TD, "RIGHT" → LR.
  */
-export function toMermaidGraph(
-  nodes: ServiceGraphNode[],
-  edges: ServiceGraphEdge[],
-  direction: 'RIGHT' | 'DOWN' = 'DOWN'
-): string {
+export function toMermaidGraph(nodes: GraphNode[], edges: GraphEdge[], direction: 'RIGHT' | 'DOWN' = 'DOWN'): string {
   const dir = direction === 'RIGHT' ? 'LR' : 'TD';
   const lines: string[] = [`graph ${dir}`];
 

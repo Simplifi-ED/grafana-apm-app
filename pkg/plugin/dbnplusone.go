@@ -366,16 +366,14 @@ func (a *App) searchNPlusOneTraces(ctx context.Context, headers http.Header, tra
 
 	ctx, cancel := context.WithTimeout(ctx, nplusoneTimeout)
 	defer cancel()
-	// #nosec G704 -- target is Grafana datasource proxy; base validated by SafeBaseURL
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
+	httpReq, err := queries.NewSafeRequestFromString(ctx, http.MethodGet, reqURL, nil)
 	if err != nil {
 		return nil, false, err
 	}
 	applyProxyAuth(httpReq, headers, a.resolveServiceToken(ctx))
 
 	client := &http.Client{Timeout: nplusoneTimeout}
-	// #nosec G704 -- target is Grafana datasource proxy; base validated by SafeBaseURL
-	resp, err := client.Do(httpReq)
+	resp, err := queries.DoValidated(client, httpReq)
 	if err != nil {
 		return nil, false, err
 	}

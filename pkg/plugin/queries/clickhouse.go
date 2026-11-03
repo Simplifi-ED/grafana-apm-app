@@ -282,16 +282,14 @@ func (c *ClickHouseClient) execute(ctx context.Context, rawSQL string, from, to 
 	if err != nil {
 		return nil, fmt.Errorf("creating clickhouse ds query request: %w", err)
 	}
-	// #nosec G704 -- target is Grafana's own /api/ds/query; base URL validated by SafeBaseURL
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
+	req, err := NewSafeRequestFromString(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("creating clickhouse ds query request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	c.applyAuth(req)
 
-	// #nosec G704 -- target is Grafana's own /api/ds/query; base URL validated by SafeBaseURL
-	resp, err := c.httpClient.Do(req)
+	resp, err := DoValidated(c.httpClient, req)
 	if err != nil {
 		if errors.Is(ctx.Err(), context.Canceled) || errors.Is(ctx.Err(), context.DeadlineExceeded) {
 			return nil, fmt.Errorf("clickhouse query canceled: %w", ctx.Err())

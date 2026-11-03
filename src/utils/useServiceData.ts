@@ -14,7 +14,7 @@ import {
   HealthSummary,
 } from '../api/client';
 import { useFetch } from './useFetch';
-import { toGraphData } from '../components/ServiceGraph';
+import { toGraphData } from './nodeGraphFrames';
 import { extractEnvironmentOptions } from './options';
 
 export interface ServiceDataParams {
@@ -86,7 +86,7 @@ export function useServiceData({ service, namespace, envFilter, fromMs, toMs, de
     () => getServiceMap(fromMs, toMs, service, namespace, envFilter, depth),
     [service, namespace, envFilter, fromMs, toMs, depth]
   );
-  const { graphNodes, graphEdges } = useMemo(() => toGraphData(mapData), [mapData]);
+  const { graphNodes, graphEdges } = useMemo(() => toGraphData(mapData ?? null), [mapData]);
 
   // Fetch callers (inbound connected services)
   const { data: connected, loading: connectedLoading } = useFetch<ConnectedServicesResponse>(

@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
+import type { DataFrame } from '@grafana/data';
 import ServiceMap from './ServiceMap';
 
 // Swappable per-test fixtures (must be `mock`-prefixed for jest.mock factories).
@@ -27,41 +28,67 @@ jest.mock('../utils/datasources', () => ({
   useConfiguredEnvironments: () => [],
 }));
 
-// CopyMermaidButton pulls in mermaid utils irrelevant to these tests.
 jest.mock('../components/CopyMermaidButton', () => ({
   CopyMermaidButton: () => null,
 }));
 
-// ServiceGraph renders via @xyflow/react + ELK which don't run under jsdom.
-// Stub it to a flat list of clickable node buttons so we can assert which data
-// set is displayed and exercise node clicks.
-jest.mock('../components/ServiceGraph', () => {
+// Native Node Graph (Scenes) does not run under jsdom — stub to clickable node
+// titles that follow the DataFrame data-link template (same destinations as prod).
+jest.mock('../components/ServiceMapPanel/ServiceMapPanel', () => {
   const ReactLocal = require('react');
+  const { useNavigate: useNav } = require('react-router-dom');
+  const { NodeGraphDataFrameFieldNames: Fields } = require('@grafana/data');
+
+  function fieldValues(frame: DataFrame | undefined, name: string): string[] {
+    const field = frame?.fields.find((f) => f.name === name);
+    if (!field) {
+      return [];
+    }
+    const raw = field.values as { toArray?: () => string[]; length?: number } | string[];
+    if (Array.isArray(raw)) {
+      return raw as string[];
+    }
+    if (typeof raw.toArray === 'function') {
+      return raw.toArray();
+    }
+    const len = typeof raw.length === 'number' ? raw.length : 0;
+    const out: string[] = [];
+    for (let i = 0; i < len; i++) {
+      out.push((raw as { get: (i: number) => string }).get(i));
+    }
+    return out;
+  }
+
   return {
-    toGraphData: (data: { nodes: Array<{ id: string; title: string }>; edges: unknown[] } | null) => ({
-      graphNodes: data ? data.nodes.map((n) => ({ id: n.id, title: n.title })) : [],
-      graphEdges: data ? data.edges : [],
-    }),
-    ServiceGraph: ({
-      nodes,
-      onNodeClick,
-    }: {
-      nodes: Array<{ id: string; title: string }>;
-      onNodeClick?: (id: string) => void;
-    }) =>
-      ReactLocal.createElement(
+    ServiceMapPanel: ({ frames }: { frames: DataFrame[] }) => {
+      const navigate = useNav();
+      const nodes = frames[0];
+      const ids = fieldValues(nodes, Fields.id);
+      const linkTpl = nodes?.fields.find((f) => f.name === Fields.id)?.config.links?.[0]?.url ?? '';
+      return ReactLocal.createElement(
         'div',
-        { 'data-testid': 'service-graph' },
-        nodes.map((n) =>
-          ReactLocal.createElement('button', { key: n.id, onClick: () => onNodeClick && onNodeClick(n.id) }, n.title)
+        { 'data-testid': 'service-map-canvas' },
+        ids.map((id: string) =>
+          ReactLocal.createElement(
+            'button',
+            {
+              key: id,
+              onClick: () => {
+                const href = linkTpl.split(`\${__data.fields.${Fields.id}}`).join(id);
+                navigate(href);
+              },
+            },
+            id
+          )
         )
-      ),
+      );
+    },
   };
 });
 
 function LocationDisplay() {
   const loc = useLocation();
-  return <div data-testid="loc">{loc.pathname}</div>;
+  return <div data-testid="loc">{loc.pathname + loc.search}</div>;
 }
 
 function renderMap(route = '/service-map') {
@@ -109,18 +136,15 @@ describe('ServiceMap — global clustered view', () => {
 
   it('defaults to the Namespaces view when there are more than 50 services', async () => {
     renderMap();
-    // Namespace cluster nodes are shown; full-graph service nodes are not.
     expect(await screen.findByText('team-alpha')).toBeInTheDocument();
     expect(screen.getByText('team-beta')).toBeInTheDocument();
     expect(screen.queryByText('svc-one')).not.toBeInTheDocument();
-    // Cluster summary line reflects the aggregation.
     expect(screen.getByText(/2 namespaces · 60 services · 1 cross-namespace/)).toBeInTheDocument();
   });
 
   it('defaults to the Services (full) view for small deployments (<=50 services)', async () => {
     mockClusteredResp = smallClustered();
     renderMap();
-    // Full-graph service nodes are shown; namespace clustering is not the default.
     expect(await screen.findByText('svc-one')).toBeInTheDocument();
     expect(screen.getByText('svc-two')).toBeInTheDocument();
     expect(screen.queryByText(/cross-namespace/)).not.toBeInTheDocument();
@@ -137,7 +161,7 @@ describe('ServiceMap — global clustered view', () => {
     const node = await screen.findByText('team-alpha');
     fireEvent.click(node);
     await waitFor(() => {
-      expect(screen.getByTestId('loc').textContent).toMatch(/namespaces\/team-alpha$/);
+      expect(screen.getByTestId('loc').textContent).toMatch(/namespaces\/team-alpha/);
     });
   });
 

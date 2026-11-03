@@ -264,13 +264,13 @@ func (a *App) queryOwnershipAnnotations(ctx context.Context, headers http.Header
 	params.Add("tags", tag)
 	params.Add("tags", "service:"+service)
 	params.Set("limit", "20")
-	apiReq, err := http.NewRequestWithContext(ctx, http.MethodGet,
+	apiReq, err := queries.NewSafeRequestFromString(ctx, http.MethodGet,
 		fmt.Sprintf("%s/api/annotations?%s", a.grafanaURL, params.Encode()), nil)
 	if err != nil {
 		return nil, false
 	}
 	applyServiceAuth(apiReq, headers, a.resolveServiceToken(ctx))
-	resp, err := a.healthClient.Do(apiReq)
+	resp, err := queries.DoValidated(a.healthClient, apiReq)
 	if err != nil {
 		log.DefaultLogger.Debug("ownership annotation request failed", "error", err, "service", service)
 		return nil, false

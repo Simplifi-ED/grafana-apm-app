@@ -211,15 +211,13 @@ func (a *App) fetchLokiPatterns(ctx context.Context, headers http.Header, servic
 		return nil, err
 	}
 
-	// #nosec G704 -- target is Grafana datasource proxy; base validated by SafeBaseURL
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
+	httpReq, err := queries.NewSafeRequestFromString(ctx, http.MethodGet, reqURL, nil)
 	if err != nil {
 		return nil, err
 	}
 	applyProxyAuth(httpReq, headers, serviceToken)
 
-	// #nosec G704 -- target is Grafana datasource proxy; base validated by SafeBaseURL
-	resp, err := a.healthClient.Do(httpReq)
+	resp, err := queries.DoValidated(a.healthClient, httpReq)
 	if err != nil {
 		return nil, err
 	}

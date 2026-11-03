@@ -8,8 +8,8 @@ import type { ServiceMapResponse, ServiceMapNode } from './client';
  *
  * Kept out of client.ts on purpose: the clustered endpoint is a distinct,
  * fleet-wide aggregation used only by the global Service Map page. Reuses the
- * shared ServiceMapResponse shape so the existing ServiceGraph/toGraphData
- * rendering path works unchanged.
+ * shared ServiceMapResponse shape so toNodeGraphFrames / Mermaid export
+ * work unchanged.
  */
 
 const BASE_URL = `/api/plugins/${pluginJson.id}/resources`;

@@ -59,19 +59,19 @@ func (c *PrometheusClient) GetAlertRules(ctx context.Context) (*RulesResponse, e
 	if err != nil {
 		return nil, fmt.Errorf("parsing base URL: %w", err)
 	}
-	reqURL := (&url.URL{
+	u := &url.URL{
 		Scheme: base.Scheme,
 		Host:   base.Host,
 		Path:   strings.TrimRight(base.Path, "/") + "/api/v1/rules",
-	}).String()
+	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
+	req, err := NewSafeRequest(ctx, http.MethodGet, u, nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating rules request: %w", err)
 	}
 	c.applyAuth(req)
 
-	resp, err := c.httpClient.Do(req)
+	resp, err := DoValidated(c.httpClient, req)
 	if err != nil {
 		return nil, fmt.Errorf("fetching rules: %w", err)
 	}

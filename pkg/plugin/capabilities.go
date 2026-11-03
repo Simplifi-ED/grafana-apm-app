@@ -313,14 +313,14 @@ func (a *App) checkHTTPHealth(ctx context.Context, baseURL, path string, headers
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, baseURL+path, nil)
+	req, err := queries.NewSafeRequestFromString(ctx, http.MethodGet, baseURL+path, nil)
 	if err != nil {
 		return queries.DataSourceStatus{Available: false, Error: err.Error()}
 	}
 
 	applyServiceAuth(req, headers, serviceToken)
 
-	resp, err := a.healthClient.Do(req)
+	resp, err := queries.DoValidated(a.healthClient, req)
 	if err != nil {
 		return queries.DataSourceStatus{Available: false, Error: err.Error()}
 	}
@@ -385,14 +385,14 @@ func (a *App) detectPyroscope(ctx context.Context, headers http.Header, serviceT
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, a.grafanaURL+"/api/datasources", nil)
+	req, err := queries.NewSafeRequestFromString(ctx, http.MethodGet, a.grafanaURL+"/api/datasources", nil)
 	if err != nil {
 		logger.Warn("Pyroscope probe request build failed", "error", err)
 		return queries.PyroscopeCapability{}
 	}
 	applyServiceAuth(req, headers, serviceToken)
 
-	resp, err := a.healthClient.Do(req)
+	resp, err := queries.DoValidated(a.healthClient, req)
 	if err != nil {
 		logger.Warn("Pyroscope probe failed", "error", err)
 		return queries.PyroscopeCapability{}
