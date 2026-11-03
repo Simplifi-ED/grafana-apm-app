@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.34.1](https://github.com/Simplifi-ED/omnivya-apm-app/compare/omnivya-apm-app-v0.34.0...omnivya-apm-app-v0.34.1) (2026-11-03)
+
+
+### Bug Fixes
+
+* add internalGrafanaUrl escape hatch and harden ds/query URLs ([5d2c127](https://github.com/Simplifi-ED/omnivya-apm-app/commit/5d2c12726e2411de8a93cdc1cd9942f52c901dbc))
+* clear Grafana plugin catalog verification findings ([db85e55](https://github.com/Simplifi-ED/omnivya-apm-app/commit/db85e5517d3008a1bd8037e5451888ba88af7d16))
+* clear Grafana plugin catalog verification findings ([aae6aba](https://github.com/Simplifi-ED/omnivya-apm-app/commit/aae6abaa943b1510c0ec7388a8cb5699deee4032))
+* drop invented :3000 fallback; preserve IPv6 and encoded paths ([6ee0edb](https://github.com/Simplifi-ED/omnivya-apm-app/commit/6ee0edbbbf1fc1861dce50a77e3eec3fbb3bc38f))
+
 ## [0.34.0](https://github.com/Simplifi-ED/omnivya-apm-app/compare/omnivya-apm-app-v0.33.0...omnivya-apm-app-v0.34.0) (2026-11-02)
 
 
