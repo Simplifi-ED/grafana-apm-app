@@ -163,9 +163,17 @@ jobs:
           node-version: '24.22.2'
 
       - name: Sign plugin
-        run: npx --yes @grafana/sign-plugin@latest --signatureType community
+        run: |
+          if [ -n "${GRAFANA_PLUGIN_ROOT_URLS:-}" ]; then
+            echo "Signing plugin (private) with rootUrls"
+            npx --yes @grafana/sign-plugin@latest --rootUrls "$GRAFANA_PLUGIN_ROOT_URLS"
+          else
+            echo "Signing plugin (public — Grafana-granted signature level)"
+            npx --yes @grafana/sign-plugin@latest
+          fi
         env:
           GRAFANA_ACCESS_POLICY_TOKEN: ${{ secrets.GRAFANA_ACCESS_POLICY_TOKEN }}
+          GRAFANA_PLUGIN_ROOT_URLS: ${{ secrets.GRAFANA_PLUGIN_ROOT_URLS }}
         if: ${{ env.GRAFANA_ACCESS_POLICY_TOKEN != '' }}
         continue-on-error: true
 

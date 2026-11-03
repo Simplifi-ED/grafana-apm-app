@@ -202,20 +202,24 @@ On push to `main`, [`.github/workflows/release-please.yml`](https://github.com/S
 
 **Repo secrets required for signed builds:**
 
-| Secret                        | Purpose                                                                           |
-| ----------------------------- | --------------------------------------------------------------------------------- |
-| `GRAFANA_ACCESS_POLICY_TOKEN` | Grafana.com access policy that can sign plugins for the `omnivya` org (community) |
+| Secret                         | Purpose                                                                 |
+| ------------------------------ | ----------------------------------------------------------------------- |
+| `GRAFANA_ACCESS_POLICY_TOKEN`  | Grafana.com access policy (`plugins:write`) for the `omnivya` org       |
+| `GRAFANA_PLUGIN_ROOT_URLS`     | Optional. Set → **private** sign for those Grafana URLs. Clear after catalog grants **community** → public sign with no code change. |
 
-The plugin ID prefix (`omnivya`) must match the Grafana.com org slug. Releases
-are signed at **community** level (works on any Grafana instance).
+Signing is adaptive in CI/`pnpm run sign`: private while `GRAFANA_PLUGIN_ROOT_URLS`
+is set (needed until verification assigns a community level — forcing community
+early returns API 409). Plugin ID prefix (`omnivya`) must match the org slug.
 
-Without that secret you still get a GitHub Release/tag; the zip may be unsigned
-(fine for local/`GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS`, not for locked-down prod).
+Without `GRAFANA_ACCESS_POLICY_TOKEN` you still get a GitHub Release/tag; the zip
+may be unsigned (fine for local/`GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS`).
 
 Local sign smoke-test:
 
 ```bash
 export GRAFANA_ACCESS_POLICY_TOKEN=...
+# Private (until community is granted):
+export GRAFANA_PLUGIN_ROOT_URLS='https://your-grafana.example/'
 pnpm run build && pnpm run sign
 ```
 

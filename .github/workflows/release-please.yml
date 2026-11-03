@@ -150,13 +150,21 @@ jobs:
           version: latest
           args: buildAll
 
-      # Community signature — GRAFANA_ACCESS_POLICY_TOKEN must belong to a
-      # Grafana.com org whose slug matches the plugin ID prefix (omnivya).
-      # Required: a released plugin MUST be signed to load in locked-down Grafana.
+      # Adaptive: ROOT_URLS set → private (until catalog grants community);
+      # unset → public at Grafana-granted level. Never force --signatureType
+      # (API 409 before approval). Org slug must match plugin ID prefix (omnivya).
       - name: Sign plugin
-        run: npx --yes @grafana/sign-plugin@latest --signatureType community
+        run: |
+          if [ -n "${GRAFANA_PLUGIN_ROOT_URLS:-}" ]; then
+            echo "Signing plugin (private) with rootUrls"
+            npx --yes @grafana/sign-plugin@latest --rootUrls "$GRAFANA_PLUGIN_ROOT_URLS"
+          else
+            echo "Signing plugin (public — Grafana-granted signature level)"
+            npx --yes @grafana/sign-plugin@latest
+          fi
         env:
           GRAFANA_ACCESS_POLICY_TOKEN: ${{ secrets.GRAFANA_ACCESS_POLICY_TOKEN }}
+          GRAFANA_PLUGIN_ROOT_URLS: ${{ secrets.GRAFANA_PLUGIN_ROOT_URLS }}
 
       - name: Get plugin metadata
         id: metadata
