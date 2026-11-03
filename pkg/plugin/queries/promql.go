@@ -23,7 +23,8 @@ var metricNamePattern = regexp.MustCompile(`^[a-zA-Z_:][a-zA-Z0-9_:]*$`)
 
 // SafeBaseURL returns u without a trailing slash if it is a safe http(s) base
 // URL for Grafana/datasource clients, or "" otherwise (so callers fail closed).
-// Rejects userinfo, query, fragment, and path traversal. Accepts IPv6 hosts.
+// Rejects userinfo, query, fragment, and path traversal (decoded). Accepts
+// bracketed IPv6 hosts and percent-encoded path segments (rebuilt via EscapedPath).
 func SafeBaseURL(u string) string {
 	u = strings.TrimRight(u, "/")
 	if u == "" {
@@ -42,7 +43,8 @@ func SafeBaseURL(u string) string {
 	if parsed.RawQuery != "" || parsed.Fragment != "" {
 		return ""
 	}
-	for _, seg := range strings.Split(parsed.EscapedPath(), "/") {
+	// Check decoded segments so %2e%2e cannot sneak past as traversal.
+	for _, seg := range strings.Split(parsed.Path, "/") {
 		if seg == ".." || seg == "." {
 			return ""
 		}
@@ -58,6 +60,46 @@ func DsQueryEndpoint(base string) (string, error) {
 		return "", fmt.Errorf("invalid or empty Grafana base URL")
 	}
 	return url.JoinPath(base, "api", "ds", "query")
+}
+
+// datasourceUIDPattern matches Grafana datasource UIDs (alphanumeric, _-).
+var datasourceUIDPattern = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
+
+// DatasourceProxyURL builds /api/datasources/proxy/uid/{uid} under a validated
+// Grafana base. Preserves IPv6 hosts and percent-encoded base paths via JoinPath.
+func DatasourceProxyURL(base, uid string) string {
+	base = SafeBaseURL(base)
+	if base == "" || !datasourceUIDPattern.MatchString(uid) {
+		return ""
+	}
+	u, err := url.JoinPath(base, "api", "datasources", "proxy", "uid", uid)
+	if err != nil {
+		return ""
+	}
+	return u
+}
+
+// ProxyRequestURL joins a validated datasource-proxy base with fixed path
+// segments and an encoded query. Segments must not contain slashes or "..".
+func ProxyRequestURL(proxyBase string, query url.Values, segments ...string) (string, error) {
+	proxyBase = SafeBaseURL(proxyBase)
+	if proxyBase == "" {
+		return "", fmt.Errorf("invalid proxy base URL")
+	}
+	for _, seg := range segments {
+		if seg == "" || seg == "." || seg == ".." || strings.ContainsAny(seg, "/?#") {
+			return "", fmt.Errorf("invalid proxy path segment %q", seg)
+		}
+	}
+	parts := append([]string{proxyBase}, segments...)
+	joined, err := url.JoinPath(parts[0], parts[1:]...)
+	if err != nil {
+		return "", err
+	}
+	if len(query) == 0 {
+		return joined, nil
+	}
+	return joined + "?" + query.Encode(), nil
 }
 
 // sharedTransport is a connection-pooled HTTP transport reused across all query clients.

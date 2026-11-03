@@ -76,14 +76,14 @@ Enable the plugin under **Administration → Plugins**.
 4. Save. Health check runs `SELECT 1` via `/api/ds/query`.
 
 Backend calls to `/api/ds/query` and the datasource proxy use a Grafana base URL
-resolved in this order (no direct `GF_*` env access):
+resolved in this order (no direct `GF_*` env access, no invented listen port):
 
 1. Optional **Internal Grafana URL** (`jsonData.internalGrafanaUrl`) — e.g.
    `http://localhost:3000` or `http://127.0.0.1:3000/grafana` when an OAuth2
    proxy/ingress rejects service-account bearer tokens on the public App URL
 2. Plugin SDK App URL (Grafana's configured root URL)
-3. `http://localhost:3000`
 
+If neither is set/valid, backend datasource calls fail closed until configured.
 Pair with a Viewer service-account token when the backend cannot reuse browser
 session cookies.
 

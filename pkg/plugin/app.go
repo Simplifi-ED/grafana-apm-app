@@ -132,12 +132,15 @@ func NewApp(ctx context.Context, settings backend.AppInstanceSettings) (instance
 		logger.Info("Service account token configured for internal API calls")
 	}
 
-	// Prefer jsonData.internalGrafanaUrl (bypass ingress/OAuth2), then SDK AppURL,
-	// then localhost:3000. Never reads GF_* env vars directly (catalog rule).
+	// Prefer jsonData.internalGrafanaUrl (bypass ingress/OAuth2), then SDK AppURL.
+	// Never invents a listen port and never reads GF_* env vars (catalog rule).
 	app.grafanaURL = resolveGrafanaURL(ctx, app.settings.InternalGrafanaURL, logger)
+	if app.grafanaURL == "" {
+		logger.Warn("No Grafana base URL resolved — set jsonData.internalGrafanaUrl or Grafana App URL; backend datasource calls will fail until then")
+	}
 
 	if uid := app.settings.MetricsDataSource.UID; uid != "" {
-		proxyURL := fmt.Sprintf("%s/api/datasources/proxy/uid/%s", app.grafanaURL, uid)
+		proxyURL := queries.DatasourceProxyURL(app.grafanaURL, uid)
 		app.promClient = queries.NewPrometheusClient(proxyURL, app.serviceToken)
 		logger.Info("Metrics datasource configured via proxy", "uid", uid)
 	} else {
@@ -178,7 +181,8 @@ func (a *App) ingressHostnames(service string) []string {
 }
 
 // resolveGrafanaURL picks the base URL for backend → Grafana API calls.
-// Priority: validated plugin override → SDK AppURL → http://localhost:3000.
+// Priority: validated plugin override → SDK AppURL. Returns "" when neither
+// yields a safe URL — callers must not invent a listen port.
 func resolveGrafanaURL(ctx context.Context, override string, logger log.Logger) string {
 	type candidate struct {
 		source string
@@ -200,16 +204,13 @@ func resolveGrafanaURL(ctx context.Context, override string, logger log.Logger) 
 		}
 		logger.Warn("Ignoring invalid Grafana URL candidate", "source", c.source, "value", c.raw)
 	}
-	logger.Warn("Grafana app URL unavailable, falling back to localhost")
-	return "http://localhost:3000"
+	logger.Warn("Grafana app URL unavailable")
+	return ""
 }
 
 // proxyURL builds a Grafana datasource proxy URL for the given UID.
 func (a *App) proxyURL(uid string) string {
-	if uid == "" {
-		return ""
-	}
-	return fmt.Sprintf("%s/api/datasources/proxy/uid/%s", a.grafanaURL, uid)
+	return queries.DatasourceProxyURL(a.grafanaURL, uid)
 }
 
 // tempoURL returns the Tempo proxy URL, optionally resolved for a specific environment.
@@ -260,7 +261,7 @@ func (a *App) promClientForRequest(r *http.Request) *queries.PrometheusClient {
 		return a.promClient.WithAuthHeaders(r.Header)
 	}
 
-	proxyURL := fmt.Sprintf("%s/api/datasources/proxy/uid/%s", a.grafanaURL, uid)
+	proxyURL := queries.DatasourceProxyURL(a.grafanaURL, uid)
 	client := queries.NewPrometheusClient(proxyURL, a.resolveServiceToken(r.Context()))
 	return client.WithAuthHeaders(r.Header)
 }

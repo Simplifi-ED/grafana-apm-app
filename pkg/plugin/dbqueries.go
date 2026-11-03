@@ -311,10 +311,14 @@ func (a *App) searchDBSpans(ctx context.Context, headers http.Header, tracesUID,
 		"start": {strconv.FormatInt(from.Unix(), 10)},
 		"end":   {strconv.FormatInt(to.Unix(), 10)},
 	}
-	reqURL := base + "/api/search?" + q.Encode()
+	reqURL, err := queries.ProxyRequestURL(base, q, "api", "search")
+	if err != nil {
+		return nil, false, err
+	}
 
 	ctx, cancel := context.WithTimeout(ctx, topQueriesTimeout)
 	defer cancel()
+	// #nosec G704 -- target is Grafana datasource proxy; base validated by SafeBaseURL
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
 	if err != nil {
 		return nil, false, err
@@ -322,6 +326,7 @@ func (a *App) searchDBSpans(ctx context.Context, headers http.Header, tracesUID,
 	applyProxyAuth(httpReq, headers, a.resolveServiceToken(ctx))
 
 	client := &http.Client{Timeout: topQueriesTimeout}
+	// #nosec G704 -- target is Grafana datasource proxy; base validated by SafeBaseURL
 	resp, err := client.Do(httpReq)
 	if err != nil {
 		return nil, false, err

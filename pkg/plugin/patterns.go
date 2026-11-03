@@ -206,14 +206,19 @@ func (a *App) fetchLokiPatterns(ctx context.Context, headers http.Header, servic
 		"start": {fmt.Sprintf("%d", from.Unix())},
 		"end":   {fmt.Sprintf("%d", to.Unix())},
 	}
-	reqURL := base + "/loki/api/v1/patterns?" + q.Encode()
+	reqURL, err := queries.ProxyRequestURL(base, q, "loki", "api", "v1", "patterns")
+	if err != nil {
+		return nil, err
+	}
 
+	// #nosec G704 -- target is Grafana datasource proxy; base validated by SafeBaseURL
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
 	if err != nil {
 		return nil, err
 	}
 	applyProxyAuth(httpReq, headers, serviceToken)
 
+	// #nosec G704 -- target is Grafana datasource proxy; base validated by SafeBaseURL
 	resp, err := a.healthClient.Do(httpReq)
 	if err != nil {
 		return nil, err
