@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.35.0](https://github.com/Simplifi-ED/omnivya-apm-app/compare/omnivya-apm-app-v0.34.2...omnivya-apm-app-v0.35.0) (2026-11-03)
+
+
+### Features
+
+* **servicemap:** implement clustered service map fetching from ClickHouse ([43cd913](https://github.com/Simplifi-ED/omnivya-apm-app/commit/43cd913a7038b9c1a26574bc19c2e8326bba3baa))
+
+
+### Bug Fixes
+
+* **service-map:** precompute layered layout so Node Graph skips its broken layout worker ([16a041b](https://github.com/Simplifi-ED/omnivya-apm-app/commit/16a041be8e90dadebefb117f5e5941a161770de4))
+
 ## [0.34.2](https://github.com/Simplifi-ED/omnivya-apm-app/compare/omnivya-apm-app-v0.34.1...omnivya-apm-app-v0.34.2) (2026-11-03)
 
 
