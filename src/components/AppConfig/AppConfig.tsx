@@ -60,6 +60,7 @@ type State = {
   opsWatchlist: OpsWatchlistEntry[];
   /** Comma-separated known owner.team values (optional allow-list). */
   knownTeams: string;
+  internalGrafanaUrl: string;
   serviceAccountToken: string;
   tokenConfigured: boolean;
   tokenReset: boolean;
@@ -117,6 +118,7 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
     })),
     opsWatchlist: Array.isArray(jsonData?.opsWatchlist) ? jsonData.opsWatchlist : [],
     knownTeams: Array.isArray(jsonData?.knownTeams) ? jsonData.knownTeams.join('\n') : '',
+    internalGrafanaUrl: jsonData?.internalGrafanaUrl || '',
     serviceAccountToken: '',
     tokenConfigured: secureJsonFields?.serviceAccountToken === true,
     tokenReset: false,
@@ -496,6 +498,7 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
             .filter(Boolean);
           return teams.length > 0 ? teams : undefined;
         })(),
+        internalGrafanaUrl: state.internalGrafanaUrl.trim() || undefined,
       },
       secureJsonData: Object.keys(secureJsonData).length > 0 ? secureJsonData : undefined,
     } as any);
@@ -754,6 +757,17 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
           token when those aren&apos;t available, or when Grafana runs behind an OAuth2 proxy and the backend needs a
           service account for internal datasource calls.
         </p>
+        <Field
+          label="Internal Grafana URL"
+          description="Optional. Backend API base URL when the public App URL is behind an OAuth2 proxy or ingress that rejects service-account tokens (e.g. http://localhost:3000 or http://127.0.0.1:3000/grafana)."
+        >
+          <Input
+            width={40}
+            value={state.internalGrafanaUrl}
+            placeholder="http://localhost:3000"
+            onChange={(e) => setState((prev) => ({ ...prev, internalGrafanaUrl: e.currentTarget.value }))}
+          />
+        </Field>
         <Field
           label="Grafana Service Account Token"
           description={

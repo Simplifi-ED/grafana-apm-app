@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"sort"
 	"strconv"
 	"strings"
@@ -437,9 +436,9 @@ func (c *tempoQueryClient) metricQuery(ctx context.Context, uid, query, step str
 		return nil, err
 	}
 
-	endpoint, err := url.JoinPath(c.grafanaURL, "api", "ds", "query")
+	endpoint, err := queries.DsQueryEndpoint(c.grafanaURL)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("tempo metric query: %w", err)
 	}
 	// #nosec G704 -- target is Grafana's own /api/ds/query; base URL validated by SafeBaseURL
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))

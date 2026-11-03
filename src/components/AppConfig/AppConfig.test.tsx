@@ -104,6 +104,23 @@ describe('Components/AppConfig', () => {
     expect(input.value).toBe('cluster');
   });
 
+  test('persists internalGrafanaUrl on save', async () => {
+    await act(async () => {
+      // @ts-ignore
+      render(<AppConfig plugin={props.plugin} query={props.query} />);
+    });
+
+    const input = screen.getByPlaceholderText('http://localhost:3000') as HTMLInputElement;
+    await act(async () => {
+      fireEvent.change(input, { target: { value: 'http://127.0.0.1:3000/grafana' } });
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByTestId(testIds.appConfig.submit));
+    });
+
+    expect(submittedPayload().jsonData.internalGrafanaUrl).toBe('http://127.0.0.1:3000/grafana');
+  });
+
   test('clears a configured service account token via reset + save (sends empty string)', async () => {
     const plugin = {
       meta: {

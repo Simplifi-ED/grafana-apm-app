@@ -88,6 +88,12 @@ type PluginSettings struct {
 	// if it exists and is a profiling type.
 	PyroscopeDataSource DataSourceRef `json:"pyroscopeDataSource"`
 
+	// InternalGrafanaURL is an optional override for backend → Grafana API
+	// calls (e.g. http://localhost:3000 or http://127.0.0.1:3000/grafana).
+	// Use when the SDK AppURL is an external ingress/OAuth2 URL that rejects
+	// service-account bearer tokens from inside the Grafana process.
+	InternalGrafanaURL string `json:"internalGrafanaUrl,omitempty"`
+
 	// Optional overrides (auto-detected if empty)
 	MetricNamespace string `json:"metricNamespace,omitempty"`
 	DurationUnit    string `json:"durationUnit,omitempty"`

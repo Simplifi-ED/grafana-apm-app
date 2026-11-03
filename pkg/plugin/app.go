@@ -124,19 +124,17 @@ func NewApp(ctx context.Context, settings backend.AppInstanceSettings) (instance
 
 	// Read Grafana service account token from secureJsonData.
 	// When Grafana sits behind an OAuth2 proxy, browser session cookies are for
-	// the proxy, not Grafana. Backend datasource-proxy calls use the SDK app URL
-	// (or localhost fallback), so a service account token is required to
-	// authenticate those API calls.
+	// the proxy, not Grafana. Backend calls may still hit localhost (via
+	// internalGrafanaUrl) or the SDK AppURL; a service account token is required
+	// to authenticate those API calls.
 	if token, ok := settings.DecryptedSecureJSONData["serviceAccountToken"]; ok && token != "" {
 		app.serviceToken = token
 		logger.Info("Service account token configured for internal API calls")
 	}
 
-	// Resolve Grafana base URL via the plugin SDK config (no direct env access).
-	// If an OAuth2 proxy / ingress rejects service-account bearer tokens on the
-	// external URL, configure Grafana so AppURL is reachable from the plugin
-	// process, or use a service account that the proxy accepts.
-	app.grafanaURL = resolveGrafanaURL(ctx, logger)
+	// Prefer jsonData.internalGrafanaUrl (bypass ingress/OAuth2), then SDK AppURL,
+	// then localhost:3000. Never reads GF_* env vars directly (catalog rule).
+	app.grafanaURL = resolveGrafanaURL(ctx, app.settings.InternalGrafanaURL, logger)
 
 	if uid := app.settings.MetricsDataSource.UID; uid != "" {
 		proxyURL := fmt.Sprintf("%s/api/datasources/proxy/uid/%s", app.grafanaURL, uid)
@@ -179,18 +177,31 @@ func (a *App) ingressHostnames(service string) []string {
 	return a.ingressByService[service]
 }
 
-// resolveGrafanaURL returns Grafana's configured app URL from the plugin SDK
-// context. Falls back to http://localhost:3000 when unavailable (common in
-// unit tests and first-boot before Grafana injects config).
-func resolveGrafanaURL(ctx context.Context, logger log.Logger) string {
-	appURL, err := config.GrafanaConfigFromContext(ctx).AppURL()
-	if err != nil || appURL == "" {
-		logger.Warn("Grafana app URL unavailable, falling back to localhost", "error", err)
-		return "http://localhost:3000"
+// resolveGrafanaURL picks the base URL for backend → Grafana API calls.
+// Priority: validated plugin override → SDK AppURL → http://localhost:3000.
+func resolveGrafanaURL(ctx context.Context, override string, logger log.Logger) string {
+	type candidate struct {
+		source string
+		raw    string
 	}
-	base := strings.TrimRight(appURL, "/")
-	logger.Info("Resolved Grafana URL", "grafanaURL", base)
-	return base
+	var candidates []candidate
+	if override != "" {
+		candidates = append(candidates, candidate{"plugin setting internalGrafanaUrl", override})
+	}
+	if appURL, err := config.GrafanaConfigFromContext(ctx).AppURL(); err != nil {
+		logger.Debug("SDK AppURL unavailable", "error", err)
+	} else if appURL != "" {
+		candidates = append(candidates, candidate{"SDK AppURL", appURL})
+	}
+	for _, c := range candidates {
+		if base := queries.SafeBaseURL(c.raw); base != "" {
+			logger.Info("Resolved Grafana URL", "grafanaURL", base, "source", c.source)
+			return base
+		}
+		logger.Warn("Ignoring invalid Grafana URL candidate", "source", c.source, "value", c.raw)
+	}
+	logger.Warn("Grafana app URL unavailable, falling back to localhost")
+	return "http://localhost:3000"
 }
 
 // proxyURL builds a Grafana datasource proxy URL for the given UID.

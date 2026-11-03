@@ -21,21 +21,43 @@ import (
 // into a request URL, so untrusted input cannot shape the outgoing request.
 var metricNamePattern = regexp.MustCompile(`^[a-zA-Z_:][a-zA-Z0-9_:]*$`)
 
-// baseURLPattern allowlists the shape of a client base URL: http(s), a plain
-// host[:port] and a path of URL-safe characters (datasource UIDs included).
-// No userinfo, query, fragment or dot segments, so a bad datasource UID cannot
-// redirect the outgoing request.
-// Host is Grafana's configured app URL (or localhost fallback from the plugin).
-var baseURLPattern = regexp.MustCompile(`^https?://[A-Za-z0-9.\-]+(:[0-9]+)?(/[A-Za-z0-9_\-/]*)?$`)
-
-// SafeBaseURL returns u without trailing slashes if it matches baseURLPattern,
-// or "" otherwise, which makes every request from the client fail.
+// SafeBaseURL returns u without a trailing slash if it is a safe http(s) base
+// URL for Grafana/datasource clients, or "" otherwise (so callers fail closed).
+// Rejects userinfo, query, fragment, and path traversal. Accepts IPv6 hosts.
 func SafeBaseURL(u string) string {
 	u = strings.TrimRight(u, "/")
-	if baseURLPattern.MatchString(u) {
-		return u
+	if u == "" {
+		return ""
 	}
-	return ""
+	parsed, err := url.Parse(u)
+	if err != nil {
+		return ""
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return ""
+	}
+	if parsed.Host == "" || parsed.User != nil {
+		return ""
+	}
+	if parsed.RawQuery != "" || parsed.Fragment != "" {
+		return ""
+	}
+	for _, seg := range strings.Split(parsed.EscapedPath(), "/") {
+		if seg == ".." || seg == "." {
+			return ""
+		}
+	}
+	path := strings.TrimRight(parsed.EscapedPath(), "/")
+	return parsed.Scheme + "://" + parsed.Host + path
+}
+
+// DsQueryEndpoint builds Grafana's POST /api/ds/query URL from a validated base.
+func DsQueryEndpoint(base string) (string, error) {
+	base = SafeBaseURL(base)
+	if base == "" {
+		return "", fmt.Errorf("invalid or empty Grafana base URL")
+	}
+	return url.JoinPath(base, "api", "ds", "query")
 }
 
 // sharedTransport is a connection-pooled HTTP transport reused across all query clients.

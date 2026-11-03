@@ -75,12 +75,17 @@ Enable the plugin under **Administration → Plugins**.
 3. Leave Metrics / Traces / Logs empty for ClickStack-only.
 4. Save. Health check runs `SELECT 1` via `/api/ds/query`.
 
-The backend resolves Grafana's base URL from the plugin SDK (`GF_APP_URL` /
-Grafana's configured root URL), falling back to `http://localhost:3000`. Backend
-calls to `/api/ds/query` and the datasource proxy use that URL with a service
-account token. If an OAuth2 proxy or ingress in front of Grafana rejects those
-bearer tokens, make the app URL reachable from the Grafana process (or configure
-the proxy to accept the service account).
+Backend calls to `/api/ds/query` and the datasource proxy use a Grafana base URL
+resolved in this order (no direct `GF_*` env access):
+
+1. Optional **Internal Grafana URL** (`jsonData.internalGrafanaUrl`) — e.g.
+   `http://localhost:3000` or `http://127.0.0.1:3000/grafana` when an OAuth2
+   proxy/ingress rejects service-account bearer tokens on the public App URL
+2. Plugin SDK App URL (Grafana's configured root URL)
+3. `http://localhost:3000`
+
+Pair with a Viewer service-account token when the backend cannot reuse browser
+session cookies.
 
 Example app provisioning: [`provisioning/plugins/apps-clickhouse.yaml.example`](https://github.com/Simplifi-ED/grafana-apm-app/blob/main/provisioning/plugins/apps-clickhouse.yaml.example).
 

@@ -45,6 +45,12 @@ export interface AppPluginSettings {
    * matching DS type.
    */
   pyroscopeDataSource?: DsRef;
+  /**
+   * Optional base URL for backend → Grafana API calls (e.g. http://localhost:3000).
+   * Use when the external App URL sits behind an OAuth2 proxy/ingress that rejects
+   * service-account bearer tokens from the plugin process.
+   */
+  internalGrafanaUrl?: string;
   metricNamespace?: string;
   durationUnit?: string;
   labelOverrides?: LabelOverrides;
