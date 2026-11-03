@@ -44,7 +44,7 @@ func SafeBaseURL(u string) string {
 		return ""
 	}
 	// Check decoded segments so %2e%2e cannot sneak past as traversal.
-	for _, seg := range strings.Split(parsed.Path, "/") {
+	for seg := range strings.SplitSeq(parsed.Path, "/") {
 		if seg == ".." || seg == "." {
 			return ""
 		}

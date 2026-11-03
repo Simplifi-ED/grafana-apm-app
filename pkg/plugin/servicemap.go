@@ -121,6 +121,9 @@ func (a *App) handleClusteredServiceMap(w http.ResponseWriter, req *http.Request
 	orgID := req.Header.Get("X-Grafana-Org-Id")
 	ck := cacheKey("servicemap-clustered", orgID, roundedUnix(from), roundedUnix(to), filterEnv)
 	a.writeCached(w, ck, "querying clustered service map failed", func() (any, error) {
+		if a.clickStackMode() {
+			return a.fetchClusteredServiceMapClickHouse(ctx, a.chForRequest(req), from, to, filterEnv), nil
+		}
 		caps := a.cachedOrDetectCapabilities(ctx)
 		if !caps.ServiceGraph.Detected {
 			return ServiceMapResponse{Nodes: []ServiceMapNode{}, Edges: []ServiceMapEdge{}}, nil

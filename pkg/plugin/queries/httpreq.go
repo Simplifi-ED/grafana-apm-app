@@ -22,7 +22,7 @@ func ValidateRequestURL(u *url.URL) error {
 	if u.Host == "" || u.User != nil {
 		return fmt.Errorf("invalid URL host")
 	}
-	for _, seg := range strings.Split(u.Path, "/") {
+	for seg := range strings.SplitSeq(u.Path, "/") {
 		if seg == ".." || seg == "." {
 			return fmt.Errorf("URL path traversal rejected")
 		}
