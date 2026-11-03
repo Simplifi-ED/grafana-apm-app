@@ -22,7 +22,7 @@ import { extractEnvironmentOptions } from '../utils/options';
 import { getSectionStyles } from '../utils/styles';
 import { typographyFontSize } from '../utils/themeTypography';
 import { useFetch } from '../utils/useFetch';
-import { toGraphData, toNodeGraphFrames } from '../utils/nodeGraphFrames';
+import { nodeGraphHeight, toGraphData, toNodeGraphFrames } from '../utils/nodeGraphFrames';
 import { ServiceMapPanel } from '../components/ServiceMapPanel/ServiceMapPanel';
 import { CopyMermaidButton } from '../components/CopyMermaidButton';
 import { PLUGIN_BASE_URL } from '../constants';
@@ -393,7 +393,7 @@ function NamespaceOverview() {
               <div className={styles.graphPanel}>
                 <div
                   style={{
-                    height: Math.min(700, Math.max(400, graphNodes.length * 35)),
+                    height: Math.min(700, Math.max(320, nodeGraphHeight(graphFrames))),
                   }}
                 >
                   <ServiceMapPanel frames={graphFrames} />

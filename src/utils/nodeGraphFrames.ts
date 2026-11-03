@@ -8,6 +8,7 @@ import {
 } from '@grafana/data';
 import type { ServiceMapEdge, ServiceMapNode, ServiceMapResponse } from '../api/client';
 import type { GraphEdge, GraphNode } from './graphTypes';
+import { layeredLayout } from './layeredLayout';
 
 const NODE_GRAPH_VIZ: PreferredVisualisationType = 'nodeGraph';
 
@@ -88,15 +89,20 @@ function nodeDataLink(opts: ToNodeGraphFramesOptions): DataLink {
   }
 }
 
-function nodesFrame(nodes: ServiceMapNode[], link: DataLink): DataFrame {
-  const links = [link];
+function nodesFrame(nodes: ServiceMapNode[], edges: ServiceMapEdge[], link: DataLink): DataFrame {
+  // Explore's link builder defaults to `_blank` unless targetBlank is explicitly false.
+  const links = [{ ...link, targetBlank: false }];
+  const positions = layeredLayout(
+    nodes.map((n) => n.id),
+    edges
+  );
   return createDataFrame({
     name: 'nodes',
     refId: 'nodes',
     meta: { preferredVisualisationType: NODE_GRAPH_VIZ },
     fields: [
       { name: F.id, type: FieldType.string, values: nodes.map((n) => n.id), config: { links } },
-      { name: F.title, type: FieldType.string, values: nodes.map((n) => n.title), config: { links } },
+      { name: F.title, type: FieldType.string, values: nodes.map((n) => n.title) },
       {
         name: F.subTitle,
         type: FieldType.string,
@@ -106,24 +112,28 @@ function nodesFrame(nodes: ServiceMapNode[], link: DataLink): DataFrame {
         name: F.mainStat,
         type: FieldType.string,
         values: nodes.map((n) => n.mainStat ?? ''),
+        config: { displayName: 'Requests' },
       },
       {
         name: F.secondaryStat,
         type: FieldType.string,
         values: nodes.map((n) => n.secondaryStat ?? ''),
+        config: { displayName: 'Error rate' },
       },
       {
         name: `${F.arc}errors`,
         type: FieldType.number,
         values: nodes.map((n) => n.arc__errors ?? n.errorRate ?? 0),
-        config: { color: { mode: 'fixed', fixedColor: 'red' } },
+        config: { color: { mode: 'fixed', fixedColor: 'red' }, displayName: 'Errors' },
       },
       {
         name: `${F.arc}ok`,
         type: FieldType.number,
         values: nodes.map((n) => n.arc__ok ?? Math.max(0, 1 - (n.arc__errors ?? n.errorRate ?? 0))),
-        config: { color: { mode: 'fixed', fixedColor: 'green' } },
+        config: { color: { mode: 'fixed', fixedColor: 'green' }, displayName: 'Success' },
       },
+      { name: F.fixedX, type: FieldType.number, values: nodes.map((n) => positions.get(n.id)!.x) },
+      { name: F.fixedY, type: FieldType.number, values: nodes.map((n) => positions.get(n.id)!.y) },
     ],
   });
 }
@@ -151,14 +161,26 @@ function edgesFrame(edges: ServiceMapEdge[]): DataFrame {
   });
 }
 
+/** Node diameter plus title/subtitle labels and a margin, in Node Graph pixels. */
+const NODE_VERTICAL_PADDING = 220;
+
+/** Pixel height needed to show the whole precomputed layout at zoom 1. */
+export function nodeGraphHeight(frames: DataFrame[]): number {
+  const ys = frames[0]?.fields.find((f) => f.name === F.fixedY)?.values ?? [];
+  if (ys.length === 0) {
+    return 0;
+  }
+  return Math.max(...ys) - Math.min(...ys) + NODE_VERTICAL_PADDING;
+}
+
 /** Build Grafana Node Graph DataFrames from a `/service-map` response. */
 export function toNodeGraphFrames(
   mapData: ServiceMapResponse | null | undefined,
   opts: ToNodeGraphFramesOptions
 ): DataFrame[] {
-  if (!mapData || (mapData.nodes.length === 0 && mapData.edges.length === 0)) {
+  if (!mapData || mapData.nodes.length === 0) {
     return [];
   }
   const link = nodeDataLink(opts);
-  return [nodesFrame(mapData.nodes, link), edgesFrame(mapData.edges)];
+  return [nodesFrame(mapData.nodes, mapData.edges, link), edgesFrame(mapData.edges)];
 }

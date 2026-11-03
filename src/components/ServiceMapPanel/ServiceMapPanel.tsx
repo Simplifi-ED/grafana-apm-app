@@ -1,10 +1,7 @@
 import React, { useEffect, useMemo } from 'react';
 import { EmbeddedScene, PanelBuilders, SceneDataNode, SceneFlexItem, SceneFlexLayout } from '@grafana/scenes';
 import { getDefaultTimeRange, LoadingState, type DataFrame, type PanelData, type GrafanaTheme2 } from '@grafana/data';
-import {
-  LayoutAlgorithm,
-  ZoomMode,
-} from '@grafana/schema/dist/esm/raw/composable/nodegraph/panelcfg/x/NodeGraphPanelCfg_types.gen';
+import { ZoomMode } from '@grafana/schema/dist/esm/raw/composable/nodegraph/panelcfg/x/NodeGraphPanelCfg_types.gen';
 import { css } from '@emotion/css';
 import { useStyles2 } from '@grafana/ui';
 
@@ -21,7 +18,8 @@ interface ServiceMapPanelProps {
 }
 
 /**
- * Native Grafana Node Graph (force layout) fed by pre-built node/edge DataFrames.
+ * Native Grafana Node Graph fed by pre-built node/edge DataFrames carrying
+ * precomputed `fixedx`/`fixedy` positions (see `layeredLayout`).
  * Same visualization primitive Tempo Explore uses for service maps.
  */
 export function ServiceMapPanel({ frames }: ServiceMapPanelProps) {
@@ -40,7 +38,6 @@ export function ServiceMapPanel({ frames }: ServiceMapPanelProps) {
             minHeight: '100%',
             body: PanelBuilders.nodegraph()
               .setTitle('')
-              .setOption('layoutAlgorithm', LayoutAlgorithm.Force)
               .setOption('zoomMode', ZoomMode.Cooperative)
               .setDisplayMode('transparent')
               .build(),

@@ -1,6 +1,6 @@
 import { NodeGraphDataFrameFieldNames as F } from '@grafana/data';
 import type { ServiceMapResponse } from '../api/client';
-import { toGraphData, toNodeGraphFrames } from './nodeGraphFrames';
+import { nodeGraphHeight, toGraphData, toNodeGraphFrames } from './nodeGraphFrames';
 
 const sample: ServiceMapResponse = {
   nodes: [
@@ -73,7 +73,27 @@ describe('toNodeGraphFrames', () => {
     expect(edgeNames).toEqual(expect.arrayContaining([F.id, F.source, F.target, F.mainStat, F.secondaryStat]));
   });
 
-  it('attaches namespace data-link templates on id/title', () => {
+  it('precomputes finite fixedx/fixedy so Node Graph skips its layout worker', () => {
+    const [nodes] = toNodeGraphFrames(sample, { linkMode: 'namespace', pluginBaseUrl: '/a/x' });
+    const xs = nodes.fields.find((f) => f.name === F.fixedX)!.values;
+    const ys = nodes.fields.find((f) => f.name === F.fixedY)!.values;
+    expect(xs).toHaveLength(2);
+    expect([...xs, ...ys].every(Number.isFinite)).toBe(true);
+    expect(xs[0]).toBeLessThan(xs[1]);
+  });
+
+  it('sizes the graph from the layout span', () => {
+    expect(nodeGraphHeight([])).toBe(0);
+    const frames = toNodeGraphFrames(sample, { linkMode: 'namespace', pluginBaseUrl: '/a/x' });
+    expect(nodeGraphHeight(frames)).toBe(220);
+  });
+
+  it('opens node links in the same tab', () => {
+    const [nodes] = toNodeGraphFrames(sample, { linkMode: 'namespace', pluginBaseUrl: '/a/x' });
+    expect(nodes.fields[0].config.links?.[0].targetBlank).toBe(false);
+  });
+
+  it('attaches namespace data-link templates on id', () => {
     const [nodes] = toNodeGraphFrames(sample, {
       linkMode: 'namespace',
       pluginBaseUrl: '/a/omnivya-apm-app/',
