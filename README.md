@@ -207,7 +207,7 @@ On push to `main`, [`.github/workflows/release-please.yml`](https://github.com/S
 | `GRAFANA_ACCESS_POLICY_TOKEN`  | Grafana.com access policy (`plugins:write`) for the `omnivya` org       |
 | `GRAFANA_PLUGIN_ROOT_URLS`     | Optional. Set → **private** sign for those Grafana URLs. Clear after catalog grants **community** → public sign with no code change. |
 
-Signing is adaptive (`scripts/sign-plugin.sh`): private while `GRAFANA_PLUGIN_ROOT_URLS`
+Signing is adaptive in CI/`pnpm run sign`: private while `GRAFANA_PLUGIN_ROOT_URLS`
 is set (needed until verification assigns a community level — forcing community
 early returns API 409). Plugin ID prefix (`omnivya`) must match the org slug.
 
