@@ -74,8 +74,13 @@ run = "pnpm run dev"
 
 # --- Backend tasks ---
 
+[tasks."backend:gosec"]
+description = "Run gosec at HIGH severity on backend package"
+run = "go run github.com/securego/gosec/v2/cmd/gosec@latest -severity high ./pkg/..."
+
 [tasks."backend:check"]
-description = "Vet and lint Go code"
+description = "Vet, lint, and gosec Go code"
+depends = ["backend:gosec"]
 run = [
   "go vet ./pkg/...",
   "golangci-lint run ./...",

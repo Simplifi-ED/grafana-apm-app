@@ -366,7 +366,7 @@ type tempoQueryClient struct {
 
 func newTempoQueryClient(grafanaURL, serviceToken string, headers http.Header) *tempoQueryClient {
 	return &tempoQueryClient{
-		grafanaURL:   grafanaURL,
+		grafanaURL:   queries.SafeBaseURL(grafanaURL),
 		serviceToken: serviceToken,
 		headers:      headers,
 		httpClient:   &http.Client{Timeout: 30 * time.Second},
@@ -436,13 +436,19 @@ func (c *tempoQueryClient) metricQuery(ctx context.Context, uid, query, step str
 		return nil, err
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.grafanaURL+"/api/ds/query", bytes.NewReader(body))
+	endpoint, err := queries.DsQueryEndpoint(c.grafanaURL)
+	if err != nil {
+		return nil, fmt.Errorf("tempo metric query: %w", err)
+	}
+	// #nosec G704 -- target is Grafana's own /api/ds/query; base URL validated by SafeBaseURL
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	applyProxyAuth(req, c.headers, c.serviceToken)
 
+	// #nosec G704 -- target is Grafana's own /api/ds/query; base URL validated by SafeBaseURL
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, err

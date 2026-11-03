@@ -17,7 +17,7 @@ const Version = "v1"
 // Tier records which identity source produced a fingerprint. Lower tiers are
 // higher fidelity. Tier 1 (in-app stack frames) arrives with #62 Phase 2 once
 // source-mapped stacks are reliable (#60).
-type Tier int
+type Tier uint8
 
 const (
 	// TierOverride uses an explicit fingerprint set by the SDK

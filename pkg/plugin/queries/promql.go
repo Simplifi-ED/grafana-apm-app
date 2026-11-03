@@ -21,21 +21,85 @@ import (
 // into a request URL, so untrusted input cannot shape the outgoing request.
 var metricNamePattern = regexp.MustCompile(`^[a-zA-Z_:][a-zA-Z0-9_:]*$`)
 
-// baseURLPattern allowlists the shape of a client base URL: http(s), a plain
-// host[:port] and a path of URL-safe characters (datasource UIDs included).
-// No userinfo, query, fragment or dot segments, so a bad datasource UID cannot
-// redirect the outgoing request.
-// The host is always localhost (resolveInternalGrafanaURL); widen this if GF_SERVER_HTTP_ADDR is wired in.
-var baseURLPattern = regexp.MustCompile(`^https?://[A-Za-z0-9.\-]+(:[0-9]+)?(/[A-Za-z0-9_\-/]*)?$`)
-
-// safeBaseURL returns u without trailing slashes if it matches baseURLPattern,
-// or "" otherwise, which makes every request from the client fail.
-func safeBaseURL(u string) string {
+// SafeBaseURL returns u without a trailing slash if it is a safe http(s) base
+// URL for Grafana/datasource clients, or "" otherwise (so callers fail closed).
+// Rejects userinfo, query, fragment, and path traversal (decoded). Accepts
+// bracketed IPv6 hosts and percent-encoded path segments (rebuilt via EscapedPath).
+func SafeBaseURL(u string) string {
 	u = strings.TrimRight(u, "/")
-	if baseURLPattern.MatchString(u) {
-		return u
+	if u == "" {
+		return ""
 	}
-	return ""
+	parsed, err := url.Parse(u)
+	if err != nil {
+		return ""
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return ""
+	}
+	if parsed.Host == "" || parsed.User != nil {
+		return ""
+	}
+	if parsed.RawQuery != "" || parsed.Fragment != "" {
+		return ""
+	}
+	// Check decoded segments so %2e%2e cannot sneak past as traversal.
+	for _, seg := range strings.Split(parsed.Path, "/") {
+		if seg == ".." || seg == "." {
+			return ""
+		}
+	}
+	path := strings.TrimRight(parsed.EscapedPath(), "/")
+	return parsed.Scheme + "://" + parsed.Host + path
+}
+
+// DsQueryEndpoint builds Grafana's POST /api/ds/query URL from a validated base.
+func DsQueryEndpoint(base string) (string, error) {
+	base = SafeBaseURL(base)
+	if base == "" {
+		return "", fmt.Errorf("invalid or empty Grafana base URL")
+	}
+	return url.JoinPath(base, "api", "ds", "query")
+}
+
+// datasourceUIDPattern matches Grafana datasource UIDs (alphanumeric, _-).
+var datasourceUIDPattern = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
+
+// DatasourceProxyURL builds /api/datasources/proxy/uid/{uid} under a validated
+// Grafana base. Preserves IPv6 hosts and percent-encoded base paths via JoinPath.
+func DatasourceProxyURL(base, uid string) string {
+	base = SafeBaseURL(base)
+	if base == "" || !datasourceUIDPattern.MatchString(uid) {
+		return ""
+	}
+	u, err := url.JoinPath(base, "api", "datasources", "proxy", "uid", uid)
+	if err != nil {
+		return ""
+	}
+	return u
+}
+
+// ProxyRequestURL joins a validated datasource-proxy base with fixed path
+// segments and an encoded query. Segments must not contain slashes or "..".
+func ProxyRequestURL(proxyBase string, query url.Values, segments ...string) (string, error) {
+	proxyBase = SafeBaseURL(proxyBase)
+	if proxyBase == "" {
+		return "", fmt.Errorf("invalid proxy base URL")
+	}
+	for _, seg := range segments {
+		if seg == "" || seg == "." || seg == ".." || strings.ContainsAny(seg, "/?#") {
+			return "", fmt.Errorf("invalid proxy path segment %q", seg)
+		}
+	}
+	parts := append([]string{proxyBase}, segments...)
+	joined, err := url.JoinPath(parts[0], parts[1:]...)
+	if err != nil {
+		return "", err
+	}
+	if len(query) == 0 {
+		return joined, nil
+	}
+	return joined + "?" + query.Encode(), nil
 }
 
 // sharedTransport is a connection-pooled HTTP transport reused across all query clients.
@@ -62,7 +126,7 @@ type PrometheusClient struct {
 // NewPrometheusClient creates a client that talks to a Prometheus-compatible endpoint.
 func NewPrometheusClient(baseURL string, serviceToken string) *PrometheusClient {
 	c := &PrometheusClient{
-		baseURL:      safeBaseURL(baseURL),
+		baseURL:      SafeBaseURL(baseURL),
 		serviceToken: serviceToken,
 		httpClient: &http.Client{
 			Timeout:   30 * time.Second,
@@ -81,7 +145,7 @@ func NewPrometheusClient(baseURL string, serviceToken string) *PrometheusClient 
 // format as Prometheus, so we reuse PrometheusClient with a /loki path prefix.
 func NewLokiMetricClient(proxyURL string, serviceToken string) *PrometheusClient {
 	c := &PrometheusClient{
-		baseURL:      safeBaseURL(strings.TrimRight(proxyURL, "/") + "/loki"),
+		baseURL:      SafeBaseURL(strings.TrimRight(proxyURL, "/") + "/loki"),
 		serviceToken: serviceToken,
 		httpClient: &http.Client{
 			Timeout:   30 * time.Second,

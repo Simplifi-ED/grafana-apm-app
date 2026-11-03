@@ -174,6 +174,17 @@ func TestDetectTraceDimensionsAllFail(t *testing.T) {
 	}
 }
 
+func TestTempoMetricQueryRejectsInvalidBaseURL(t *testing.T) {
+	tc := newTempoQueryClient("http://evil@attacker.example/", "", http.Header{})
+	if tc.grafanaURL != "" {
+		t.Fatalf("expected empty validated URL, got %q", tc.grafanaURL)
+	}
+	_, err := tc.metricQuery(context.Background(), "uid", `{resource.service.name="x"} | rate()`, "30s", time.Unix(0, 0), time.Unix(60, 0))
+	if err == nil {
+		t.Fatal("expected error for invalid Grafana base URL")
+	}
+}
+
 func TestSpanMetricsBreakdownFallback(t *testing.T) {
 	// db.system fallback via span metrics. rate keyed on the db_system label.
 	rate := []queries.PromResult{

@@ -27,7 +27,7 @@ type DsQueryClient struct {
 // NewDsQueryClient creates a client for Grafana's /api/ds/query endpoint.
 func NewDsQueryClient(grafanaURL, serviceToken string) *DsQueryClient {
 	return &DsQueryClient{
-		grafanaURL:   grafanaURL,
+		grafanaURL:   SafeBaseURL(grafanaURL),
 		serviceToken: serviceToken,
 		httpClient: &http.Client{
 			Timeout:   30 * time.Second,
@@ -95,7 +95,12 @@ func (c *DsQueryClient) execute(ctx context.Context, dsReq dsQueryRequest) ([]ds
 		return nil, fmt.Errorf("marshaling ds query: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.grafanaURL+"/api/ds/query", bytes.NewReader(body))
+	endpoint, err := DsQueryEndpoint(c.grafanaURL)
+	if err != nil {
+		return nil, fmt.Errorf("creating ds query request: %w", err)
+	}
+	// #nosec G704 -- target is Grafana's own /api/ds/query; base URL validated by SafeBaseURL
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("creating ds query request: %w", err)
 	}
@@ -110,6 +115,7 @@ func (c *DsQueryClient) execute(ctx context.Context, dsReq dsQueryRequest) ([]ds
 		}
 	}
 
+	// #nosec G704 -- target is Grafana's own /api/ds/query; base URL validated by SafeBaseURL
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("executing ds query: %w", err)

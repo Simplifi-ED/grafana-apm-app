@@ -19,7 +19,7 @@
     "e2e": "playwright test",
     "seed": "node --experimental-strip-types scripts/seed/cli.ts",
     "server": "docker compose up --build",
-    "sign": "npx --yes @grafana/sign-plugin@latest --rootUrls \"${GRAFANA_PLUGIN_ROOT_URLS:?set GRAFANA_PLUGIN_ROOT_URLS to your Grafana instance URL(s)}\"",
+    "sign": "npx --yes @grafana/sign-plugin@latest --signatureType community",
     "validate": "bash scripts/validate-plugin.sh"
   },
   "devDependencies": {

@@ -73,10 +73,10 @@ type ClickHouseClient struct {
 }
 
 // NewClickHouseClient builds a client bound to a single datasource UID.
-// grafanaURL is the internal Grafana base (e.g. http://localhost:3000).
+// grafanaURL is Grafana's configured app URL (e.g. http://localhost:3000).
 func NewClickHouseClient(grafanaURL, serviceToken, dsUID string) *ClickHouseClient {
 	return &ClickHouseClient{
-		grafanaURL:   strings.TrimRight(grafanaURL, "/"),
+		grafanaURL:   SafeBaseURL(grafanaURL),
 		serviceToken: serviceToken,
 		dsUID:        dsUID,
 		httpClient: &http.Client{
@@ -278,13 +278,19 @@ func (c *ClickHouseClient) execute(ctx context.Context, rawSQL string, from, to 
 		return nil, fmt.Errorf("marshaling clickhouse ds query: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.grafanaURL+"/api/ds/query", bytes.NewReader(body))
+	endpoint, err := DsQueryEndpoint(c.grafanaURL)
+	if err != nil {
+		return nil, fmt.Errorf("creating clickhouse ds query request: %w", err)
+	}
+	// #nosec G704 -- target is Grafana's own /api/ds/query; base URL validated by SafeBaseURL
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("creating clickhouse ds query request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	c.applyAuth(req)
 
+	// #nosec G704 -- target is Grafana's own /api/ds/query; base URL validated by SafeBaseURL
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		if errors.Is(ctx.Err(), context.Canceled) || errors.Is(ctx.Err(), context.DeadlineExceeded) {
