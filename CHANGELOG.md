@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.34.2](https://github.com/Simplifi-ED/omnivya-apm-app/compare/omnivya-apm-app-v0.34.1...omnivya-apm-app-v0.34.2) (2026-11-03)
+
+
+### Bug Fixes
+
+* adaptive plugin signing (private until community granted) ([1822750](https://github.com/Simplifi-ED/omnivya-apm-app/commit/1822750a4424830e6c6cc2b323b6064caa7c3bc6))
+* adaptive plugin signing (private until community) ([0394d76](https://github.com/Simplifi-ED/omnivya-apm-app/commit/0394d763dbe598c0d33ff601e079fc7efb68f9bc))
+
 ## [0.34.1](https://github.com/Simplifi-ED/omnivya-apm-app/compare/omnivya-apm-app-v0.34.0...omnivya-apm-app-v0.34.1) (2026-11-03)
 
 
