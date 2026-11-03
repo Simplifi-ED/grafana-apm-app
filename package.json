@@ -19,7 +19,7 @@
     "e2e": "playwright test",
     "seed": "node --experimental-strip-types scripts/seed/cli.ts",
     "server": "docker compose up --build",
-    "sign": "npx --yes @grafana/sign-plugin@latest --signatureType community",
+    "sign": "bash scripts/sign-plugin.sh",
     "validate": "bash scripts/validate-plugin.sh"
   },
   "devDependencies": {
