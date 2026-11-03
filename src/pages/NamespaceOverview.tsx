@@ -22,8 +22,10 @@ import { extractEnvironmentOptions } from '../utils/options';
 import { getSectionStyles } from '../utils/styles';
 import { typographyFontSize } from '../utils/themeTypography';
 import { useFetch } from '../utils/useFetch';
-import { ServiceGraph, toGraphData } from '../components/ServiceGraph';
+import { nodeGraphHeight, toGraphData, toNodeGraphFrames } from '../utils/nodeGraphFrames';
+import { ServiceMapPanel } from '../components/ServiceMapPanel/ServiceMapPanel';
 import { CopyMermaidButton } from '../components/CopyMermaidButton';
+import { PLUGIN_BASE_URL } from '../constants';
 import { PageHeader } from '../components/PageHeader';
 import { HeaderTimeControls } from '../components/HeaderTimeControls';
 import { DataState } from '../components/DataState';
@@ -199,12 +201,17 @@ function NamespaceOverview() {
   }, [prevServices]);
 
   // Use backend-filtered service map directly for topology
-  const { graphNodes, graphEdges } = useMemo(() => {
-    if (!mapData) {
-      return { graphNodes: [], graphEdges: [] };
-    }
-    return toGraphData(mapData);
-  }, [mapData]);
+  const { graphNodes, graphEdges } = useMemo(() => toGraphData(mapData ?? null), [mapData]);
+  const graphFrames = useMemo(
+    () =>
+      toNodeGraphFrames(mapData, {
+        linkMode: 'serviceOverview',
+        pluginBaseUrl: PLUGIN_BASE_URL,
+        namespace: decodedNs,
+        environment: envFilters.length === 1 ? envFilters[0] : undefined,
+      }),
+    [mapData, decodedNs, envFilters]
+  );
 
   const setEnvFilters = useCallback(
     (envs: string[]) => {
@@ -386,22 +393,10 @@ function NamespaceOverview() {
               <div className={styles.graphPanel}>
                 <div
                   style={{
-                    height: Math.min(700, Math.max(400, graphNodes.length * 35)),
+                    height: Math.min(700, Math.max(320, nodeGraphHeight(graphFrames))),
                   }}
                 >
-                  <ServiceGraph
-                    nodes={graphNodes}
-                    edges={graphEdges}
-                    direction="DOWN"
-                    enableGrouping={false}
-                    enableWrapping={graphNodes.length > 15}
-                    onNodeClick={(nodeId) => {
-                      const svc = services.find((s) => s.name === nodeId);
-                      if (svc) {
-                        handleServiceClick(svc.namespace, svc.name, svc.environment);
-                      }
-                    }}
-                  />
+                  <ServiceMapPanel frames={graphFrames} />
                 </div>
               </div>
             </div>

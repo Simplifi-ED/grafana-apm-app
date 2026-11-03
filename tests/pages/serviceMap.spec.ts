@@ -22,7 +22,8 @@ test.describe('Service Map', () => {
         page.getByText('Error loading service map'),
         page.getByRole('alert'),
         page.getByText('Loading service map'),
-        // The rendered ServiceGraph draws into an svg/canvas node-graph.
+        // Native Grafana Node Graph (force layout) draws svg/canvas inside the panel.
+        page.getByTestId('service-map-canvas'),
         page.locator('svg'),
         page.locator('canvas'),
         page.getByRole('application'),

@@ -8,6 +8,8 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+
+	"github.com/nais/grafana-otel-plugin/pkg/plugin/queries"
 )
 
 // Source-map doctor (#60).
@@ -202,11 +204,11 @@ func extractSourceMappingURL(body []byte) string {
 // fetchLimited GETs rawURL and returns up to limit bytes of the body plus the
 // HTTP status. The body is always capped to bound memory on large bundles.
 func fetchLimited(ctx context.Context, client *http.Client, rawURL string, limit int64) ([]byte, int, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
+	req, err := queries.NewSafeRequestFromString(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
 		return nil, 0, err
 	}
-	resp, err := client.Do(req)
+	resp, err := queries.DoValidated(client, req)
 	if err != nil {
 		return nil, 0, err
 	}

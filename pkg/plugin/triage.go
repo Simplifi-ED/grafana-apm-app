@@ -18,6 +18,7 @@ import (
 
 	"github.com/grafana/grafana-plugin-sdk-go/backend"
 	"github.com/grafana/grafana-plugin-sdk-go/backend/log"
+	"github.com/nais/grafana-otel-plugin/pkg/plugin/queries"
 )
 
 // Triage state lives as an append-only event log in Grafana organization
@@ -106,7 +107,7 @@ func fpFromTag(tag string) string {
 }
 
 func (s *annotationTriageStore) do(ctx context.Context, method, path string, body io.Reader) (*http.Response, error) {
-	req, err := http.NewRequestWithContext(ctx, method, s.grafanaURL+path, body)
+	req, err := queries.NewSafeRequestFromString(ctx, method, s.grafanaURL+path, body)
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +117,7 @@ func (s *annotationTriageStore) do(ctx context.Context, method, path string, bod
 	if s.token != "" {
 		req.Header.Set("Authorization", "Bearer "+s.token)
 	}
-	return s.httpClient.Do(req)
+	return queries.DoValidated(s.httpClient, req)
 }
 
 // fetch reads triage annotations matching all given tags, newest first (the

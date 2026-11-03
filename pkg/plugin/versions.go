@@ -283,7 +283,7 @@ func (a *App) queryDeployAnnotations(ctx context.Context, tag, service, env stri
 	params.Set("to", strconv.FormatInt(to.UnixMilli(), 10))
 	params.Set("limit", "100")
 
-	apiReq, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/api/annotations?%s", a.grafanaURL, params.Encode()), nil)
+	apiReq, err := queries.NewSafeRequestFromString(ctx, http.MethodGet, fmt.Sprintf("%s/api/annotations?%s", a.grafanaURL, params.Encode()), nil)
 	if err != nil {
 		return nil, false
 	}
@@ -291,7 +291,7 @@ func (a *App) queryDeployAnnotations(ctx context.Context, tag, service, env stri
 		apiReq.Header.Set("Authorization", "Bearer "+token)
 	}
 
-	resp, err := a.healthClient.Do(apiReq)
+	resp, err := queries.DoValidated(a.healthClient, apiReq)
 	if err != nil {
 		logger.Debug("Deploy annotations request failed", "error", err)
 		return nil, false

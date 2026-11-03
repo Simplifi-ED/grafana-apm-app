@@ -1,11 +1,11 @@
 import React, { useCallback, useState } from 'react';
 import { IconButton } from '@grafana/ui';
 import { toMermaidGraph } from '../utils/mermaid';
-import type { ServiceGraphNode, ServiceGraphEdge } from './ServiceGraph';
+import type { GraphEdge, GraphNode } from '../utils/graphTypes';
 
 interface CopyMermaidButtonProps {
-  nodes: ServiceGraphNode[];
-  edges: ServiceGraphEdge[];
+  nodes: GraphNode[];
+  edges: GraphEdge[];
   direction?: 'RIGHT' | 'DOWN';
 }
 

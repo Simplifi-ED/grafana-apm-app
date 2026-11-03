@@ -71,3 +71,22 @@ func ParseServiceGraphMaps(rows []map[string]any, windowSec float64) []ServiceGr
 	}
 	return out
 }
+
+// ParseServiceNamespaceMap builds service_name → namespace from inventory rows
+// (DiscoverInventorySQL / InventorySQL). Rows without a namespace are skipped —
+// those endpoints are dropped from the clustered Namespaces view.
+func ParseServiceNamespaceMap(rows []map[string]any) map[string]string {
+	out := make(map[string]string, len(rows))
+	for _, r := range rows {
+		svc := ParseString(r["service"])
+		ns := ParseString(r["namespace"])
+		if svc == "" || ns == "" {
+			continue
+		}
+		if existing, dup := out[svc]; dup && existing != ns {
+			continue
+		}
+		out[svc] = ns
+	}
+	return out
+}

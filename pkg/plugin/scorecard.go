@@ -815,13 +815,13 @@ func (a *App) proxyGET(ctx context.Context, headers http.Header, token, reqURL s
 	ctx, cancel := context.WithTimeout(ctx, scorecardProbeTimeout)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
+	req, err := queries.NewSafeRequestFromString(ctx, http.MethodGet, reqURL, nil)
 	if err != nil {
 		return nil, err
 	}
 	applyProxyAuth(req, headers, token)
 
-	resp, err := a.healthClient.Do(req)
+	resp, err := queries.DoValidated(a.healthClient, req)
 	if err != nil {
 		return nil, err
 	}

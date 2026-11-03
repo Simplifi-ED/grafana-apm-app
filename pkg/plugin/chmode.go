@@ -681,6 +681,73 @@ func (a *App) serviceGraphEdgesClickHouse(
 	return chquery.ParseServiceGraphMaps(res.Maps(), window)
 }
 
+// fetchClusteredServiceMapClickHouse builds the Namespaces tab topology from
+// ClickStack tables: service-graph edges + spanmetrics inventory for
+// service→namespace attribution, then the shared aggregateByNamespace fold.
+func (a *App) fetchClusteredServiceMapClickHouse(
+	ctx context.Context,
+	ch *queries.ClickHouseClient,
+	from, to time.Time,
+	environment string,
+) ServiceMapResponse {
+	logger := log.DefaultLogger.With("handler", "servicemap-clustered-clickhouse")
+	if ch == nil {
+		return ServiceMapResponse{Nodes: []ServiceMapNode{}, Edges: []ServiceMapEdge{}}
+	}
+	window := chquery.WindowSeconds(from, to)
+	opts := queries.ClickHouseQueryOptions{From: from, To: to, Limit: 500}
+
+	edgeRes, err := ch.Query(ctx, chquery.ServiceGraphSQL(from, to, environment), opts)
+	if err != nil {
+		logger.Warn("clustered service graph query failed", "error", err)
+		return ServiceMapResponse{Nodes: []ServiceMapNode{}, Edges: []ServiceMapEdge{}}
+	}
+	nsRes, err := ch.Query(ctx, chquery.DiscoverInventorySQL(from, to, "", environment), opts)
+	if err != nil {
+		logger.Warn("clustered namespace map query failed", "error", err)
+		return ServiceMapResponse{Nodes: []ServiceMapNode{}, Edges: []ServiceMapEdge{}}
+	}
+
+	return clusteredServiceMapFromClickHouse(
+		chquery.ParseServiceGraphMaps(edgeRes.Maps(), window),
+		chquery.ParseServiceNamespaceMap(nsRes.Maps()),
+	)
+}
+
+// clusteredServiceMapFromClickHouse converts CH service-graph edges + a
+// service→namespace map into the namespace-clustered response.
+func clusteredServiceMapFromClickHouse(edges []chquery.ServiceGraphEdge, nsMap map[string]string) ServiceMapResponse {
+	sg := make(map[sgEdgeKey]*sgEdgeData, len(edges))
+	for _, e := range edges {
+		if e.Client == "" || e.Server == "" {
+			continue
+		}
+		k := sgEdgeKey{client: e.Client, server: e.Server}
+		if existing, ok := sg[k]; ok {
+			existing.rate += e.Rate
+			existing.errorRate += e.Rate * e.ErrorRate
+			continue
+		}
+		sg[k] = &sgEdgeData{
+			rate:      e.Rate,
+			errorRate: e.Rate * e.ErrorRate, // absolute error req/s for aggregateByNamespace
+		}
+	}
+	// Inventory names are short; also index normalized forms so lookups survive
+	// preprocessServiceMapEdges FQDN/hex stripping on edge endpoints.
+	enriched := make(map[string]string, len(nsMap)*2)
+	for svc, ns := range nsMap {
+		if svc == "" || ns == "" {
+			continue
+		}
+		enriched[svc] = ns
+		if norm := stripHexSuffix(normalizeServiceName(svc)); norm != "" {
+			enriched[norm] = ns
+		}
+	}
+	return aggregateByNamespace(sg, enriched)
+}
+
 func (a *App) fetchServiceMapClickHouse(
 	ctx context.Context,
 	ch *queries.ClickHouseClient,

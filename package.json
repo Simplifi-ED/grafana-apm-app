@@ -83,8 +83,6 @@
     "@grafana/scenes": "9.1.0",
     "@grafana/schema": "13.3.0",
     "@grafana/ui": "13.3.0",
-    "@xyflow/react": "^12.12.0",
-    "elkjs": "^0.12.0",
     "fflate": "0.8.3",
     "fuse.js": "^7.5.0",
     "react": "^19.3.1",

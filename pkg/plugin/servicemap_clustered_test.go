@@ -2,6 +2,8 @@ package plugin
 
 import (
 	"testing"
+
+	"github.com/nais/grafana-otel-plugin/pkg/plugin/chquery"
 )
 
 // edgeWith builds a single service-graph edge with full metrics.
@@ -149,6 +151,60 @@ func TestAggregateByNamespace(t *testing.T) {
 		resp := aggregateByNamespace(edges, nsMap)
 		if len(resp.Nodes) < 2 || resp.Nodes[0].ID != "big" {
 			t.Errorf("expected 'big' namespace first (highest service count), got %+v", resp.Nodes)
+		}
+	})
+}
+
+func TestClusteredServiceMapFromClickHouse(t *testing.T) {
+	t.Run("folds CH edges into cross-namespace topology", func(t *testing.T) {
+		edges := []chquery.ServiceGraphEdge{
+			{Client: "nova-frontend", Server: "nova-api", Rate: 50, ErrorRate: 0},
+			{Client: "envoy-gateway", Server: "nova-api", Rate: 40, ErrorRate: 0.1},
+			{Client: "nova-api", Server: "valkey", Rate: 10, ErrorRate: 0.2}, // no ns → dropped
+			{Client: "nova-frontend", Server: "admin-api", Rate: 5, ErrorRate: 0},
+		}
+		nsMap := map[string]string{
+			"nova-frontend": "prod-nova",
+			"nova-api":      "prod-nova",
+			"admin-api":     "prod-nova",
+			"envoy-gateway": "envoy-gateway-system",
+		}
+
+		resp := clusteredServiceMapFromClickHouse(edges, nsMap)
+
+		if len(resp.Nodes) != 2 {
+			t.Fatalf("expected 2 namespace nodes, got %d: %+v", len(resp.Nodes), resp.Nodes)
+		}
+		prod := nodeByID(resp, "prod-nova")
+		envoy := nodeByID(resp, "envoy-gateway-system")
+		if prod == nil || envoy == nil {
+			t.Fatalf("missing namespaces: %+v", resp.Nodes)
+		}
+		if prod.ServiceCount != 3 {
+			t.Errorf("prod-nova ServiceCount = %d, want 3", prod.ServiceCount)
+		}
+		if envoy.ServiceCount != 1 {
+			t.Errorf("envoy-gateway-system ServiceCount = %d, want 1", envoy.ServiceCount)
+		}
+		cross := edgeByID(resp, "envoy-gateway-system->prod-nova")
+		if cross == nil {
+			t.Fatalf("missing cross-ns edge, got %+v", resp.Edges)
+		}
+		if cross.MainStat != "40.0 req/s" {
+			t.Errorf("cross edge MainStat = %q, want 40.0 req/s", cross.MainStat)
+		}
+		// Intra-namespace nova-frontend→nova-api / admin-api must not appear as edges.
+		for _, e := range resp.Edges {
+			if e.Source == e.Target {
+				t.Errorf("intra-namespace edge leaked: %+v", e)
+			}
+		}
+	})
+
+	t.Run("empty inputs yield empty response", func(t *testing.T) {
+		resp := clusteredServiceMapFromClickHouse(nil, nil)
+		if len(resp.Nodes) != 0 || len(resp.Edges) != 0 {
+			t.Errorf("expected empty, got %+v", resp)
 		}
 	})
 }

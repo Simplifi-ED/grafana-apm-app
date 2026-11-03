@@ -99,8 +99,7 @@ func (c *DsQueryClient) execute(ctx context.Context, dsReq dsQueryRequest) ([]ds
 	if err != nil {
 		return nil, fmt.Errorf("creating ds query request: %w", err)
 	}
-	// #nosec G704 -- target is Grafana's own /api/ds/query; base URL validated by SafeBaseURL
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
+	req, err := NewSafeRequestFromString(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("creating ds query request: %w", err)
 	}
@@ -115,8 +114,7 @@ func (c *DsQueryClient) execute(ctx context.Context, dsReq dsQueryRequest) ([]ds
 		}
 	}
 
-	// #nosec G704 -- target is Grafana's own /api/ds/query; base URL validated by SafeBaseURL
-	resp, err := c.httpClient.Do(req)
+	resp, err := DoValidated(c.httpClient, req)
 	if err != nil {
 		return nil, fmt.Errorf("executing ds query: %w", err)
 	}

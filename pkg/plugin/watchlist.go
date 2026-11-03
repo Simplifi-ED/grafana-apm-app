@@ -268,13 +268,13 @@ func (a *App) settingsURL(req *http.Request) string {
 
 // fetchPluginSettings retrieves the plugin's current settings from the Grafana API.
 func (a *App) fetchPluginSettings(req *http.Request, cred settingsCredential) (*pluginSettings, error) {
-	apiReq, err := http.NewRequestWithContext(req.Context(), http.MethodGet, a.settingsURL(req), nil)
+	apiReq, err := queries.NewSafeRequestFromString(req.Context(), http.MethodGet, a.settingsURL(req), nil)
 	if err != nil {
 		return nil, err
 	}
 	cred.apply(apiReq)
 
-	resp, err := a.healthClient.Do(apiReq)
+	resp, err := queries.DoValidated(a.healthClient, apiReq)
 	if err != nil {
 		return nil, fmt.Errorf("grafana API request failed: %w", err)
 	}
@@ -307,14 +307,14 @@ func (a *App) savePluginSettings(req *http.Request, cred settingsCredential, set
 		return err
 	}
 
-	apiReq, err := http.NewRequestWithContext(req.Context(), http.MethodPost, a.settingsURL(req), bytes.NewReader(body))
+	apiReq, err := queries.NewSafeRequestFromString(req.Context(), http.MethodPost, a.settingsURL(req), bytes.NewReader(body))
 	if err != nil {
 		return err
 	}
 	apiReq.Header.Set("Content-Type", "application/json")
 	cred.apply(apiReq)
 
-	resp, err := a.healthClient.Do(apiReq)
+	resp, err := queries.DoValidated(a.healthClient, apiReq)
 	if err != nil {
 		return fmt.Errorf("grafana API request failed: %w", err)
 	}

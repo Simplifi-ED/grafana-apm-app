@@ -7,16 +7,18 @@ import { useSearchParams } from 'react-router-dom';
 import { getServiceMap, ServiceMapResponse } from '../api/client';
 import { getClusteredServiceMap, ClusteredServiceMapResponse, totalClusteredServices } from '../api/servicemap';
 import { useTimeRange } from '../utils/timeRange';
-import { useAppNavigate, sanitizeParam } from '../utils/navigation';
+import { sanitizeParam } from '../utils/navigation';
 import { useUrlParams } from '../utils/useUrlState';
 import { useConfiguredEnvironments } from '../utils/datasources';
 import { useFetch } from '../utils/useFetch';
-import { ServiceGraph, toGraphData } from '../components/ServiceGraph';
+import { toGraphData, toNodeGraphFrames } from '../utils/nodeGraphFrames';
+import { ServiceMapPanel } from '../components/ServiceMapPanel/ServiceMapPanel';
 import { CopyMermaidButton } from '../components/CopyMermaidButton';
 import { HeaderTimeControls } from '../components/HeaderTimeControls';
 import { DataState } from '../components/DataState';
 import { PanelSkeleton } from '../components/Skeleton';
 import { typographyFontSize } from '../utils/themeTypography';
+import { PLUGIN_BASE_URL } from '../constants';
 
 type MapView = 'namespaces' | 'services';
 
@@ -31,7 +33,6 @@ type MapView = 'namespaces' | 'services';
  */
 function ServiceMap() {
   const styles = useStyles2(getStyles);
-  const appNavigate = useAppNavigate();
   const [searchParams] = useSearchParams();
   const setUrlParams = useUrlParams();
   const { from, fromMs, toMs, refresh: refreshTimeRange } = useTimeRange();
@@ -98,19 +99,14 @@ function ServiceMap() {
 
   const activeData: ServiceMapResponse | null = view === 'namespaces' ? clusteredData : fullData;
   const { graphNodes, graphEdges } = useMemo(() => toGraphData(activeData), [activeData]);
-
-  const handleNodeClick = useCallback(
-    (nodeId: string) => {
-      if (view === 'namespaces') {
-        // Drill into the namespace's own scoped topology (bounded subset).
-        appNavigate(`namespaces/${encodeURIComponent(nodeId)}`, envFilter ? { environment: envFilter } : undefined);
-      } else {
-        // Full-graph nodes are bare service names (no namespace); jump to the
-        // service inventory pre-filtered so the user can pick the right one.
-        appNavigate('services', { q: nodeId });
-      }
-    },
-    [view, appNavigate, envFilter]
+  const frames = useMemo(
+    () =>
+      toNodeGraphFrames(activeData, {
+        linkMode: view === 'namespaces' ? 'namespace' : 'serviceSearch',
+        pluginBaseUrl: PLUGIN_BASE_URL,
+        environment: envFilter || undefined,
+      }),
+    [activeData, view, envFilter]
   );
 
   const viewOptions = [
@@ -183,15 +179,8 @@ function ServiceMap() {
         >
           {/* Fills remaining viewport like Explore's node graph — not a fixed
               node-count height that leaves empty chrome under a small map. */}
-          <div className={styles.graphPanel} data-testid="service-map-canvas">
-            <ServiceGraph
-              nodes={graphNodes}
-              edges={graphEdges}
-              direction="DOWN"
-              enableGrouping={false}
-              enableWrapping={graphNodes.length > 15}
-              onNodeClick={handleNodeClick}
-            />
+          <div className={styles.graphPanel}>
+            <ServiceMapPanel frames={frames} />
           </div>
         </DataState>
       </div>

@@ -318,16 +318,14 @@ func (a *App) searchDBSpans(ctx context.Context, headers http.Header, tracesUID,
 
 	ctx, cancel := context.WithTimeout(ctx, topQueriesTimeout)
 	defer cancel()
-	// #nosec G704 -- target is Grafana datasource proxy; base validated by SafeBaseURL
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
+	httpReq, err := queries.NewSafeRequestFromString(ctx, http.MethodGet, reqURL, nil)
 	if err != nil {
 		return nil, false, err
 	}
 	applyProxyAuth(httpReq, headers, a.resolveServiceToken(ctx))
 
 	client := &http.Client{Timeout: topQueriesTimeout}
-	// #nosec G704 -- target is Grafana datasource proxy; base validated by SafeBaseURL
-	resp, err := client.Do(httpReq)
+	resp, err := queries.DoValidated(client, httpReq)
 	if err != nil {
 		return nil, false, err
 	}
