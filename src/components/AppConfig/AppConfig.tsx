@@ -296,12 +296,19 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
     }
   };
 
+  // Read event value synchronously — never inside a setState updater.
+  // e.currentTarget is null once React recycles the event; autofill extensions
+  // also fire change events with a null currentTarget (crash on Config page).
+  const readInputValue = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>): string =>
+    e.currentTarget?.value ?? e.target?.value ?? '';
+
   const onChange = (field: keyof Omit<State, 'envOverrides'>) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    setState((prev) => ({ ...prev, [field]: e.target.value.trim() }));
+    const value = readInputValue(e).trim();
+    setState((prev) => ({ ...prev, [field]: value }));
   };
 
   const onLabelOverrideChange = (field: keyof LabelOverrides) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.trim() || undefined;
+    const value = readInputValue(e).trim() || undefined;
     setState((prev) => ({
       ...prev,
       labelOverrides: { ...prev.labelOverrides, [field]: value },
@@ -309,9 +316,10 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
   };
 
   const onEnvChange = (idx: number, field: keyof EnvOverride) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = readInputValue(e).trim();
     setState((prev) => {
       const overrides = [...prev.envOverrides];
-      overrides[idx] = { ...overrides[idx], [field]: e.target.value.trim() };
+      overrides[idx] = { ...overrides[idx], [field]: value };
       return { ...prev, envOverrides: overrides };
     });
   };
@@ -334,9 +342,10 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
   };
 
   const onAliasChange = (idx: number, field: keyof IngressAlias) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = readInputValue(e).trim();
     setState((prev) => {
       const aliases = [...prev.ingressAliases];
-      aliases[idx] = { ...aliases[idx], [field]: e.target.value.trim() };
+      aliases[idx] = { ...aliases[idx], [field]: value };
       return { ...prev, ingressAliases: aliases };
     });
   };
@@ -356,9 +365,10 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
   };
 
   const onServiceAliasChange = (idx: number, field: keyof ServiceAlias) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = readInputValue(e).trim();
     setState((prev) => {
       const aliases = [...prev.serviceAliases];
-      aliases[idx] = { ...aliases[idx], [field]: e.currentTarget.value.trim() };
+      aliases[idx] = { ...aliases[idx], [field]: value };
       return { ...prev, serviceAliases: aliases };
     });
   };
@@ -379,9 +389,10 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
 
   const onWatchlistChange =
     (idx: number, field: keyof OpsWatchlistEntry) => (e: React.ChangeEvent<HTMLInputElement>) => {
+      const value = readInputValue(e).trim();
       setState((prev) => {
         const list = [...prev.opsWatchlist];
-        list[idx] = { ...list[idx], [field]: e.target.value.trim() };
+        list[idx] = { ...list[idx], [field]: value };
         return { ...prev, opsWatchlist: list };
       });
     };
@@ -765,7 +776,10 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
             width={40}
             value={state.internalGrafanaUrl}
             placeholder="http://localhost:3000"
-            onChange={(e) => setState((prev) => ({ ...prev, internalGrafanaUrl: e.currentTarget.value }))}
+            onChange={(e) => {
+              const value = readInputValue(e);
+              setState((prev) => ({ ...prev, internalGrafanaUrl: value }));
+            }}
           />
         </Field>
         <Field
@@ -785,9 +799,10 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
             isConfigured={state.tokenConfigured}
             value={state.serviceAccountToken}
             placeholder="glsa_..."
-            onChange={(e) =>
-              setState((prev) => ({ ...prev, serviceAccountToken: e.currentTarget.value, tokenReset: false }))
-            }
+            onChange={(e) => {
+              const value = readInputValue(e);
+              setState((prev) => ({ ...prev, serviceAccountToken: value, tokenReset: false }));
+            }}
             onReset={() =>
               setState((prev) => ({ ...prev, serviceAccountToken: '', tokenConfigured: false, tokenReset: true }))
             }
@@ -1025,7 +1040,10 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
             rows={3}
             value={state.knownTeams}
             placeholder={'platform\nsre\nPayments, Billing'}
-            onChange={(e) => setState((prev) => ({ ...prev, knownTeams: e.currentTarget.value }))}
+            onChange={(e) => {
+              const value = readInputValue(e);
+              setState((prev) => ({ ...prev, knownTeams: value }));
+            }}
           />
         </Field>
       </FieldSet>

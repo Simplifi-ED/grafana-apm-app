@@ -121,6 +121,26 @@ describe('Components/AppConfig', () => {
     expect(submittedPayload().jsonData.internalGrafanaUrl).toBe('http://127.0.0.1:3000/grafana');
   });
 
+  test('survives change events with null currentTarget (autofill / recycled events)', async () => {
+    await act(async () => {
+      // @ts-ignore
+      render(<AppConfig plugin={props.plugin} query={props.query} />);
+    });
+
+    const input = screen.getByPlaceholderText('http://localhost:3000') as HTMLInputElement;
+    await act(async () => {
+      // Browser extensions and React event recycling can deliver change events
+      // where currentTarget is null — must not throw (v0.35 Config crash).
+      fireEvent.change(input, { target: { value: 'http://127.0.0.1:3000' }, currentTarget: null });
+    });
+
+    expect(input).toBeInTheDocument();
+    await act(async () => {
+      fireEvent.click(screen.getByTestId(testIds.appConfig.submit));
+    });
+    expect(submittedPayload().jsonData.internalGrafanaUrl).toBe('http://127.0.0.1:3000');
+  });
+
   test('clears a configured service account token via reset + save (sends empty string)', async () => {
     const plugin = {
       meta: {
