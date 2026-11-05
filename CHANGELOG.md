@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.35.1](https://github.com/Simplifi-ED/omnivya-apm-app/compare/omnivya-apm-app-v0.35.0...omnivya-apm-app-v0.35.1) (2026-11-05)
+
+
+### Bug Fixes
+
+* **AppConfig:** handle null currentTarget in change events to prevent crashes ([71b6161](https://github.com/Simplifi-ED/omnivya-apm-app/commit/71b61614973fd0e74807912907f275772fce2e25))
+* **backend:** auto-resolve Grafana URL via verified loopback probe ([a202d4a](https://github.com/Simplifi-ED/omnivya-apm-app/commit/a202d4aa120a3985b98ca8811bcdd476d66edc0f))
+* **backend:** auto-resolve Grafana URL via verified loopback probe ([8fe86f8](https://github.com/Simplifi-ED/omnivya-apm-app/commit/8fe86f849f915762d0158f65ddea3d1f5d26a288))
+
+
+### Documentation
+
+* design for automatic Grafana base URL resolution ([c0f1c69](https://github.com/Simplifi-ED/omnivya-apm-app/commit/c0f1c6922f41eeba1dd6b878d159273c752d8901))
+
 ## [0.35.0](https://github.com/Simplifi-ED/omnivya-apm-app/compare/omnivya-apm-app-v0.34.2...omnivya-apm-app-v0.35.0) (2026-11-03)
 
 
