@@ -76,16 +76,18 @@ Enable the plugin under **Administration → Plugins**.
 4. Save. Health check runs `SELECT 1` via `/api/ds/query`.
 
 Backend calls to `/api/ds/query` and the datasource proxy use a Grafana base URL
-resolved in this order (no direct `GF_*` env access, no invented listen port):
+picked automatically at startup (no `GF_*` env access). Candidates, in order:
 
-1. Optional **Internal Grafana URL** (`jsonData.internalGrafanaUrl`) — e.g.
-   `http://localhost:3000` or `http://127.0.0.1:3000/grafana` when an OAuth2
-   proxy/ingress rejects service-account bearer tokens on the public App URL
-2. Plugin SDK App URL (Grafana's configured root URL)
+1. Optional **Internal Grafana URL** (`jsonData.internalGrafanaUrl`)
+2. Loopback `http://127.0.0.1:3000` (with, then without, the root URL sub-path)
+3. Plugin SDK App URL (Grafana's configured `root_url`)
 
-If neither is set/valid, backend datasource calls fail closed until configured.
-Pair with a Viewer service-account token when the backend cannot reuse browser
-session cookies.
+The first candidate whose `/api/health` answers as this Grafana (matching
+version, no credentials sent) wins. Loopback avoids DNS, ingress, and OAuth2
+proxies between the plugin and its own Grafana. Set the override only when
+Grafana listens on a non-default address. The Configuration page shows the URL
+in use. Auth uses Grafana's managed service account (`plugin.json` `iam`),
+falling back to a configured Viewer service-account token.
 
 Example app provisioning: [`provisioning/plugins/apps-clickhouse.yaml.example`](https://github.com/Simplifi-ED/grafana-apm-app/blob/main/provisioning/plugins/apps-clickhouse.yaml.example).
 

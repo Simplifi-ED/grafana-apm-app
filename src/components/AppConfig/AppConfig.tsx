@@ -768,9 +768,14 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
           token when those aren&apos;t available, or when Grafana runs behind an OAuth2 proxy and the backend needs a
           service account for internal datasource calls.
         </p>
+        {caps?.grafanaUrl && (
+          <p className={s.description}>
+            Plugin reaches Grafana at: <code>{caps.grafanaUrl}</code>
+          </p>
+        )}
         <Field
           label="Internal Grafana URL"
-          description="Optional. Backend API base URL when the public App URL is behind an OAuth2 proxy or ingress that rejects service-account tokens (e.g. http://localhost:3000 or http://127.0.0.1:3000/grafana)."
+          description="Optional override. Leave empty: the backend auto-detects Grafana on 127.0.0.1:3000, then the App URL. Set it only when Grafana listens on a non-default address."
         >
           <Input
             width={40}
