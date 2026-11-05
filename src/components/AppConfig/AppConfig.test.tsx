@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, screen, act, fireEvent } from '@testing-library/react';
+import { of } from 'rxjs';
 import { PluginType } from '@grafana/data';
 import AppConfig, { AppConfigProps } from './AppConfig';
 import { testIds } from '../testIds';
@@ -119,6 +120,31 @@ describe('Components/AppConfig', () => {
     });
 
     expect(submittedPayload().jsonData.internalGrafanaUrl).toBe('http://127.0.0.1:3000/grafana');
+  });
+
+  test('shows the Grafana URL the backend resolved', async () => {
+    mockFetch.mockImplementation((req: { url: string }) =>
+      String(req?.url).endsWith('/capabilities')
+        ? of({
+            data: {
+              spanMetrics: {},
+              serviceGraph: {},
+              tempo: {},
+              loki: {},
+              services: [],
+              grafanaUrl: 'http://127.0.0.1:3000',
+            },
+          })
+        : undefined
+    );
+
+    await act(async () => {
+      // @ts-ignore
+      render(<AppConfig plugin={props.plugin} query={props.query} />);
+    });
+
+    expect(await screen.findByText('http://127.0.0.1:3000')).toBeInTheDocument();
+    expect(screen.getByText(/plugin reaches grafana at/i)).toBeInTheDocument();
   });
 
   test('survives change events with null currentTarget (autofill / recycled events)', async () => {

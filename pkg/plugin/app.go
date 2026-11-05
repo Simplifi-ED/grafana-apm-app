@@ -132,8 +132,8 @@ func NewApp(ctx context.Context, settings backend.AppInstanceSettings) (instance
 		logger.Info("Service account token configured for internal API calls")
 	}
 
-	// Prefer jsonData.internalGrafanaUrl (bypass ingress/OAuth2), then SDK AppURL.
-	// Never invents a listen port and never reads GF_* env vars (catalog rule).
+	// Probes override → loopback → SDK AppURL; never reads GF_* env vars
+	// (catalog rule). See grafanaurl.go.
 	app.grafanaURL = resolveGrafanaURL(ctx, app.settings.InternalGrafanaURL, logger)
 	if app.grafanaURL == "" {
 		logger.Warn("No Grafana base URL resolved — set jsonData.internalGrafanaUrl or Grafana App URL; backend datasource calls will fail until then")
@@ -178,34 +178,6 @@ func (a *App) ingressHostnames(service string) []string {
 		return nil
 	}
 	return a.ingressByService[service]
-}
-
-// resolveGrafanaURL picks the base URL for backend → Grafana API calls.
-// Priority: validated plugin override → SDK AppURL. Returns "" when neither
-// yields a safe URL — callers must not invent a listen port.
-func resolveGrafanaURL(ctx context.Context, override string, logger log.Logger) string {
-	type candidate struct {
-		source string
-		raw    string
-	}
-	var candidates []candidate
-	if override != "" {
-		candidates = append(candidates, candidate{"plugin setting internalGrafanaUrl", override})
-	}
-	if appURL, err := config.GrafanaConfigFromContext(ctx).AppURL(); err != nil {
-		logger.Debug("SDK AppURL unavailable", "error", err)
-	} else if appURL != "" {
-		candidates = append(candidates, candidate{"SDK AppURL", appURL})
-	}
-	for _, c := range candidates {
-		if base := queries.SafeBaseURL(c.raw); base != "" {
-			logger.Info("Resolved Grafana URL", "grafanaURL", base, "source", c.source)
-			return base
-		}
-		logger.Warn("Ignoring invalid Grafana URL candidate", "source", c.source, "value", c.raw)
-	}
-	logger.Warn("Grafana app URL unavailable")
-	return ""
 }
 
 // proxyURL builds a Grafana datasource proxy URL for the given UID.

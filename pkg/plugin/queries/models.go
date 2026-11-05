@@ -144,6 +144,9 @@ type Capabilities struct {
 	// Per-environment datasource availability
 	TempoByEnv map[string]DataSourceStatus `json:"tempoByEnv,omitempty"`
 	LokiByEnv  map[string]DataSourceStatus `json:"lokiByEnv,omitempty"`
+
+	// GrafanaURL is the base URL the backend uses for Grafana API calls.
+	GrafanaURL string `json:"grafanaUrl,omitempty"`
 }
 
 // PyroscopeCapability describes a detected Pyroscope (or legacy Phlare)

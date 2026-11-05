@@ -45,7 +45,8 @@ HTTP 400 into one message, which hid the cause.
 | # | Candidate | Source |
 | - | --------- | ------ |
 | 1 | `jsonData.internalGrafanaUrl` | Explicit override, if non-empty |
-| 2 | `http://127.0.0.1:3000` + path of `AppURL()` | Loopback; keeps sub-path deployments (`/grafana`) |
+| 2a | `http://127.0.0.1:3000` + path of `AppURL()` | Loopback, only when `root_url` has a sub-path (`serve_from_sub_path = true`) |
+| 2b | `http://127.0.0.1:3000` | Loopback at root (sub-path stripped by a proxy, or no sub-path) |
 | 3 | `AppURL()` | SDK, from `root_url` |
 
 Each candidate is normalised with `queries.SafeBaseURL`; invalid ones are
@@ -62,8 +63,9 @@ credentials sent. A candidate is accepted when:
   `13.3.0+security-01`).
 
 The first accepted candidate wins. If none is accepted, return the first valid
-candidate (pre-change behaviour, so a slow Grafana boot never yields "")
-and log at error level that probing failed.
+override or `AppURL` candidate (pre-change behaviour; a guessed loopback is
+never used unverified), else "", and log at error level that probing failed.
+Health probes reject any redirect.
 
 Every probe result is logged at debug with candidate, outcome and reason; the
 winner at info: `Resolved Grafana URL grafanaURL=… source=… probed=true|false`.

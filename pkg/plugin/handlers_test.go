@@ -378,6 +378,25 @@ func TestHandleCapabilities(t *testing.T) {
 		}
 	})
 
+	t.Run("reports resolved Grafana URL", func(t *testing.T) {
+		promSrv := mockPromServer(t, nil)
+		defer promSrv.Close()
+		app := newTestApp(t, promSrv.URL, defaultCaps())
+		app.grafanaURL = "http://127.0.0.1:3000"
+
+		req := httptest.NewRequest(http.MethodGet, "/capabilities", nil)
+		w := httptest.NewRecorder()
+		app.handleCapabilities(w, req)
+
+		var caps queries.Capabilities
+		if err := json.Unmarshal(w.Body.Bytes(), &caps); err != nil {
+			t.Fatalf("invalid JSON: %s", err)
+		}
+		if caps.GrafanaURL != "http://127.0.0.1:3000" {
+			t.Errorf("grafanaUrl = %q, want http://127.0.0.1:3000", caps.GrafanaURL)
+		}
+	})
+
 	t.Run("rejects POST", func(t *testing.T) {
 		promSrv := mockPromServer(t, nil)
 		defer promSrv.Close()

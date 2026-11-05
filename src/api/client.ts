@@ -33,6 +33,8 @@ export interface Capabilities {
   environments?: string[];
   tempoByEnv?: Record<string, DataSourceStatus>;
   lokiByEnv?: Record<string, DataSourceStatus>;
+  /** Base URL the backend uses for Grafana API calls (auto-resolved). */
+  grafanaUrl?: string;
 }
 
 export interface DataPoint {

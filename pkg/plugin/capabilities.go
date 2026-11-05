@@ -97,6 +97,7 @@ func (a *App) handleCapabilities(w http.ResponseWriter, req *http.Request) {
 	}
 
 	if caps, ok := a.freshCapabilities(); ok {
+		caps.GrafanaURL = a.grafanaURL
 		writeJSON(w, caps)
 		return
 	}
@@ -129,7 +130,9 @@ func (a *App) handleCapabilities(w http.ResponseWriter, req *http.Request) {
 		return caps, nil
 	})
 
-	writeJSON(w, v.(queries.Capabilities))
+	caps := v.(queries.Capabilities)
+	caps.GrafanaURL = a.grafanaURL
+	writeJSON(w, caps)
 }
 
 func (a *App) detectCapabilities(ctx context.Context, headers http.Header, serviceToken string) queries.Capabilities {
